@@ -31,9 +31,9 @@ const (
 
 	ManagedEnvironmentSecretType = "managed-gitops.redhat.com/managed-environment"
 
-	JobKey      = "job"                    // Clean up job key
-	JobKeyValue = "managed-gitops-cleanup" // Clean up job value
-	JobTypeKey  = "jobType"                // Key to identify clean up job type
+	Log_JobKey      = "job"                    // Clean up job key
+	Log_JobKeyValue = "managed-gitops-cleanup" // Clean up job value
+	Log_JobTypeKey  = "jobType"                // Key to identify clean up job type
 )
 
 // ExponentialBackoff: the more times in a row something fails, the longer we wait.

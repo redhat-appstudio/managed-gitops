@@ -12,6 +12,7 @@ import (
 	argocdutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/discovery"
@@ -53,8 +54,8 @@ func (c *ClusterReconciler) Start() {
 		ctx := context.Background()
 		log := log.FromContext(ctx).
 			WithName(logutil.LogLogger_managed_gitops).
-			WithValues("component", "cluster-reconciler").
-			WithValues(sharedutil.JobKey, sharedutil.JobKeyValue)
+			WithValues(logutil.Log_Component, logutil.Log_Component_Backend_ClusterReconciler).
+			WithValues(sharedutil.Log_JobKey, sharedutil.Log_JobKeyValue)
 
 		_, _ = sharedutil.CatchPanic(func() error {
 			c.cleanOrphanedResources(ctx, log)
@@ -69,11 +70,11 @@ func (c *ClusterReconciler) Start() {
 // A k8s resource is considered to be orphaned when:
 // 1. It was previously managed by Argo CD i.e has label "app.kubernetes.io/instance".
 // 2. It doesn't have a corresponding GitOpsDeployment resource.
-func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr.Logger) {
+func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, logParam logr.Logger) {
 	// Use a label selector to filter resources managed by Argo CD
 	labelSelector, err := labels.Parse(argocdutil.ArgocdResourceLabel)
 	if err != nil {
-		log.Error(err, "failed to create a label selector for listing resources managed by Argo CD")
+		logParam.Error(err, "failed to create a label selector for listing resources managed by Argo CD")
 		return
 	}
 
@@ -81,13 +82,18 @@ func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr
 		LabelSelector: labelSelector,
 	}
 
-	apiObjects, err := c.getAllNamespacedAPIResources(ctx, log, listOpts)
+	apiObjects, err := c.getAllNamespacedAPIResources(ctx, logParam, listOpts)
 	if err != nil {
-		log.Error(err, "failed to get namespaced API resources from the cluster")
+		logParam.Error(err, "failed to get namespaced API resources from the cluster")
 		return
 	}
 
 	for i, obj := range apiObjects {
+
+		log := logParam.WithValues(
+			logutil.Log_K8s_Request_Namespace, obj.GetNamespace(),
+			logutil.Log_K8s_Request_Name, obj.GetName(),
+			"gvk", obj.GroupVersionKind())
 
 		// Skip all openshift namespces
 		if strings.HasPrefix(obj.GetNamespace(), "openshift-") {
@@ -117,7 +123,7 @@ func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr
 		if err := c.client.List(ctx, gitopsDeplList, &client.ListOptions{
 			Namespace: obj.GetNamespace(),
 		}); err != nil {
-			log.Error(err, "failed to list GitOpsDeployments", "namespace", obj.GetNamespace())
+			log.Error(err, "failed to list GitOpsDeployments")
 			continue
 		}
 
@@ -138,12 +144,15 @@ func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr
 		// The resource was managed by Argo CD i.e. it has label "app.kubernetes.io/instance"
 		// But it doesn't have a corresponding GitOpsDeployment so it can be deleted.
 		if !found {
+
 			if err := c.client.Delete(ctx, &apiObjects[i]); err != nil {
-				log.Error(err, "failed to delete object in the orphaned reconciler", "name", obj.GetName(), "namespace", obj.GetNamespace(), "gvk", obj.GroupVersionKind())
+				if !apierr.IsNotFound(err) {
+					log.Error(err, "failed to delete object in the orphaned reconciler")
+				}
 				continue
 			}
 
-			log.Info("Deleted an orphaned resource that is not managed by Argo CD anymore", "Name", obj.GetName(), "Namespace", obj.GetNamespace(), "gvk", obj.GroupVersionKind())
+			log.Info("Deleted an orphaned resource that is not managed by Argo CD anymore")
 		}
 	}
 }
@@ -176,7 +185,7 @@ func (c *ClusterReconciler) getAllNamespacedAPIResources(ctx context.Context, lo
 			objList.SetKind(apiResource.Kind)
 
 			if err := c.client.List(ctx, objList, opts...); err != nil {
-				log.V(logutil.LogLevel_Debug).Info("failed to list resources", "resource", apiResource.Kind, "error", fmt.Sprintf("%v", err))
+				log.V(logutil.LogLevel_Debug).Info("failed to list resources", "resourceKind", apiResource.Kind, "error", fmt.Sprintf("%v", err))
 				continue
 			}
 

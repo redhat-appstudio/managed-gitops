@@ -48,9 +48,12 @@ type SnapshotReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
 func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).
-		WithName(logutil.LogLogger_managed_gitops)
+		WithName(logutil.LogLogger_managed_gitops).WithValues(
+		logutil.Log_Component, logutil.Log_Component_Appstudio_Controller,
+		logutil.Log_K8s_Request_Namespace, req.Namespace,
+		logutil.Log_K8s_Request_Name, req.Name)
 
-	log.Info("Snapshot event: ", "request", req)
+	log.V(logutil.LogLevel_Debug).Info("Snapshot event", "request", req)
 
 	return ctrl.Result{}, nil
 }

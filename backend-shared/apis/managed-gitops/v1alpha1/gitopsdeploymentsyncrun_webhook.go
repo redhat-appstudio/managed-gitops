@@ -45,8 +45,12 @@ func (r *GitOpsDeploymentSyncRun) SetupWebhookWithManager(mgr ctrl.Manager) erro
 var _ webhook.Defaulter = &GitOpsDeploymentSyncRun{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
+
 func (r *GitOpsDeploymentSyncRun) Default() {
-	gitopsdeploymentsyncrunlog.Info("default", "name", r.Name)
+
+	log := gitopsdeploymentsyncrunlog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeploymentSyncRun")
+
+	log.V(logutil.LogLevel_Debug).Info("default")
 
 }
 
@@ -56,10 +60,15 @@ var _ webhook.Validator = &GitOpsDeploymentSyncRun{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *GitOpsDeploymentSyncRun) ValidateCreate() error {
-	gitopsdeploymentsyncrunlog.Info("validate create", "name", r.Name)
+
+	log := gitopsdeploymentsyncrunlog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeploymentSyncRun")
+
+	log.V(logutil.LogLevel_Debug).Info("validate create")
 
 	if r.Name == invalid_name {
-		return fmt.Errorf(error_invalid_name)
+		err := fmt.Errorf(error_invalid_name)
+		log.Info("webhook rejected invalid create", "error", fmt.Sprintf("%v", err))
+		return err
 	}
 
 	return nil
@@ -67,14 +76,20 @@ func (r *GitOpsDeploymentSyncRun) ValidateCreate() error {
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *GitOpsDeploymentSyncRun) ValidateUpdate(old runtime.Object) error {
-	gitopsdeploymentsyncrunlog.Info("validate update", "name", r.Name)
+
+	log := gitopsdeploymentsyncrunlog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeploymentSyncRun")
+
+	log.V(logutil.LogLevel_Debug).Info("validate update")
 
 	return nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
 func (r *GitOpsDeploymentSyncRun) ValidateDelete() error {
-	gitopsdeploymentsyncrunlog.Info("validate delete", "name", r.Name)
+
+	log := gitopsdeploymentsyncrunlog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeploymentSyncRun")
+
+	log.V(logutil.LogLevel_Debug).Info("validate delete")
 
 	return nil
 }

@@ -39,8 +39,11 @@ const (
 // This function iterates through each Workspace/Namespace present in DB and ensures that the state of resources in Cluster is in Sync with DB.
 func (r *ApplicationReconciler) StartNamespaceReconciler() {
 	ctx := context.Background()
+
 	log := log.FromContext(ctx).
-		WithName(logutil.LogLogger_managed_gitops)
+		WithName(logutil.LogLogger_managed_gitops).
+		WithValues(logutil.Log_Component, logutil.Log_Component_ClusterAgent)
+
 	namespaceReconcilerInterval := sharedutil.SelfHealInterval(defaultNamespaceReconcilerInterval, log)
 	if namespaceReconcilerInterval > 0 {
 		r.startTimerForNextCycle(ctx, namespaceReconcilerInterval, log)
@@ -81,8 +84,8 @@ func (r *ApplicationReconciler) startTimerForNextCycle(ctx context.Context, name
 
 func syncCRsWithDB_Applications(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, logger logr.Logger) {
 
-	log := logger.WithValues(sharedutil.JobKey, sharedutil.JobKeyValue).
-		WithValues(sharedutil.JobTypeKey, "CR_Applications")
+	log := logger.WithValues(sharedutil.Log_JobKey, sharedutil.Log_JobKeyValue).
+		WithValues(sharedutil.Log_JobTypeKey, "CR_Applications")
 
 	// Fetch list of ArgoCD applications to be used later
 	// map: applications IDs seen (string) -> (map value not used)
@@ -90,7 +93,8 @@ func syncCRsWithDB_Applications(ctx context.Context, dbQueries db.DatabaseQuerie
 
 	argoApplicationList := appv1.ApplicationList{}
 	if err := client.List(ctx, &argoApplicationList); err != nil {
-		log.Error(err, "Error occurred in Namespace Reconciler while fetching list of ArgoCD applications.")
+		log.Error(err, "Error occurred in Namespace Reconciler while fetching list of ArgoCD Aapplications")
+		return
 	}
 	argoApplications := argoApplicationList.Items
 
@@ -103,11 +107,11 @@ func syncCRsWithDB_Applications(ctx context.Context, dbQueries db.DatabaseQuerie
 	// Hence created a dummy Cluster User for internal purpose.
 	var specialClusterUser db.ClusterUser
 	if err := dbQueries.GetOrCreateSpecialClusterUser(ctx, &specialClusterUser); err != nil {
-		log.Error(err, "Error occurred in Namespace Reconciler while fetching clusterUser.")
+		log.Error(err, "Error occurred in Namespace Reconciler while fetching ClusterUser")
 		return
 	}
 
-	log.Info("Triggered Namespace Reconciler to keep Argo application in sync with DB.")
+	log.Info("Triggered Namespace Reconciler to keep Argo Application in sync with DB")
 
 	// Continuously iterate and fetch batches until all entries of Application table are processed.
 	for {
@@ -135,11 +139,13 @@ func syncCRsWithDB_Applications(ctx context.Context, dbQueries db.DatabaseQuerie
 		for _, applicationRowFromDB := range listOfApplicationsFromDB {
 			var applicationFromDB fauxargocd.FauxApplication
 
+			log := log.WithValues(logutil.Log_ApplicationID, applicationRowFromDB.Application_id)
+
 			processedApplicationIds[applicationRowFromDB.Application_id] = false
 
 			// Fetch the Application object from DB
 			if err := yaml.Unmarshal([]byte(applicationRowFromDB.Spec_field), &applicationFromDB); err != nil {
-				log.Error(err, "Error occurred in Namespace Reconciler while unmarshalling application: "+applicationRowFromDB.Application_id)
+				log.Error(err, "Error occurred in Namespace Reconciler while unmarshalling application")
 				continue // Skip to next iteration instead of stopping the entire loop.
 			}
 
@@ -160,8 +166,7 @@ func syncCRsWithDB_Applications(ctx context.Context, dbQueries db.DatabaseQuerie
 						continue
 					}
 
-					log.Info("Application " + applicationRowFromDB.Application_id + " not found in ArgoCD, probably user deleted it, " +
-						"but it still exists in DB, hence recreating application in ArgoCD.")
+					log.Info("Application not found in ArgoCD, probably user deleted it, but it still exists in DB, hence recreating application in ArgoCD.")
 
 					// We need to recreate ArgoCD Application, to do that create Operation to inform ArgoCD about it.
 					dbOperationInput := db.Operation{
@@ -181,9 +186,9 @@ func syncCRsWithDB_Applications(ctx context.Context, dbQueries db.DatabaseQuerie
 					if err != nil {
 						log.Error(err, "Namespace Reconciler is unable to create operation: "+dbOperationInput.ShortString())
 					}
-					log.Info("Operation is created to recreateArgoCD  Application " + applicationRowFromDB.Application_id)
+					log.Info("Operation is created to recreateArgoCD")
 				} else {
-					log.Error(err, "Error occurred in Namespace Reconciler while fetching application from cluster: "+applicationRowFromDB.Application_id)
+					log.Error(err, "Error occurred in Namespace Reconciler while fetching application from cluster")
 				}
 				continue
 			}
@@ -197,9 +202,9 @@ func syncCRsWithDB_Applications(ctx context.Context, dbQueries db.DatabaseQuerie
 					log.Error(err, "unable to compare application contents")
 					continue
 				} else if compare != "" {
-					log.Info("Argo application is not in Sync with DB, updating Argo CD App. Application:" + applicationRowFromDB.Application_id)
+					log.Info("Argo application is not in Sync with DB, updating Argo CD App")
 				} else {
-					log.V(logutil.LogLevel_Debug).Info("Argo application is in Sync with DB, Application:" + applicationRowFromDB.Application_id)
+					log.V(logutil.LogLevel_Debug).Info("Argo application is in Sync with DB")
 					continue
 				}
 			}
@@ -224,13 +229,16 @@ func syncCRsWithDB_Applications(ctx context.Context, dbQueries db.DatabaseQuerie
 				log.Error(err, "Unable to fetch GitopsEngineInstance")
 				continue
 			}
-			if _, _, err := operations.CreateOperation(ctx, false, dbOperationInput,
+
+			if _, dbOp, err := operations.CreateOperation(ctx, false, dbOperationInput,
 				specialClusterUser.Clusteruser_id, engineInstanceDB.Namespace_name, dbQueries, client, log); err != nil {
 				log.Error(err, "Namespace Reconciler is unable to create operation: "+dbOperationInput.ShortString())
 				continue
+			} else if dbOp != nil {
+				log.Info("Operation is created to sync Application row with Argo CD Application", "operationDBID", dbOp.Operation_id)
+
 			}
 
-			log.Info("Operation " + dbOperationInput.Operation_id + " is created to sync application: " + applicationRowFromDB.Application_id)
 		}
 
 		// Skip processed entries in next iteration
@@ -244,8 +252,7 @@ func syncCRsWithDB_Applications(ctx context.Context, dbQueries db.DatabaseQuerie
 func syncCRsWithDB_Applications_Delete_Operations(ctx context.Context, dbq db.DatabaseQueries, client client.Client, log logr.Logger) {
 	// Get list of Operations from cluster.
 	listOfK8sOperation := v1alpha1.OperationList{}
-	err := client.List(ctx, &listOfK8sOperation)
-	if err != nil {
+	if err := client.List(ctx, &listOfK8sOperation); err != nil {
 		log.Error(err, "Unable to fetch list of k8s Operation from cluster.")
 		return
 	}
@@ -265,22 +272,22 @@ func syncCRsWithDB_Applications_Delete_Operations(ctx context.Context, dbq db.Da
 			continue
 		}
 
+		log := log.WithValues("dbOperation", k8sOperation.Spec.OperationID, "k8sOperationUID", string(k8sOperation.UID))
+
 		if dbOperation.State != db.OperationState_Completed && dbOperation.State != db.OperationState_Failed {
-			log.V(logutil.LogLevel_Debug).Info("K8s Operation is not ready for cleanup : " + string(k8sOperation.UID) + " DbOperation: " + string(k8sOperation.Spec.OperationID))
+			log.V(logutil.LogLevel_Debug).Info("K8s Operation is not ready for cleanup")
 			continue
 		}
 
-		log.Info("Managed-gitops clean up job for CR deleting Operation created by Namespace Reconciler." + string(k8sOperation.UID))
-
 		// Delete the k8s operation now.
 		if err := operations.CleanupOperation(ctx, dbOperation, k8sOperation, dbq, client, false, log); err != nil {
-
-			log.Error(err, "Unable to Delete k8s Operation"+string(k8sOperation.UID)+" for DbOperation: "+string(k8sOperation.Spec.OperationID))
+			log.Error(err, "Unable to delete k8s Operation")
 		} else {
-			log.Info("Managed-gitops clean up job for CR deleting Operation created by Namespace Reconciler. k8s Operation: " + string(k8sOperation.UID) + " for DbOperation: " + string(k8sOperation.Spec.OperationID))
+			log.V(logutil.LogLevel_Debug).Info("Clean up job for CR deleting Operation created by Namespace Reconciler.")
 		}
 	}
-	log.V(logutil.LogLevel_Debug).Info("Cleaned all Operations created by Namespace Reconciler.")
+
+	log.Info("Cleaned all Operations created by Namespace Reconciler.")
 }
 
 func cleanOrphanedCRsfromCluster_Applications(argoApplications []appv1.Application, processedApplicationIds map[string]any,
@@ -302,6 +309,8 @@ func cleanOrphanedCRsfromCluster_Applications(argoApplications []appv1.Applicati
 	var deletedOrphanedApplications []appv1.Application
 	for _, application := range shuffledList {
 
+		log := log.WithValues("argoCDApplicationName", application.Name)
+
 		// Skip Applications not created by the GitOps Service
 		if value, exists := application.Labels[controllers.ArgoCDApplicationDatabaseIDLabel]; !exists || value == "" {
 			continue
@@ -309,10 +318,10 @@ func cleanOrphanedCRsfromCluster_Applications(argoApplications []appv1.Applicati
 
 		if _, ok := processedApplicationIds[application.Labels["databaseID"]]; !ok {
 			if err := controllers.DeleteArgoCDApplication(ctx, application, client, log); err != nil {
-				log.Error(err, "unable to delete an orphaned Argo CD Application "+application.Name)
+				log.Error(err, "unable to delete an orphaned Argo CD Application")
 			} else {
 				deletedOrphanedApplications = append(deletedOrphanedApplications, application)
-				log.Info("Deleting orphaned Argo CD Application " + application.Name)
+				log.Info("Deleting orphaned Argo CD Application")
 			}
 		}
 	}
@@ -322,8 +331,8 @@ func cleanOrphanedCRsfromCluster_Applications(argoApplications []appv1.Applicati
 // cleanOrphanedCRsfromCluster_Secret goes through the Argo CD Cluster/Repository Secrets, and deletes secrets that no longer point to valid database entries.
 func cleanOrphanedCRsfromCluster_Secret(ctx context.Context, dbQueries db.DatabaseQueries, k8sClient client.Client, logger logr.Logger) {
 
-	log := logger.WithValues(sharedutil.JobKey, sharedutil.JobKeyValue).
-		WithValues(sharedutil.JobTypeKey, "CR_Secret")
+	log := logger.WithValues(sharedutil.Log_JobKey, sharedutil.Log_JobKeyValue).
+		WithValues(sharedutil.Log_JobTypeKey, "CR_Secret")
 
 	kubesystemNamespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
 
@@ -420,26 +429,27 @@ func cleanOrphanedCRsfromCluster_Secret_Delete(ctx context.Context, secret corev
 		return
 	}
 
+	log = log.WithValues("secretName", secret.Name, "secretNamespace", secret.Namespace, "secretType", secretType)
+
 	if db.IsResultNotFoundError(err) {
-		// If entry is not present in DB then it is an orphan CR, hence delete the Secret from Cluster.
-		k8sErr := k8sClient.Delete(ctx, &secret) // k8sErr is declared above To avoid "Implicit memory aliasing in for loop." error.
-		if k8sErr != nil {
-			log.Error(k8sErr, "error occurred in Secret Clean-up while deleting an orphan Secret: "+secret.Name, "namespace", secret.Namespace)
+		// If entry is not present in DB then it is an orphaned CR, hence we delete the Secret from cluster.
+		if err := k8sClient.Delete(ctx, &secret); err != nil {
+			log.Error(err, "error occurred in Secret Clean-up while deleting an orphan Secret")
 		} else {
-			log.Info("Managed-gitops clean up job for CR deleted orphan Secret: "+secret.Name, "namespace", secret.Namespace)
+			log.Info("Clean up job deleted orphaned Secret CR")
 		}
 
 	} else {
 		// Some other unexpected error occurred, so we just skip it until next time
-		log.Error(err, "unexpected error occurred in Secret Clean-up while fetching DB entry pointed by Secret : "+secret.Name, "namespace", secret.Namespace)
+		log.Error(err, "unexpected error occurred in Secret Clean-up while fetching DB entry pointed by Secret")
 	}
 }
 
 // cleanOrphanedCRsfromCluster_Operation goes through the Operation CRs of cluster, and deletes CRs that are no longer point to valid database entries or already completed.
 func cleanOrphanedCRsfromCluster_Operation(ctx context.Context, dbQueries db.DatabaseQueries, k8sClient client.Client, logger logr.Logger) {
 
-	log := logger.WithValues(sharedutil.JobKey, sharedutil.JobKeyValue).
-		WithValues(sharedutil.JobTypeKey, "CR_Applications")
+	log := logger.WithValues(sharedutil.Log_JobKey, sharedutil.Log_JobKeyValue).
+		WithValues(sharedutil.Log_JobTypeKey, "CR_Applications")
 
 	// Get list of Operations from cluster.
 	listOfK8sOperation := v1alpha1.OperationList{}

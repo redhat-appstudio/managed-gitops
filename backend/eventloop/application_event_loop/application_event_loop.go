@@ -150,14 +150,13 @@ func applicationEventQueueLoop(ctx context.Context, k8sClient client.Client,
 	aerFactory applicationEventRunnerFactory) {
 
 	log := log.FromContext(ctx).
-		WithValues("workspaceID", workspaceID,
-			"gitOpsDeplName", gitopsDeploymentName,
-			"gitopsDeplNamespace", gitopsDeploymentNamespace,
-			"namespace", gitopsDeploymentNamespace).
+		WithValues(logutil.Log_K8s_Request_NamespaceID, workspaceID,
+			logutil.Log_K8s_Request_Name, gitopsDeploymentName,
+			logutil.Log_K8s_Request_Namespace, gitopsDeploymentNamespace).
 		WithName(logutil.LogLogger_managed_gitops)
 
-	log.Info("applicationEventQueueLoop started.")
-	defer log.Info("applicationEventQueueLoop ended.")
+	log.V(logutil.LogLevel_Debug).Info("applicationEventQueueLoop started.")
+	defer log.V(logutil.LogLevel_Debug).Info("applicationEventQueueLoop ended.")
 
 	state := applicationEventQueueLoopState{
 		activeDeploymentEvent:      nil,

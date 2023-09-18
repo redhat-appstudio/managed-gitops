@@ -93,7 +93,7 @@ func SetupForTestingDBGinkgo() error {
 	// 'testSetup' deletes all database rows that start with 'test-' in the primary key of the row.
 	// This ensures a clean slate for the test run.
 
-	dbq, err := NewUnsafePostgresDBQueries(true, true)
+	dbq, err := NewUnsafePostgresDBQueries(false, true)
 	Expect(err).ToNot(HaveOccurred())
 
 	var specialClusterUser ClusterUser

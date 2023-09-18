@@ -44,7 +44,9 @@ var _ webhook.Defaulter = &GitOpsDeploymentRepositoryCredential{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (r *GitOpsDeploymentRepositoryCredential) Default() {
-	gitopsdeploymentrepositorycredentiallog.Info("default", "name", r.Name)
+	log := gitopsdeploymentrepositorycredentiallog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeploymentRepositoryCredential")
+
+	log.V(logutil.LogLevel_Debug).Info("default", "name", r.Name)
 
 }
 
@@ -54,9 +56,13 @@ var _ webhook.Validator = &GitOpsDeploymentRepositoryCredential{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *GitOpsDeploymentRepositoryCredential) ValidateCreate() error {
-	gitopsdeploymentrepositorycredentiallog.Info("validate create", "name", r.Name)
+
+	log := gitopsdeploymentrepositorycredentiallog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeploymentRepositoryCredential")
+
+	log.V(logutil.LogLevel_Debug).Info("validate create")
 
 	if err := r.ValidateGitOpsDeploymentRepoCred(); err != nil {
+		log.Info("webhook rejected invalid create", "error", fmt.Sprintf("%v", err))
 		return err
 	}
 
@@ -65,9 +71,13 @@ func (r *GitOpsDeploymentRepositoryCredential) ValidateCreate() error {
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *GitOpsDeploymentRepositoryCredential) ValidateUpdate(old runtime.Object) error {
-	gitopsdeploymentrepositorycredentiallog.Info("validate update", "name", r.Name)
+
+	log := gitopsdeploymentrepositorycredentiallog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeploymentRepositoryCredential")
+
+	log.V(logutil.LogLevel_Debug).Info("validate update")
 
 	if err := r.ValidateGitOpsDeploymentRepoCred(); err != nil {
+		log.Info("webhook rejected invalid update", "error", fmt.Sprintf("%v", err))
 		return err
 	}
 
@@ -76,7 +86,10 @@ func (r *GitOpsDeploymentRepositoryCredential) ValidateUpdate(old runtime.Object
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
 func (r *GitOpsDeploymentRepositoryCredential) ValidateDelete() error {
-	gitopsdeploymentrepositorycredentiallog.Info("validate delete", "name", r.Name)
+
+	log := gitopsdeploymentrepositorycredentiallog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeploymentRepositoryCredential")
+
+	log.V(logutil.LogLevel_Debug).Info("validate delete")
 
 	return nil
 }

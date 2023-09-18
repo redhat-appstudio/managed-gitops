@@ -330,7 +330,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 	}
-	a.log.Info("Created new Application in DB: "+application.Application_id, application.GetAsLogKeyValues()...)
+	a.log.Info("Created new Application in DB", application.GetAsLogKeyValues()...)
 
 	// Create ApplicationOwner row in DB
 	applicationOwner := &db.ApplicationOwner{
@@ -346,7 +346,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 
 				return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 			}
-			a.log.Info("Created new Application Owner in DB: "+applicationOwner.ApplicationOwnerApplicationID, applicationOwner.GetAsLogKeyValues()...)
+			a.log.Info("Created new ApplicationOwner in DB", applicationOwner.GetAsLogKeyValues()...)
 
 		} else {
 			a.log.Error(err, "unable to retrieve applicationOwner", "applicationOwner", applicationOwner)
@@ -392,7 +392,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput,
 		clusterUser.Clusteruser_id, engineInstance.Namespace_name, dbQueries, gitopsEngineClient, a.log)
 	if err != nil {
-		a.log.Error(err, "could not create operation", "namespace", engineInstance.Namespace_name)
+		a.log.Error(err, "could not create operation", "operationNamespace", engineInstance.Namespace_name)
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 	}
 
@@ -419,7 +419,7 @@ func (a applicationEventLoopRunner_Action) handleDeleteGitOpsDeplEvent(ctx conte
 		return false, gitopserrors.NewDevOnlyError(fmt.Errorf("required parameter should not be nil in handleDelete: %v %v", deplToAppMappingList, clusterUser))
 	}
 
-	a.log.Info("Received GitOpsDeployment event for a GitOpsDeployment resource that no longer exists (or does not exist)")
+	a.log.Info("Reconciling GitOpsDeployment that no longer exists (or never existed)")
 
 	apiNamespace := corev1.Namespace{}
 	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Name: a.eventResourceNamespace}, &apiNamespace); err != nil {
@@ -459,7 +459,7 @@ func (a applicationEventLoopRunner_Action) handleDeleteGitOpsDeplEvent(ctx conte
 		if gitopsDepl != nil && isGitOpsDeploymentDeleted(gitopsDepl) {
 			// remove the finalizer if all the dependencies are cleaned up
 			if err := removeFinalizerIfExists(ctx, a.workspaceClient, gitopsDepl, managedgitopsv1alpha1.DeletionFinalizer); err != nil {
-				a.log.Error(err, "failed to remove the deletion finalizer from GitOpsDeployment", "name", gitopsDepl.Name, "namespace", gitopsDepl.Namespace)
+				a.log.Error(err, "failed to remove the deletion finalizer from GitOpsDeployment")
 				return false, gitopserrors.NewDevOnlyError(err)
 			}
 		}
@@ -565,9 +565,9 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 				deplToAppMapping, gitopsDeployment, clusterUser))
 	}
 
-	log := a.log.WithValues("applicationId", deplToAppMapping.Application_id, "gitopsDeplUID", gitopsDeployment.UID)
+	log := a.log.WithValues(logutil.Log_ApplicationID, deplToAppMapping.Application_id, logutil.Log_K8s_Request_UID, gitopsDeployment.UID)
 
-	a.log.Info("Received GitOpsDeployment event for an existing GitOpsDeployment resource")
+	log.Info("Received GitOpsDeployment event for an existing GitOpsDeployment resource")
 
 	application := &db.Application{Application_id: deplToAppMapping.Application_id}
 	if err := dbQueries.GetApplicationById(ctx, application); err != nil {
@@ -639,7 +639,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, devError)
 	}
 
-	appProjectDBRowsUpdated, err := a.sharedResourceEventLoop.ReconcileAppProjectRepositories(ctx, a.workspaceClient, apiNamespace, a.log)
+	appProjectDBRowsUpdated, err := a.sharedResourceEventLoop.ReconcileAppProjectRepositories(ctx, a.workspaceClient, apiNamespace, log)
 
 	if err != nil {
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(fmt.Errorf("unexpected error on reconciling appproject repos: %w", err))
@@ -729,14 +729,14 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 	if err := dbQueries.GetApplicationOwnerByApplicationID(ctx, applicationOwner); err != nil {
 		if db.IsResultNotFoundError(err) {
 			if err := dbQueries.CreateApplicationOwner(ctx, applicationOwner); err != nil {
-				a.log.Error(err, "Unable to create application owner row in database", applicationOwner.GetAsLogKeyValues()...)
+				log.Error(err, "Unable to create application owner row in database", applicationOwner.GetAsLogKeyValues()...)
 
 				return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 			}
-			a.log.Info("Created new Application Owner in DB: "+applicationOwner.ApplicationOwnerApplicationID, applicationOwner.GetAsLogKeyValues()...)
+			log.Info("Created new Application Owner in DB", applicationOwner.GetAsLogKeyValues()...)
 
 		} else {
-			a.log.Error(err, "unable to retrieve applicationOwner", "applicationOwner", applicationOwner)
+			log.Error(err, "unable to retrieve applicationOwner", "applicationOwner", applicationOwner)
 			return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 		}
 	}
@@ -793,7 +793,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	}
 	if err := dbQueries.GetApplicationById(ctx, &dbApplication); err != nil {
 
-		a.log.Error(err, "unable to get application by id", "id", deplToAppMapping.Application_id)
+		a.log.Error(err, "unable to get application by id", logutil.Log_ApplicationID, deplToAppMapping.Application_id)
 
 		if db.IsResultNotFoundError(err) {
 			dbApplicationFound = false
@@ -803,7 +803,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		}
 	}
 
-	log := a.log.WithValues("applicationID", deplToAppMapping.Application_id)
+	log := a.log.WithValues(logutil.Log_ApplicationID, deplToAppMapping.Application_id)
 
 	// 1) Remove the ApplicationState from the database
 	rowsDeleted, err := dbQueries.DeleteApplicationStateById(ctx, deplToAppMapping.Application_id)
@@ -823,11 +823,11 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	// - this ensures that the foreign key constraint of SyncOperation doesn't prevent us from deletion the Application
 	rowsUpdated, err := dbQueries.UpdateSyncOperationRemoveApplicationField(ctx, deplToAppMapping.Application_id)
 	if err != nil {
-		log.Error(err, "unable to update old sync operations", "applicationId", deplToAppMapping.Application_id)
+		log.Error(err, "unable to update old sync operations", logutil.Log_ApplicationID, deplToAppMapping.Application_id)
 		return signalledShutdown_false, err
 
 	} else if rowsUpdated == 0 {
-		log.Info("no SyncOperation rows updated, for updating old syncoperations on GitOpsDeployment deletion")
+		log.Info("No SyncOperation rows updated, for updating old syncoperations on GitOpsDeployment deletion")
 	} else {
 		log.Info("Removed references to Application from all SyncOperations that reference it")
 	}
@@ -883,7 +883,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	}
 
 	// Ensure the the AppProjectRepository database entries accurately reflect the current state of the GitOpsDeployments/RepositoryCredentials in the Namespace
-	if _, err := a.sharedResourceEventLoop.ReconcileAppProjectRepositories(ctx, a.workspaceClient, apiNamespace, a.log); err != nil {
+	if _, err := a.sharedResourceEventLoop.ReconcileAppProjectRepositories(ctx, a.workspaceClient, apiNamespace, log); err != nil {
 		log.Error(err, "unable to reconcile app project repositories")
 		return signalledShutdown_false, err
 	}
@@ -951,8 +951,6 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 		crUpdated_false = false // false: not updated
 	)
 
-	log := a.log.WithValues("gitOpsDeploymentName", resourceName, "gitopsDeploymentNamespace", namespaceName)
-
 	// TODO: GITOPSRVCE-68 - PERF - In general, polling for all GitOpsDeployments in a workspace will scale poorly with large number of applications in the workspace. We should switch away from polling in the future.
 
 	// 1) Retrieve the GitOpsDeployment from the namespace, using the namespace and resource name
@@ -966,7 +964,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 				// Our work is done
 				return crUpdated_false, nil
 			} else {
-				log.Error(err, "unable to locate gitops object in handleUpdateDeploymentStatusTick")
+				a.log.Error(err, "unable to locate gitops object in handleUpdateDeploymentStatusTick")
 				return crUpdated_false, err
 			}
 		}
@@ -985,7 +983,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 			// No Application associated with this GitOpsDeployment, so no work to do
 			return crUpdated_false, nil
 		} else {
-			log.Error(err, "unable to retrieve DeploymentToApplicationMapping in tick status update")
+			a.log.Error(err, "unable to retrieve DeploymentToApplicationMapping in tick status update")
 			return crUpdated_false, err
 		}
 	}
@@ -995,7 +993,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	if err := dbQueries.GetApplicationStateById(ctx, &applicationState); err != nil {
 
 		if db.IsResultNotFoundError(err) {
-			log.Info("ApplicationState not found for application, on deploymentStatusTick: " + applicationState.Applicationstate_application_id)
+			a.log.Info("ApplicationState not found for application, on deploymentStatusTick: " + applicationState.Applicationstate_application_id)
 			return crUpdated_false, nil
 		} else {
 			return crUpdated_false, err
@@ -1014,7 +1012,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	newGitopsDeplConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{}
 	if len(applicationState.Conditions) != 0 {
 		if err := yaml.Unmarshal(applicationState.Conditions, &newGitopsDeplConditions); err != nil {
-			log.Error(err, "failed to unmarshal ApplicationState conditions")
+			a.log.Error(err, "failed to unmarshal ApplicationState conditions")
 			return crUpdated_false, err
 		}
 	}
@@ -1037,20 +1035,20 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	var err error
 	gitopsDeployment.Status.Resources, err = decompressResourceData(applicationState.Resources)
 	if err != nil {
-		log.Error(err, "unable to decompress resources byte array received from table.")
+		a.log.Error(err, "unable to decompress resources byte array received from table.")
 		return crUpdated_false, err
 	}
 
 	gitopsDeployment.Status.OperationState, err = decompressOperationState(applicationState.OperationState)
 	if err != nil {
-		log.Error(err, "unable to decompress operationState byte array received from table.")
+		a.log.Error(err, "unable to decompress operationState byte array received from table.")
 		return crUpdated_false, err
 	}
 
 	var comparedTo fauxargocd.FauxComparedTo
 	comparedTo, err = retrieveComparedToFieldInApplicationState(applicationState.ReconciledState)
 	if err != nil {
-		log.Error(err, "SEVERE: unable to retrieve comparedTo field in ApplicationState")
+		a.log.Error(err, "SEVERE: unable to retrieve comparedTo field in ApplicationState")
 		return crUpdated_false, err
 	}
 
@@ -1089,7 +1087,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	}
 	// We don't need to log status updates, e.g. via 'sharedutil.LogAPIResourceChangeEvent'
 
-	log.V(logutil.LogLevel_Debug).Info("Updated status in deploymentStatusTick")
+	a.log.V(logutil.LogLevel_Debug).Info("Updated status in deploymentStatusTick")
 
 	// NOTE: make sure to preserve the existing conditions fields that are in the status field of the CR, when updating the status!
 

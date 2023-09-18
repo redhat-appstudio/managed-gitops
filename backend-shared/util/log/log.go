@@ -21,6 +21,24 @@ const (
 	LogLevel_Warn int = -1
 )
 
+const (
+	Log_Component                                    = "component"
+	Log_Component_Appstudio_Controller               = "appstudio-controller"
+	Log_Component_ClusterAgent                       = "cluster-agent"
+	Log_Component_Backend_ClusterReconciler          = "cluster-reconciler"
+	Log_Component_Backend_DatabaseMetricsReconciler  = "database-metrics-reconciler"
+	Log_Component_Backend_DatabaseReconciler         = "database-reconciler"
+	Log_Component_Backend_RepocredReconciler         = "repocred-reconciler"
+	Log_Component_Backend_WorkspaceResourceEventLoop = "workspace_resource_event_loop"
+
+	Log_K8s_Request_Name        = "requestName"
+	Log_K8s_Request_Namespace   = "requestNamespace"
+	Log_K8s_Request_UID         = "requestUID"
+	Log_K8s_Request_NamespaceID = "requestNamespaceID"
+
+	Log_ApplicationID = "applicationID"
+)
+
 type ResourceChangeType string
 
 const (

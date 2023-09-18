@@ -84,9 +84,11 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 	outerContext := context.Background()
 	log := log.FromContext(outerContext).
 		WithName(logutil.LogLogger_managed_gitops).
-		WithValues("namespaceID", namespaceID,
-			"debugContext", debugContext,
-			"namespace", gitopsDeploymentNamespace)
+		WithValues(
+			logutil.Log_K8s_Request_NamespaceID, namespaceID,
+			logutil.Log_K8s_Request_Namespace, gitopsDeploymentNamespace,
+			logutil.Log_K8s_Request_Name, gitopsDeploymentName,
+			"debugContext", debugContext)
 
 	log.V(logutil.LogLevel_Debug).Info("applicationEventLoopRunner started")
 

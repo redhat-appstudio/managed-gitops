@@ -156,7 +156,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 				syncRunCRExists = false
 			} else {
 				userError := "unable to retrieve the GitOpsDeploymentSyncRun object from the namespace, due to unknown error."
-				log.Error(err, "unable to locate object in handleSyncRunModified", "request", syncRunKey)
+				log.Error(err, "unable to locate object in handleSyncRunModified")
 				return gitopserrors.NewUserDevError(userError, err)
 			}
 		}
@@ -207,8 +207,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			a.eventResourceName, a.eventResourceNamespace, eventlooptypes.GetWorkspaceIDFromNamespaceID(namespace),
 			db.APICRToDatabaseMapping_DBRelationType_SyncOperation, &apiCRToDBList); err != nil {
 			userError := "unable to retrieve data related to previous GitOpsDeploymentSyncRun in the namespace, due to an unknown error"
-			log.Error(err, "unable to find API CR to DB Mapping, by API name/namespace/uid",
-				"name", a.eventResourceName, "namespace", a.eventResourceNamespace, "UID", string(namespace.UID))
+			log.Error(err, "unable to find API CR to DB Mapping, by API name/namespace/uid", logutil.Log_K8s_Request_NamespaceID, string(namespace.UID))
 			return gitopserrors.NewUserDevError(userError, err)
 		}
 
@@ -300,20 +299,20 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		deplToAppMapping := &db.DeploymentToApplicationMapping{Deploymenttoapplicationmapping_uid_id: string(gitopsDepl.UID)}
 
 		if err = dbQueries.GetDeploymentToApplicationMappingByDeplId(ctx, deplToAppMapping); err != nil {
-			log.Error(err, "unable to retrieve deployment to application mapping, on sync run modified", "uid", string(gitopsDepl.UID))
+			log.Error(err, "unable to retrieve deployment to application mapping, on sync run modified", logutil.Log_K8s_Request_UID, string(gitopsDepl.UID))
 			return gitopserrors.NewDevOnlyError(err)
 		}
 
 		application = &db.Application{Application_id: deplToAppMapping.Application_id}
 		if err := dbQueries.GetApplicationById(ctx, application); err != nil {
-			log.Error(err, "unable to retrieve application, on sync run modified", "applicationId", string(deplToAppMapping.Application_id))
+			log.Error(err, "unable to retrieve application, on sync run modified", logutil.Log_ApplicationID, deplToAppMapping.Application_id)
 			return gitopserrors.NewDevOnlyError(err)
 		}
 
 		if gitopsEngineInstance, err = a.sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, application.Engine_instance_inst_id,
-			a.workspaceClient, namespace, a.log); err != nil {
+			a.workspaceClient, namespace, log); err != nil {
 
-			log.Error(err, "unable to retrieve gitopsengineinstance, on sync run modified", "instanceId", string(application.Engine_instance_inst_id))
+			log.Error(err, "unable to retrieve gitopsengineinstance, on sync run modified", "gitopsEngineInstanceID", application.Engine_instance_inst_id)
 			return gitopserrors.NewDevOnlyError(err)
 		}
 
@@ -359,7 +358,7 @@ func (a *applicationEventLoopRunner_Action) handleDeletedGitOpsDeplSyncRunEvent(
 	log.Info("Received GitOpsDeploymentSyncRun event for a GitOpsDeploymentSyncRun resource that no longer exists")
 
 	if syncOperation.Application_id == "" {
-		log.Info("Application row not found for SyncOperation. This is normally because the Application has already been deleted.", "syncOperationID", syncOperation.SyncOperation_id, "applicationID", syncOperation.Application_id)
+		log.Info("'application_id' field is empty for SyncOperation. This is normally because the Application has already been deleted.", "syncOperationID", syncOperation.SyncOperation_id)
 
 		// Since there is no Application, remove the DB resources without creating an Operation.
 
@@ -403,15 +402,14 @@ func (a *applicationEventLoopRunner_Action) handleDeletedGitOpsDeplSyncRunEvent(
 
 	application := &db.Application{Application_id: syncOperation.Application_id}
 	if err := dbQueries.GetApplicationById(ctx, application); err != nil {
-		log.Error(err, "unable to retrieve application, on sync run modified", "applicationId", string(syncOperation.Application_id))
+		log.Error(err, "unable to retrieve application, on sync run modified", logutil.Log_ApplicationID, syncOperation.Application_id)
 		return gitopserrors.NewDevOnlyError(err)
 	}
 
 	gitopsEngineInstance, err := a.sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, application.Engine_instance_inst_id,
-		a.workspaceClient, namespace, a.log)
+		a.workspaceClient, namespace, log)
 	if err != nil {
-
-		log.Error(err, "unable to retrieve gitopsengineinstance, on sync run modified", "instanceId", string(application.Engine_instance_inst_id))
+		log.Error(err, "unable to retrieve gitopsengineinstance, on sync run modified", "instanceId", application.Engine_instance_inst_id)
 		return gitopserrors.NewDevOnlyError(err)
 	}
 	if gitopsEngineInstance == nil {

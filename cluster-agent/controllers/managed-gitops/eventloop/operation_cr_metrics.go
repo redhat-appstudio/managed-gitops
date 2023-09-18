@@ -32,7 +32,8 @@ func (r *OperationCRMetricUpdater) StartOperationCRMetricUpdater() {
 
 		ctx := context.Background()
 		log := log.FromContext(ctx).
-			WithName(logutil.LogLogger_managed_gitops)
+			WithName(logutil.LogLogger_managed_gitops).
+			WithValues(logutil.Log_Component, logutil.Log_Component_Appstudio_Controller)
 
 		_, _ = sharedutil.CatchPanic(func() error {
 			updateOperationCRMetrics(ctx, r.Client, log)

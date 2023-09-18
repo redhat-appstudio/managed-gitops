@@ -47,8 +47,9 @@ var _ webhook.Defaulter = &GitOpsDeployment{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (r *GitOpsDeployment) Default() {
-	gitopsdeploymentlog.Info("default", "name", r.Name)
+	log := gitopsdeploymentlog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeployment")
 
+	log.V(logutil.LogLevel_Debug).Info("default")
 }
 
 //+kubebuilder:webhook:path=/validate-managed-gitops-redhat-com-v1alpha1-gitopsdeployment,mutating=false,failurePolicy=fail,sideEffects=None,groups=managed-gitops.redhat.com,resources=gitopsdeployments,verbs=create;update,versions=v1alpha1,name=vgitopsdeployment.kb.io,admissionReviewVersions=v1
@@ -57,9 +58,13 @@ var _ webhook.Validator = &GitOpsDeployment{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *GitOpsDeployment) ValidateCreate() error {
-	gitopsdeploymentlog.Info("validate create", "name", r.Name)
 
-	if err := r.ValidateGitOpsDeployment(); err != nil {
+	log := gitopsdeploymentlog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeployment")
+
+	log.V(logutil.LogLevel_Debug).Info("validate create")
+
+	if err := r.validateGitOpsDeployment(); err != nil {
+		log.Info("webhook rejected invalid create", "error", fmt.Sprintf("%v", err))
 		return err
 	}
 
@@ -68,9 +73,13 @@ func (r *GitOpsDeployment) ValidateCreate() error {
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *GitOpsDeployment) ValidateUpdate(old runtime.Object) error {
-	gitopsdeploymentlog.Info("validate update", "name", r.Name)
 
-	if err := r.ValidateGitOpsDeployment(); err != nil {
+	log := gitopsdeploymentlog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeployment")
+
+	log.V(logutil.LogLevel_Debug).Info("validate update")
+
+	if err := r.validateGitOpsDeployment(); err != nil {
+		log.Info("webhook rejected invalid update", "error", fmt.Sprintf("%v", err))
 		return err
 	}
 
@@ -79,12 +88,15 @@ func (r *GitOpsDeployment) ValidateUpdate(old runtime.Object) error {
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
 func (r *GitOpsDeployment) ValidateDelete() error {
-	gitopsdeploymentlog.Info("validate delete", "name", r.Name)
+
+	log := gitopsdeploymentlog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeployment")
+
+	log.V(logutil.LogLevel_Debug).Info("validate delete")
 
 	return nil
 }
 
-func (r *GitOpsDeployment) ValidateGitOpsDeployment() error {
+func (r *GitOpsDeployment) validateGitOpsDeployment() error {
 
 	// Check whether Type is manual or automated
 	if !(r.Spec.Type == GitOpsDeploymentSpecType_Automated || r.Spec.Type == GitOpsDeploymentSpecType_Manual) {

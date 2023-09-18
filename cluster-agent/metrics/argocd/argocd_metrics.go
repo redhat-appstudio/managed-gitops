@@ -65,7 +65,8 @@ func (m *ReconciliationMetricsUpdater) poll(interval time.Duration) {
 
 	ctx := context.Background()
 	logger := log.FromContext(ctx).
-		WithName(logutil.LogLogger_managed_gitops)
+		WithName(logutil.LogLogger_managed_gitops).
+		WithValues(logutil.Log_Component, logutil.Log_Component_ClusterAgent)
 
 	updater := &reconciliationMetricsUpdater{
 		client:             m.Client,

@@ -42,8 +42,6 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 	dbQueries db.DatabaseQueries,
 	log logr.Logger) (SharedResourceManagedEnvContainer, error) {
 
-	log = log.WithValues("namespace", managedEnvironmentCRNamespace)
-
 	container, condition, err := internalProcessMessage_internalReconcileSharedManagedEnv(ctx, workspaceClient, managedEnvironmentCRName,
 		managedEnvironmentCRNamespace, isWorkspaceTarget, workspaceNamespace, k8sClientFactory, dbQueries, log)
 
@@ -66,6 +64,8 @@ func internalProcessMessage_internalReconcileSharedManagedEnv(ctx context.Contex
 	k8sClientFactory SRLK8sClientFactory,
 	dbQueries db.DatabaseQueries,
 	log logr.Logger) (SharedResourceManagedEnvContainer, connectionInitializedCondition, error) {
+
+	log = log.WithValues("managedEnvCRName", managedEnvironmentCRName)
 
 	gitopsEngineClient, err := k8sClientFactory.GetK8sClientForGitOpsEngineInstance(ctx, nil)
 	if err != nil {
@@ -274,7 +274,7 @@ func getManagedEnvironmentCRs(ctx context.Context,
 
 		// If the managed environment CR doesn't exist, then ensure it is deleted from the database, then exit.
 		if apierr.IsNotFound(err) {
-			log.Info("Managed environment could not be found, so function was called to clean database entry.")
+			log.Info("ManagedEnvironment CR could not be found, so starting to delete ManagedEnvironment row")
 
 			err = deleteManagedEnvironmentDBByAPINameAndNamespace(ctx, workspaceClient, managedEnvironmentCRName,
 				managedEnvironmentCRNamespace, "", workspaceNamespace, k8sClientFactory, dbQueries, clusterUser, log)
@@ -639,7 +639,7 @@ func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 	for idx := range applications {
 		app := applications[idx]
 
-		log := log.WithValues("applicationID", app.Application_id)
+		log := log.WithValues(logutil.Log_ApplicationID, app.Application_id)
 
 		gitopsEngineInstance := &db.GitopsEngineInstance{
 			Gitopsengineinstance_id: app.Engine_instance_inst_id,
@@ -1106,7 +1106,7 @@ func convertConditionErrorToConnInitCondition(conditionError gitopserrors.Condit
 	} else {
 		// This shouldn't happen under any circumstances, so sanity test and log as severe
 		controllerLog.FromContext(context.Background()).
-			WithValues("namespace", managedEnvironmentCR.Namespace).
+			WithValues(logutil.Log_K8s_Request_Namespace, managedEnvironmentCR.Namespace).
 			Error(nil, "SEVERE: nil error passed to convertConditionErrorToConnInitCondition")
 	}
 

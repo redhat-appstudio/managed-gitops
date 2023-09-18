@@ -53,7 +53,7 @@ func getOrCreateServiceAccount(ctx context.Context, k8sClient client.Client, ser
 		return serviceAccount, nil
 	}
 
-	log = log.WithValues("serviceAccount", serviceAccountName, "namespace", serviceAccountNS)
+	log = log.WithValues("serviceAccount", serviceAccountName, "serviceAccountNS", serviceAccountNS)
 
 	if err := k8sClient.Create(ctx, serviceAccount); err != nil {
 		log.Error(err, "Unable to create ServiceAccount")
@@ -167,7 +167,7 @@ func createServiceAccountTokenSecret(ctx context.Context, k8sClient client.Clien
 		Type: corev1.SecretTypeServiceAccountToken,
 	}
 
-	log = log.WithValues("name", tokenSecret.Name, "namespace", tokenSecret.Namespace)
+	log = log.WithValues("tokenSecretName", tokenSecret.Name, "tokenSecretNamespace", tokenSecret.Namespace)
 
 	if err := k8sClient.Create(ctx, tokenSecret); err != nil {
 		log.Error(err, "Unable to create ServiceAccountToken Secret")
@@ -192,7 +192,7 @@ func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k
 			return fmt.Errorf("unable to get cluster role: %w", err)
 		}
 
-		log := log.WithValues("name", clusterRole.Name)
+		log := log.WithValues("clusterRoleName", clusterRole.Name)
 
 		clusterRole.Rules = ArgoCDManagerNamespacePolicyRules
 		if err := k8sClient.Create(ctx, clusterRole); err != nil {
@@ -202,7 +202,7 @@ func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k
 		logutil.LogAPIResourceChangeEvent(clusterRole.Namespace, clusterRole.Name, clusterRole, logutil.ResourceCreated, log)
 
 	} else {
-		log := log.WithValues("name", clusterRole.Name)
+		log := log.WithValues("clusterRoleName", clusterRole.Name)
 
 		clusterRole.Rules = ArgoCDManagerNamespacePolicyRules
 		if err := k8sClient.Update(ctx, clusterRole); err != nil {
@@ -237,7 +237,7 @@ func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k
 		Namespace: serviceAccountNamespace,
 	}}
 
-	log = log.WithValues("name", clusterRoleBinding.Name)
+	log = log.WithValues("clusterRoleNameBindingName", clusterRoleBinding.Name)
 
 	if update {
 		if err := k8sClient.Update(ctx, clusterRoleBinding); err != nil {

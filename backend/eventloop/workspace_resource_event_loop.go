@@ -78,37 +78,38 @@ func (werl *workspaceResourceEventLoop) processManagedEnvironment(ctx context.Co
 }
 
 func newWorkspaceResourceLoop(sharedResourceLoop *shared_resource_loop.SharedResourceEventLoop,
-	workspaceEventLoopInputChannel chan workspaceEventLoopMessage) *workspaceResourceEventLoop {
+	workspaceEventLoopInputChannel chan workspaceEventLoopMessage, namespaceName string,
+	namespaceUID string) *workspaceResourceEventLoop {
 
 	workspaceResourceEventLoop := &workspaceResourceEventLoop{
 		inputChannel: make(chan workspaceResourceLoopMessage),
 	}
 
-	go internalWorkspaceResourceEventLoop(workspaceResourceEventLoop.inputChannel, sharedResourceLoop, workspaceEventLoopInputChannel, shared_resource_loop.DefaultK8sClientFactory{})
+	go internalWorkspaceResourceEventLoop(workspaceResourceEventLoop.inputChannel, sharedResourceLoop, workspaceEventLoopInputChannel, shared_resource_loop.DefaultK8sClientFactory{}, namespaceName, namespaceUID)
 
 	return workspaceResourceEventLoop
 }
 
 func newWorkspaceResourceLoopWithFactory(sharedResourceLoop *shared_resource_loop.SharedResourceEventLoop,
-	workspaceEventLoopInputChannel chan workspaceEventLoopMessage, k8sClientFactory shared_resource_loop.SRLK8sClientFactory) *workspaceResourceEventLoop {
+	workspaceEventLoopInputChannel chan workspaceEventLoopMessage, k8sClientFactory shared_resource_loop.SRLK8sClientFactory, namespaceName string, namespaceUID string) *workspaceResourceEventLoop {
 
 	workspaceResourceEventLoop := &workspaceResourceEventLoop{
 		inputChannel: make(chan workspaceResourceLoopMessage),
 	}
 
-	go internalWorkspaceResourceEventLoop(workspaceResourceEventLoop.inputChannel, sharedResourceLoop, workspaceEventLoopInputChannel, k8sClientFactory)
+	go internalWorkspaceResourceEventLoop(workspaceResourceEventLoop.inputChannel, sharedResourceLoop, workspaceEventLoopInputChannel, k8sClientFactory, namespaceName, namespaceUID)
 
 	return workspaceResourceEventLoop
 }
 
 func internalWorkspaceResourceEventLoop(inputChan chan workspaceResourceLoopMessage,
 	sharedResourceLoop *shared_resource_loop.SharedResourceEventLoop,
-	workspaceEventLoopInputChannel chan workspaceEventLoopMessage, k8sClientFactory shared_resource_loop.SRLK8sClientFactory) {
+	workspaceEventLoopInputChannel chan workspaceEventLoopMessage, k8sClientFactory shared_resource_loop.SRLK8sClientFactory, namespaceName string, namespaceUID string) {
 
 	ctx := context.Background()
 	l := log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops).
-		WithValues("component", "workspace_resource_event_loop")
+		WithValues(logutil.Log_Component, logutil.Log_Component_Backend_WorkspaceResourceEventLoop)
 
 	dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
 	if err != nil {
@@ -116,7 +117,7 @@ func internalWorkspaceResourceEventLoop(inputChan chan workspaceResourceLoopMess
 		return
 	}
 
-	taskRetryLoop := sharedutil.NewTaskRetryLoop("workspace-resource-event-retry-loop")
+	taskRetryLoop := sharedutil.NewTaskRetryLoop("workspace-resource-event-retry-loop" + namespaceName + "-" + namespaceUID)
 
 	for {
 		msg := <-inputChan
@@ -224,7 +225,7 @@ func handleResourceLoopRepositoryCredential(ctx context.Context, msg workspaceRe
 
 	req, ok := (msg.payload).(ctrl.Request)
 	if !ok {
-		return noRetry, fmt.Errorf("invalid RepositoryCredential payload in processWorkspaceResourceMessage")
+		return noRetry, fmt.Errorf("invalid payload in processWorkspaceResourceMessage")
 	}
 
 	// Retrieve the namespace that the repository credential is contained within
@@ -239,7 +240,7 @@ func handleResourceLoopRepositoryCredential(ctx context.Context, msg workspaceRe
 			return retry, fmt.Errorf("unexpected error in retrieving repo credentials: %v", err)
 		}
 
-		log.V(logutil.LogLevel_Warn).Info("Received a message for a repository credential in a namepace that doesn't exist", "namespace", namespace)
+		log.V(logutil.LogLevel_Warn).Info("Received a message for a repository credential in a namepace that doesn't exist")
 		return noRetry, nil
 	}
 
@@ -248,7 +249,7 @@ func handleResourceLoopRepositoryCredential(ctx context.Context, msg workspaceRe
 	// - If the GitOpsDeploymentRepositoryCredential does exist, but not in the DB, then create a RepositoryCredential DB entry
 	// - If the GitOpsDeploymentRepositoryCredential does exist, and also in the DB, then compare and change a RepositoryCredential DB entry
 	// Then, in all 3 cases, create an Operation to update the cluster-agent
-	_, err := sharedResourceLoop.ReconcileRepositoryCredential(ctx, msg.apiNamespaceClient, *namespace, req.Name, k8sClientFactory)
+	_, err := sharedResourceLoop.ReconcileRepositoryCredential(ctx, msg.apiNamespaceClient, *namespace, req.Name, shared_resource_loop.DefaultK8sClientFactory{}, log)
 
 	if err != nil {
 		return retry, fmt.Errorf("unable to reconcile repository credential. Error: %v", err)
@@ -261,7 +262,7 @@ func handleResourceLoopManagedEnvironment(ctx context.Context, msg workspaceReso
 
 	evlMessage, ok := (msg.payload).(eventlooptypes.EventLoopMessage)
 	if !ok {
-		return noRetry, fmt.Errorf("invalid ManagedEnvironment payload in processWorkspaceResourceMessage")
+		return noRetry, fmt.Errorf("invalid payload in processWorkspaceResourceMessage")
 	}
 
 	if evlMessage.Event == nil { // Sanity test the message
@@ -282,13 +283,14 @@ func handleResourceLoopManagedEnvironment(ctx context.Context, msg workspaceReso
 			return retry, fmt.Errorf("unexpected error in retrieving namespace of managed env CR: %v", err)
 		}
 
-		log.V(logutil.LogLevel_Warn).Info("Received a message for a managed end CR in a namespace that doesn't exist", "namespace", namespace)
+		log.V(logutil.LogLevel_Warn).Info("Received a message for a managed env CR in a namespace that doesn't exist")
 		return noRetry, nil
 	}
 
 	// Ask the shared resource loop to ensure the managed environment is reconciled
 	_, err := sharedResourceLoop.ReconcileSharedManagedEnv(ctx, msg.apiNamespaceClient, *namespace, req.Name, req.Namespace,
-		false, k8sClientFactory, log)
+		false, shared_resource_loop.DefaultK8sClientFactory{}, log)
+
 	if err != nil {
 		return retry, fmt.Errorf("unable to reconcile shared managed env: %v", err)
 	}

@@ -26,6 +26,8 @@ spec:
             secretKeyRef:
               key: postgresql-password
               name: gitops-postgresql-staging
+        - name: DEV_ONLY_ALLOW_NON_TLS_CONNECTION_TO_POSTGRESQL
+          value: "true"
         image: ${COMMON_IMAGE}
         livenessProbe:
           httpGet:

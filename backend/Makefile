@@ -59,21 +59,21 @@ build: generate fmt vet ## Build manager binary.
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build -o bin/manager main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
-	ENABLE_APPPROJECT_ISOLATION=true DISABLE_APPSTUDIO_WEBHOOK=true go run ./main.go --zap-log-level info --zap-time-encoding=rfc3339nano
+	ENABLE_APPPROJECT_ISOLATION=true DISABLE_APPSTUDIO_WEBHOOK=true DEV_ONLY_ALLOW_NON_TLS_CONNECTION_TO_POSTGRESQL=true go run ./main.go --zap-log-level info --zap-time-encoding=rfc3339nano
 
 run-no-self-heal: manifests generate fmt vet ## Run a controller from your host.
-	ENABLE_APPPROJECT_ISOLATION=true SELF_HEAL_INTERVAL=0 DISABLE_APPSTUDIO_WEBHOOK=true go run ./main.go --zap-log-level info --zap-time-encoding=rfc3339nano
+	SELF_HEAL_INTERVAL=0 ENABLE_APPPROJECT_ISOLATION=true DISABLE_APPSTUDIO_WEBHOOK=true DEV_ONLY_ALLOW_NON_TLS_CONNECTION_TO_POSTGRESQL=true go run ./main.go --zap-log-level info --zap-time-encoding=rfc3339nano
 
 runexec: ## Run a controller from your host using exe in current folder
 ifeq (,$(wildcard ./main))
 runexec: manifests generate fmt vet
 	@echo Building and running backend
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build main.go
-	ENABLE_APPPROJECT_ISOLATION=true DISABLE_APPSTUDIO_WEBHOOK=true ./main --zap-log-level info --zap-time-encoding=rfc3339nano
+	ENABLE_APPPROJECT_ISOLATION=true DISABLE_APPSTUDIO_WEBHOOK=true DEV_ONLY_ALLOW_NON_TLS_CONNECTION_TO_POSTGRESQL=true ./main --zap-log-level info --zap-time-encoding=rfc3339nano
 else
 runexec:
 	@echo Running backend using existing main executable.
-	ENABLE_APPPROJECT_ISOLATION=true DISABLE_APPSTUDIO_WEBHOOK=true ./main --zap-log-level info --zap-time-encoding=rfc3339nano
+	ENABLE_APPPROJECT_ISOLATION=true DISABLE_APPSTUDIO_WEBHOOK=true DEV_ONLY_ALLOW_NON_TLS_CONNECTION_TO_POSTGRESQL=true ./main --zap-log-level info --zap-time-encoding=rfc3339nano
 endif
 
 # more on controller log level configuration: https://sdk.operatorframework.io/docs/building-operators/golang/references/logging/

@@ -11,6 +11,10 @@ resources:
 - ../../base/postgresql-staging
 # - ../../base/gitops-service-argocd
 
+patchesStrategicMerge:
+- backend-deployment-patch.yaml
+- cluster-agent-deployment-patch.yaml
+
 # Uncomment to use a custom image:
 
 # images:

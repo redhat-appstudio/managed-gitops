@@ -180,7 +180,15 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 			if err == nil {
 				break inner_for
 			} else {
-				log.Error(err, "error from inner event handler in applicationEventLoopRunner", "event", eventlooptypes.StringEventLoopEvent(newEvent))
+
+				// If we recognize this error is a connection error due to the user providing us invalid credentials, don't bother to log it.
+				if IsManagedEnvironmentConnectionUserError(err, log) {
+					// log this error message at info level
+					log.Info(fmt.Sprintf("user cluster credentials or URL are invalid: %v", err), "event", eventlooptypes.StringEventLoopEvent(newEvent))
+				} else {
+					log.Error(err, "error from inner event handler in applicationEventLoopRunner", "event", eventlooptypes.StringEventLoopEvent(newEvent))
+				}
+
 				backoff.DelayOnFail(ctx)
 				attempts++
 			}
@@ -389,10 +397,6 @@ func handleDeploymentModified(ctx context.Context, newEvent *eventlooptypes.Even
 	if err == nil {
 		return signalledShutdown, nil
 	} else {
-		// If we recognize this error is a connection error due to the user providing us invalid credentials, don't bother to log it.
-		if IsManagedEnvironmentConnectionUserError(err.DevError(), log) {
-			return signalledShutdown, nil
-		}
 		return signalledShutdown, err.DevError()
 	}
 }

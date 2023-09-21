@@ -280,7 +280,7 @@ db-drop:
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && go run main.go drop
 
 db-drop_smtable:
-	DEV_ONLY_ALLOW_NON_TLS_CONNECTION_TO_POSTGRESQL=true cd $(MAKEFILE_ROOT)/utilities/db-migration && go run main.go drop_smtable
+	cd $(MAKEFILE_ROOT)/utilities/db-migration && DEV_ONLY_ALLOW_NON_TLS_CONNECTION_TO_POSTGRESQL=true go run main.go drop_smtable
 
 db-migrate-downgrade:
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && go run main.go downgrade_migration

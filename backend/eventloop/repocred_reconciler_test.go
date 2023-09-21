@@ -17,6 +17,15 @@ import (
 	logger "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+func findCondition(conditions []metav1.Condition, typeName string) *metav1.Condition {
+	for i := range conditions {
+		if conditions[i].Type == typeName {
+			return &conditions[i]
+		}
+	}
+	return nil
+}
+
 var _ = Describe("RepoCred Reconcile Function Tests", func() {
 	Context("Testing reconcileRepositoryCredentials function for RepositoryCredentials table entries.", func() {
 
@@ -93,6 +102,18 @@ var _ = Describe("RepoCred Reconcile Function Tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 		})
 
+		It("should skip the reconcile and not blow up if the GitOpsDeploymentRepositoryCredential CR is not found", func() {
+
+			defer dbq.CloseDatabase()
+
+			By("not creating a GitOpsDeployment CR in cluster and calling the Reconcile function.")
+			objectMeta := metav1.ObjectMeta{
+				Name:      apiCRToDatabaseMappingDb.APIResourceName,
+				Namespace: apiCRToDatabaseMappingDb.APIResourceNamespace,
+			}
+			reconcileRepositoryCredentialStatus(ctx, k8sClient, dbq, db.APICRToDatabaseMapping{}, objectMeta, log)
+		})
+
 		It("should set an error status for RepositoryCredentials if the secret field is not set in the CR", func() {
 
 			defer dbq.CloseDatabase()
@@ -120,10 +141,11 @@ var _ = Describe("RepoCred Reconcile Function Tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(repoCredCR).NotTo(BeNil())
 			Expect(repoCredCR.Status.Conditions).To(HaveLen(3))
-			Expect(repoCredCR.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred))
-			Expect(repoCredCR.Status.Conditions[0].Reason).To(Equal(managedgitopsv1alpha1.RepositoryCredentialReasonSecretNotSpecified))
-			Expect(repoCredCR.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
-			Expect(repoCredCR.Status.Conditions[0].Message).To(Equal("Secret field is missing value"))
+			condition := findCondition(repoCredCR.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred)
+			Expect(condition).ToNot(BeNil())
+			Expect(condition.Reason).To(Equal(managedgitopsv1alpha1.RepositoryCredentialReasonSecretNotSpecified))
+			Expect(condition.Status).To(Equal(metav1.ConditionTrue))
+			Expect(condition.Message).To(Equal("Secret field is missing value"))
 		})
 
 		It("should set an error status for RepositoryCredentials if the secret is not found", func() {
@@ -156,10 +178,11 @@ var _ = Describe("RepoCred Reconcile Function Tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(repoCredCR).NotTo(BeNil())
 			Expect(repoCredCR.Status.Conditions).To(HaveLen(3))
-			Expect(repoCredCR.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred))
-			Expect(repoCredCR.Status.Conditions[0].Reason).To(Equal(managedgitopsv1alpha1.RepositoryCredentialReasonSecretNotFound))
-			Expect(repoCredCR.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
-			Expect(repoCredCR.Status.Conditions[0].Message).To(Equal("Secret specified not found"))
+			condition := findCondition(repoCredCR.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred)
+			Expect(condition).ToNot(BeNil())
+			Expect(condition.Reason).To(Equal(managedgitopsv1alpha1.RepositoryCredentialReasonSecretNotFound))
+			Expect(condition.Status).To(Equal(metav1.ConditionTrue))
+			Expect(condition.Message).To(Equal("Secret specified not found"))
 		})
 
 		It("should set an error status for RepositoryCredentials if the repo and secret exist but the credentials are invalid", func() {
@@ -204,10 +227,11 @@ var _ = Describe("RepoCred Reconcile Function Tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(repoCredCR).NotTo(BeNil())
 			Expect(repoCredCR.Status.Conditions).To(HaveLen(3))
-			Expect(repoCredCR.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred))
-			Expect(repoCredCR.Status.Conditions[0].Reason).To(Equal(managedgitopsv1alpha1.RepositoryCredentialReasonInvalidCredentials))
-			Expect(repoCredCR.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
-			Expect(repoCredCR.Status.Conditions[0].Message).To(Equal("Repository Credentials provided test-my-repository-credentials-secret for Repository https://github.com/redhat-appstudio/managed-gitops.git are invalid"))
+			condition := findCondition(repoCredCR.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred)
+			Expect(condition).ToNot(BeNil())
+			Expect(condition.Reason).To(Equal(managedgitopsv1alpha1.RepositoryCredentialReasonInvalidCredentials))
+			Expect(condition.Status).To(Equal(metav1.ConditionTrue))
+			Expect(condition.Message).To(Equal("Repository Credentials provided test-my-repository-credentials-secret for Repository https://github.com/redhat-appstudio/managed-gitops.git are invalid"))
 		})
 	})
 })

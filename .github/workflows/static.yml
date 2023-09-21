@@ -188,7 +188,7 @@ jobs:
       - name: "Run migration tests to add data in database"
         run: |
           cd $GITHUB_WORKSPACE/utilities/db-migration/migration_test/add_test_values
-          go test $GITHUB_WORKSPACE/utilities/db-migration/migration_test/add_test_values -run "TestInitializeValues"
+          DEV_ONLY_ALLOW_NON_TLS_CONNECTION_TO_POSTGRESQL=true go test $GITHUB_WORKSPACE/utilities/db-migration/migration_test/add_test_values -run "TestInitializeValues"
       
       - name: "Migrate to latest version of database"
         run: |
@@ -198,7 +198,7 @@ jobs:
       - name: "Run migration tests to verify that data added is still present/valid in database"
         run: |
           cd $GITHUB_WORKSPACE/utilities/db-migration/migration_test/verify_test_values
-          go test $GITHUB_WORKSPACE/utilities/db-migration/migration_test/verify_test_values -run "TestVerifyDBValues"
+          DEV_ONLY_ALLOW_NON_TLS_CONNECTION_TO_POSTGRESQL=true go test $GITHUB_WORKSPACE/utilities/db-migration/migration_test/verify_test_values -run "TestVerifyDBValues"
 
   validate-db-migration:
     name: Check if migration schema matches with super schema.

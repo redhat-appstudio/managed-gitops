@@ -33,7 +33,7 @@ help: ## Display this help.
 
 .PHONY: test
 test: ## Run E2E tests.
-	ENABLE_APPPROJECT_ISOLATION="true" go test -v -p=1 -timeout=100m -race -count=1 -coverprofile=coverage.out ./...	
+	ENABLE_APPPROJECT_ISOLATION="true" DEV_ONLY_ALLOW_NON_TLS_CONNECTION_TO_POSTGRESQL=true go test -v -p=1 -timeout=100m -race -count=1 -coverprofile=coverage.out ./...
 
 # go-get-tool will 'go install' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))

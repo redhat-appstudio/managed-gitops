@@ -103,7 +103,7 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 test: fmt vet envtest ## Run tests.
-	ACK_GINKGO_DEPRECATIONS=1.16.4 KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -p=1 ./... -coverpkg=./... -coverprofile cover.out
+	ACK_GINKGO_DEPRECATIONS=1.16.4 KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" DEV_ONLY_ALLOW_NON_TLS_CONNECTION_TO_POSTGRESQL=true go test -p=1 ./... -coverpkg=./... -coverprofile cover.out
 
 ##@ Build
 

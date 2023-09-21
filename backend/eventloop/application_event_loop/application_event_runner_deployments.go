@@ -1366,6 +1366,10 @@ func extractResourceStatus(resources []fauxargocd.ResourceStatus) []managedgitop
 }
 
 func extractOperationState(fauxOpState *fauxargocd.OperationState) (*managedgitopsv1alpha1.OperationState, error) {
+	if fauxOpState == nil {
+		return nil, nil
+	}
+
 	opStateBytes, err := json.Marshal(fauxOpState)
 	if err != nil {
 		return nil, err

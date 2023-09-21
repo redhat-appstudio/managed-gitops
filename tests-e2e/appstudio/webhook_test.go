@@ -251,8 +251,9 @@ var _ = Describe("Webhook E2E tests", func() {
 			Expect(err).ToNot(Succeed())
 			Expect(strings.Contains(err.Error(), fmt.Sprintf(err.Error()+": API URL must be an absolute URL starting with an 'https' scheme "))).To(BeTrue())
 
+			By("Create Environment CR with valid KubernetesClusterCredentials API URL")
 			environment.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.APIURL = "https://api-url.com"
-			err = k8s.Update(&environment, k8sClient)
+			err = k8s.Create(&environment, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Validate Environment KubernetesClusterCredentials API URL while updating")

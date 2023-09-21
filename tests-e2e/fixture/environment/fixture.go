@@ -44,6 +44,9 @@ func expectedCondition(f func(env appstudiosharedv1.Environment) bool) matcher.G
 func HaveEmptyEnvironmentConditions() matcher.GomegaMatcher {
 
 	return expectedCondition(func(env appstudiosharedv1.Environment) bool {
+
+		fmt.Println("EmptyEnvironmentConditions, env.Status.Conditions is:", env.Status.Conditions)
+
 		return env.Status.Conditions == nil || len(env.Status.Conditions) == 0
 	})
 }

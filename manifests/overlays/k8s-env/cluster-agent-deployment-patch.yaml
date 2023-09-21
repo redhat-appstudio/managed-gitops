@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: gitops-core-service-controller-manager
+  name: gitops-service-agent-controller-manager
   namespace: gitops
 spec:
   template:
@@ -10,6 +10,4 @@ spec:
       - env:
         - name: DEV_ONLY_ALLOW_NON_TLS_CONNECTION_TO_POSTGRESQL
           value: "true"
-        - name: SELF_HEAL_INTERVAL
-          value: "0"
         name: manager

@@ -1,8 +1,10 @@
 package db
 
 import (
+	"crypto/tls"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/go-pg/pg/extra/pgdebug"
 	"github.com/go-pg/pg/v10"
@@ -50,6 +52,10 @@ func ConnectToDatabaseWithPort(verbose bool, port int) (*pg.DB, error) {
 		User:     "postgres",
 		Password: password,
 		Database: dbName,
+	}
+
+	if value, isSet := os.LookupEnv("DEV_ONLY_ALLOW_NON_TLS_CONNECTION_TO_POSTGRESQL"); !isSet || strings.ToLower(value) != "true" {
+		opts.TLSConfig = &tls.Config{}
 	}
 
 	db := pg.Connect(opts)

@@ -163,6 +163,8 @@ func (wert *workspaceResourceEventTask) PerformTask(taskContext context.Context)
 
 	// If we recognize this error is a connection error due to the user providing us invalid credentials, don't bother to log it.
 	if application_event_loop.IsManagedEnvironmentConnectionUserError(err, wert.log) {
+		wert.log.Info(fmt.Sprintf("user cluster credentials for URL are invalid: %v", err))
+		// PerformTask only uses the error for logging, so we log here then supress the return value
 		return retry, nil
 	}
 	return retry, err

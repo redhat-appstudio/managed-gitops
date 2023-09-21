@@ -602,12 +602,6 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 	if err != nil {
 		userError := "unable to reconcile the ManagedEnvironment resource. Ensure that the ManagedEnvironment exists, it references a Secret, and the Secret is valid"
 		devError := fmt.Errorf("unable to get or create managed environment: %v", err)
-
-		// If we recognize this error is a connection error due to the user providing us invalid credentials, don't bother to log it.
-		if IsManagedEnvironmentConnectionUserError(err, a.log) {
-			return nil, nil, deploymentModifiedResult_Failed, nil
-		}
-
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, devError)
 	}
 
@@ -1400,9 +1394,5 @@ func IsManagedEnvironmentConnectionUserError(err error, log logr.Logger) bool {
 
 	errStr := err.Error()
 
-	if strings.Contains(errStr, shared_resource_loop.UnableToCreateRestConfigError) {
-		log.Info(errStr)
-		return true
-	}
-	return false
+	return strings.Contains(errStr, shared_resource_loop.UnableToCreateRestConfigError)
 }

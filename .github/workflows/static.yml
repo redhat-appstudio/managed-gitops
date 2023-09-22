@@ -276,3 +276,22 @@ jobs:
           cd $GITHUB_WORKSPACE
           make generate-manifests
           git diff --exit-code -- .
+  
+  mocks:
+    name: Check mocks generated are up-to-date.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Golang
+        uses: actions/setup-go@v4.1.0
+        with:
+          go-version-file: './backend/go.mod'
+      - name: "Install mockgen for generating mocks"
+        run: |
+          cd $GITHUB_WORKSPACE
+          go install github.com/golang/mock/mockgen@latest
+      - name: "Generate mocks"
+        run: |
+          cd $GITHUB_WORKSPACE
+          make mocks

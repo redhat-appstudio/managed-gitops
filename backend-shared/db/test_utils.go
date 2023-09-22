@@ -205,9 +205,8 @@ func SetupForTestingDBGinkgo() error {
 
 		if instanceToBeDeleted || strings.HasPrefix(operation.Operation_id, "test-") || strings.HasPrefix(operation.Operation_owner_user_id, "test-") || operation.Operation_owner_user_id == specialClusterUser.Clusteruser_id {
 			rowsAffected, err := dbq.CheckedDeleteOperationById(ctx, operation.Operation_id, operation.Operation_owner_user_id)
-			Expect(rowsAffected).Should(Equal(1))
 			Expect(err).ToNot(HaveOccurred())
-
+			Expect(rowsAffected).Should(Equal(1))
 		}
 	}
 

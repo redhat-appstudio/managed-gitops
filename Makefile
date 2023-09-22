@@ -305,7 +305,10 @@ ensure-gitops-ns-exists:
 ensure-workload-gitops-ns-exists:
 	kubectl create namespace gitops 2> /dev/null || true
 
+### --- M O C K S ---
 
+mocks:
+	cd $(MAKEFILE_ROOT)/backend-shared && make mocks
 
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.

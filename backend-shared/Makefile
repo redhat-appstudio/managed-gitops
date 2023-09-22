@@ -67,5 +67,10 @@ envtest: ## Download envtest-setup locally if necessary.
 test: fmt vet envtest ## Run tests.
 	ACK_GINKGO_DEPRECATIONS=1.16.4 KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" DEV_ONLY_ALLOW_NON_TLS_CONNECTION_TO_POSTGRESQL=true go test -p=1 ./... -coverpkg=./... -coverprofile cover.out
 
+mocks: ##  generate mocks
+	cd $(shell pwd)/util/mocks && mockgen -build_flags=--mod=mod -destination=mock_client.go -package=mocks sigs.k8s.io/controller-runtime/pkg/client Client
+	cd $(shell pwd)/util/mocks && mockgen -build_flags=--mod=mod -destination=mock_database_queries.go -package=mocks github.com/redhat-appstudio/managed-gitops/backend-shared/db DatabaseQueries
+	cd $(shell pwd)/apis/managed-gitops/v1alpha1/mocks -build_flags=--mod=mod -destination=status-writer.go -package=mocks sigs.k8s.io/controller-runtime/pkg/client StatusWriter
+	cd $(shell pwd)/apis/managed-gitops/v1alpha1/mocks -build_flags=--mod=mod -destination=cr-client.go -package=mocks sigs.k8s.io/controller-runtime/pkg/client Client
 
-	
+

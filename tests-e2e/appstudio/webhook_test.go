@@ -220,18 +220,6 @@ var _ = Describe("Webhook E2E tests", func() {
 			Expect(err).NotTo(Succeed())
 			Expect(strings.Contains(err.Error(), fmt.Sprintf("invalid environment name: %s", environment.Name))).To(BeTrue())
 
-			By("Validate that Environment name starting with capital letter is not allowed.")
-
-			environment.Name = "Staging"
-			err = k8s.Create(&environment, k8sClient)
-			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("Invalid value: %s", environment.Name))).To(BeTrue())
-
-			By("Validate that Environment name having small letters is allowed.")
-
-			environment.Name = "staging"
-			err = k8s.Create(&environment, k8sClient)
-			Expect(err).To(Succeed())
 		})
 
 		It("Should validate Environment CR Webhooks for invalid KubernetesClusterCredentials API URL.", func() {

@@ -147,16 +147,19 @@ spec:
     extraRepoCommandArgs:
       - --max-combined-directory-manifests-size
       - 10M
+      - --parallelismlimit
+      - "20"
     resources:
       limits:
         cpu: "1"
-        memory: 1Gi
+        memory: 2Gi
       requests:
-        cpu: 250m
-        memory: 256Mi
+        cpu: 500m
+        memory: 512Mi
     env:
     - name: ARGOCD_RECONCILIATION_TIMEOUT
       value: "60s"
+    execTimeout: 30
   server:
     logLevel: "debug"
     autoscale:

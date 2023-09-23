@@ -109,7 +109,7 @@ var _ = Describe("Environment Status.Conditions tests", func() {
 				Spec: appstudioshared.EnvironmentSpec{
 					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
 						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
-							APIURL:                   "abc",
+							APIURL:                   "https://abc",
 							ClusterCredentialsSecret: "test",
 						},
 					},

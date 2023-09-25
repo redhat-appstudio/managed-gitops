@@ -4,18 +4,23 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
+	environmentFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/environment"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	syncRunFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeploymentsyncrun"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	managedEnvFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/managedenvironment"
 	promotionRunFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/promotionrun"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -232,23 +237,68 @@ var _ = Describe("Webhook E2E tests", func() {
 
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
-			By("Validate Environment KubernetesClusterCredentials API URL while creating")
-			environment := buildEnvironmentResource("staging", "Staging Environment", "staging", appstudiosharedv1.EnvironmentType_POC)
-			environment.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.APIURL = "api.test-url.com:6443"
+			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
+			Expect(err).ToNot(HaveOccurred())
+
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-managed-env-secret",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Type:       sharedutil.ManagedEnvironmentSecretType,
+				StringData: map[string]string{"kubeconfig": kubeConfigContents},
+			}
+
+			err = k8s.Create(secret, k8sClient)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("create environment with invalid kubernetesClusterCredentials API URL.")
+			environment := buildEnvironmentResource("staging", "my-environment", "", appstudiosharedv1.EnvironmentType_POC)
+			environment.Spec.UnstableConfigurationFields = &appstudiosharedv1.UnstableEnvironmentConfiguration{
+				KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
+					TargetNamespace:            fixture.GitOpsServiceE2ENamespace,
+					APIURL:                     "api/test-url.com:6443",
+					ClusterCredentialsSecret:   secret.Name,
+					AllowInsecureSkipTLSVerify: true,
+				}}
+
 			err = k8s.Create(&environment, k8sClient)
 			Expect(err).ToNot(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf(err.Error()+": API URL must be an absolute URL starting with an 'https' scheme "))).To(BeTrue())
+			Expect(strings.Contains(err.Error(), "API URL must be an absolute URL starting with an 'https' scheme")).To(BeTrue())
 
-			By("Create Environment CR with valid KubernetesClusterCredentials API URL")
-			environment.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.APIURL = "https://api-url.com"
+			By("create environment with valid kubernetesClusterCredentials API URL.")
+			environment.Spec.UnstableConfigurationFields = &appstudiosharedv1.UnstableEnvironmentConfiguration{
+				KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
+					TargetNamespace:            fixture.GitOpsServiceE2ENamespace,
+					APIURL:                     apiServerURL,
+					ClusterCredentialsSecret:   secret.Name,
+					AllowInsecureSkipTLSVerify: true,
+				},
+			}
+
 			err = k8s.Create(&environment, k8sClient)
 			Expect(err).To(Succeed())
 
-			By("Validate Environment KubernetesClusterCredentials API URL while updating")
-			environment.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.APIURL = "api.test-url.com:6443"
+			By("verify that Environment's status condition is nil, indicating no errors")
+			Consistently(environment, 20*time.Second, 1*time.Second).Should(environmentFixture.HaveEmptyEnvironmentConditions())
+
+			By("fetch latest version of environment")
+			err = k8s.Get(&environment, k8sClient)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("update environment with invalid kubernetesClusterCredentials API URL.")
+			environment.Spec.UnstableConfigurationFields = &appstudiosharedv1.UnstableEnvironmentConfiguration{
+				KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
+					TargetNamespace:            fixture.GitOpsServiceE2ENamespace,
+					APIURL:                     "api/test-url.com:6443",
+					ClusterCredentialsSecret:   secret.Name,
+					AllowInsecureSkipTLSVerify: true,
+				},
+			}
+
 			err = k8s.Update(&environment, k8sClient)
 			Expect(err).ToNot(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf(err.Error()+": API URL must be an absolute URL starting with an 'https' scheme "))).To(BeTrue())
+			Expect(strings.Contains(err.Error(), "API URL must be an absolute URL starting with an 'https' scheme")).To(BeTrue())
 		})
 
 		It("Should validate create GitOpsDeployment CR Webhooks for invalid .spec.Type field.", func() {

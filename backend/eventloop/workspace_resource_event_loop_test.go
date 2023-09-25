@@ -377,38 +377,3 @@ var _ = Describe("Test Workspace Resource Loop", func() {
 		})
 	})
 })
-
-var _ = Describe("isManagedEnvironmentConnectionUserError function Test", func() {
-	Context("Testing isManagedEnvironmentConnectionUserError function.", func() {
-
-		It("should return True if error is related to connection issue.", func() {
-			ctx := context.Background()
-			log := log.FromContext(ctx)
-
-			rootErr := fmt.Errorf("Get \"https://api.ireland.burr-on-aws.com:6443/api?timeout=32s\": dial tcp: lookup api.ireland.burr-on-aws.com on 172.30.0.10:53: no such host")
-			err := fmt.Errorf("%s: %w", shared_resource_loop.UnableToCreateRestConfigError, rootErr)
-
-			result := isManagedEnvironmentConnectionUserError(err, log)
-			Expect(result).To(BeTrue())
-		})
-
-		It("should return False if error is not related to connection issue.", func() {
-			ctx := context.Background()
-			log := log.FromContext(ctx)
-
-			rootErr := fmt.Errorf("some error")
-			err := fmt.Errorf("another error: %w", rootErr)
-
-			result := isManagedEnvironmentConnectionUserError(err, log)
-			Expect(result).To(BeFalse())
-		})
-
-		It("should return False if error is nil", func() {
-			ctx := context.Background()
-			log := log.FromContext(ctx)
-
-			result := isManagedEnvironmentConnectionUserError(nil, log)
-			Expect(result).To(BeFalse())
-		})
-	})
-})

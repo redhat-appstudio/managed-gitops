@@ -18,6 +18,7 @@ package core
 //		 cd tests-e2e/tests-e2e/core/; go test -v -run Core -args -ginkgo.v -ginkgo.progress
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"os"
@@ -26,12 +27,15 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	gitopsDeplRepoCredFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeploymentrepositorycredential"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -167,6 +171,32 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 
 			By("6. ConfigMap should be deployed")
 			Eventually(func() error { return k8s.Get(configMap, k8sClient) }, "4m", "1s").Should(Succeed())
+
+			By("7. Secret should be created by for GitOpsDeploymentRepositoryCredential resource")
+
+			ctx := context.Background()
+			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
+			Expect(err).ToNot(HaveOccurred())
+
+			var apiCRToDatabaseMappings []db.APICRToDatabaseMapping
+			err = dbQueries.UnsafeListAllAPICRToDatabaseMappings(ctx, &apiCRToDatabaseMappings)
+			Expect(err).ToNot(HaveOccurred())
+
+			for idx := range apiCRToDatabaseMappings {
+				apiCRToDBMapping := apiCRToDatabaseMappings[idx]
+				if apiCRToDBMapping.APIResourceUID == string(CR.UID) {
+					repoCred, err := dbQueries.GetRepositoryCredentialsByID(ctx, apiCRToDBMapping.DBRelationKey)
+					Expect(err).ToNot(HaveOccurred())
+
+					By("Get the secret")
+
+					secret := &corev1.Secret{}
+					err = k8sClient.Get(ctx, types.NamespacedName{Name: argosharedutil.GenerateArgoCDRepoCredSecretName(repoCred), Namespace: "gitops-service-argocd"}, secret)
+					Expect(err).ToNot(HaveOccurred())
+
+					break
+				}
+			}
 		})
 	})
 
@@ -223,6 +253,32 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 			By("6. ConfigMap should be deployed")
 			configMap := getConfigMapYAML()
 			Eventually(func() error { return k8s.Get(configMap, k8sClient) }, "4m", "1s").Should(Succeed())
+
+			By("7. Secret should be created by for GitOpsDeploymentRepositoryCredential resource")
+
+			ctx := context.Background()
+			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
+			Expect(err).ToNot(HaveOccurred())
+
+			var apiCRToDatabaseMappings []db.APICRToDatabaseMapping
+			err = dbQueries.UnsafeListAllAPICRToDatabaseMappings(ctx, &apiCRToDatabaseMappings)
+			Expect(err).ToNot(HaveOccurred())
+
+			for idx := range apiCRToDatabaseMappings {
+				apiCRToDBMapping := apiCRToDatabaseMappings[idx]
+				if apiCRToDBMapping.APIResourceUID == string(CR.UID) {
+					repoCred, err := dbQueries.GetRepositoryCredentialsByID(ctx, apiCRToDBMapping.DBRelationKey)
+					Expect(err).ToNot(HaveOccurred())
+
+					By("Get the secret")
+
+					secret := &corev1.Secret{}
+					err = k8sClient.Get(ctx, types.NamespacedName{Name: argosharedutil.GenerateArgoCDRepoCredSecretName(repoCred), Namespace: "gitops-service-argocd"}, secret)
+					Expect(err).ToNot(HaveOccurred())
+
+					break
+				}
+			}
 		})
 	})
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -174,7 +175,7 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 
 				By(" --- getting the secret ---")
 				secret := &corev1.Secret{}
-				err = task.event.client.Get(ctx, types.NamespacedName{Name: repositoryCredential.SecretObj, Namespace: namespace}, secret)
+				err = task.event.client.Get(ctx, types.NamespacedName{Name: argosharedutil.GenerateArgoCDRepoCredSecretName(repositoryCredential), Namespace: namespace}, secret)
 				Expect(err).ToNot(HaveOccurred())
 
 				By(" --- checking secret compatibility with ArgoCD ---")
@@ -277,7 +278,7 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 
 				By(" --- getting the secret ---")
 				secret := &corev1.Secret{}
-				err = task.event.client.Get(ctx, types.NamespacedName{Name: repositoryCredential.SecretObj, Namespace: namespace}, secret)
+				err = task.event.client.Get(ctx, types.NamespacedName{Name: argosharedutil.GenerateArgoCDRepoCredSecretName(repositoryCredential), Namespace: namespace}, secret)
 				Expect(err).ToNot(HaveOccurred())
 
 				By(" --- checking secret compatibility with ArgoCD ---")

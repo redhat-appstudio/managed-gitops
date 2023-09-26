@@ -9,6 +9,8 @@ import (
 
 const (
 	managedEnvPrefix = "managed-env-"
+	// #nosec G101
+	repoCredPrefix = "repo-cred-"
 
 	// ArgoCDDefaultDestinationInCluster is 'in-cluster' which is the spec destination value that Argo CD recognizes
 	// as indicating that Argo CD should deploy to the local cluster (the cluster that Argo CD is installed on).
@@ -28,6 +30,11 @@ func GenerateArgoCDClusterSecretName(managedEnv db.ManagedEnvironment) string {
 
 func GenerateArgoCDApplicationName(gitopsDeploymentCRUID string) string {
 	return gitopsDeplPrefix + string(gitopsDeploymentCRUID)
+}
+
+// GenerateArgoCDRepoCredSecretName generates the name of the Argo CD Repository Credentials secret.
+func GenerateArgoCDRepoCredSecretName(repoCred db.RepositoryCredentials) string {
+	return repoCredPrefix + repoCred.RepositoryCredentialsID
 }
 
 // ConvertArgoCDClusterSecretNameToManagedIdDatabaseRowId takes the name of an Argo CD cluster secret as input.

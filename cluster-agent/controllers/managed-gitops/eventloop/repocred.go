@@ -8,6 +8,7 @@ import (
 	"github.com/go-logr/logr"
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	corev1 "k8s.io/api/core/v1"
@@ -134,7 +135,7 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 	// 3) Retrieve ArgoCD secret from the cluster.
 	argoCDSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      dbRepositoryCredentials.SecretObj,
+			Name:      argosharedutil.GenerateArgoCDRepoCredSecretName(dbRepositoryCredentials),
 			Namespace: opConfig.argoCDNamespace.Name,
 		},
 	}

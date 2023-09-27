@@ -64,9 +64,7 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 				It("should set the finalizer on the DeploymentTarget", func() {
 
 					By("creating a default DeploymentTargetClass")
-					dtcls := generateDeploymentTargetClass(func(dtc *appstudiosharedv1.DeploymentTargetClass) {
-						dtc.Spec.ReclaimPolicy = appstudiosharedv1.ReclaimPolicy_Delete
-					})
+					dtcls := generateDeploymentTargetClass(appstudiosharedv1.ReclaimPolicy_Delete)
 					err := k8sClient.Create(ctx, &dtcls)
 					Expect(err).ToNot(HaveOccurred())
 
@@ -102,9 +100,7 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 			It("Failed to delete SpaceRequest and DeploymentTarget", func() {
 
 				By("creating a default DeploymentTargetClass")
-				dtcls := generateDeploymentTargetClass(func(dtc *appstudiosharedv1.DeploymentTargetClass) {
-					dtc.Spec.ReclaimPolicy = appstudiosharedv1.ReclaimPolicy_Delete
-				})
+				dtcls := generateDeploymentTargetClass(appstudiosharedv1.ReclaimPolicy_Delete)
 				err := k8sClient.Create(ctx, &dtcls)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -172,9 +168,7 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 
 			It("should unset the claimRef of DT if its corresponding DTC is deleted with Retain policy", func() {
 				By("creating a default DeploymentTargetClass with Retain policy")
-				dtcls := generateDeploymentTargetClass(func(dtc *appstudiosharedv1.DeploymentTargetClass) {
-					dtc.Spec.ReclaimPolicy = appstudiosharedv1.ReclaimPolicy_Retain
-				})
+				dtcls := generateDeploymentTargetClass(appstudiosharedv1.ReclaimPolicy_Retain)
 				err := k8sClient.Create(ctx, &dtcls)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -200,9 +194,7 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 				It("should unset the finalizer from the DT", func() {
 
 					By("creating a default DeploymentTargetClass with Delete policy")
-					dtcls := generateDeploymentTargetClass(func(dtc *appstudiosharedv1.DeploymentTargetClass) {
-						dtc.Spec.ReclaimPolicy = appstudiosharedv1.ReclaimPolicy_Delete
-					})
+					dtcls := generateDeploymentTargetClass(appstudiosharedv1.ReclaimPolicy_Delete)
 					err := k8sClient.Create(ctx, &dtcls)
 					Expect(err).ToNot(HaveOccurred())
 
@@ -242,9 +234,7 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 				It("should unset the finalizer from the DT", func() {
 
 					By("creating a default DeploymentTargetClass with Retain policy")
-					dtcls := generateDeploymentTargetClass(func(dtc *appstudiosharedv1.DeploymentTargetClass) {
-						dtc.Spec.ReclaimPolicy = appstudiosharedv1.ReclaimPolicy_Retain
-					})
+					dtcls := generateDeploymentTargetClass(appstudiosharedv1.ReclaimPolicy_Retain)
 					err := k8sClient.Create(ctx, &dtcls)
 					Expect(err).ToNot(HaveOccurred())
 

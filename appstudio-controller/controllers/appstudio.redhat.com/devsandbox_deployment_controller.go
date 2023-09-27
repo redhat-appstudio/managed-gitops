@@ -182,7 +182,8 @@ func (r *DevsandboxDeploymentReconciler) deleteSpaceRequestIfOrphaned(ctx contex
 
 	if dtClassDevsandbox == nil {
 		// Devsandbox provisioner could not be located, so we should not delete the SpaceRequest
-		return false, nil
+		log.Error(nil, "SEVERE: unable to locate dev sandbox provisioner DeploymentTargetClass")
+		return false, fmt.Errorf("unable to locate dev sandbox provisioner DeploymentTargetClass")
 	}
 
 	if dtClassDevsandbox.Spec.ReclaimPolicy != applicationv1alpha1.ReclaimPolicy_Delete {

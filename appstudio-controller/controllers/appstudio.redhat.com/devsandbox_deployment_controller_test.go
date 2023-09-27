@@ -75,11 +75,15 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 		})
 
 		It("should handle the creation of DeploymentTarget for a SpaceRequest", func() {
+
+			dtClass := generateDeploymentTargetClass(appstudiosharedv1.ReclaimPolicy_Delete)
+			Expect(k8sClient.Create(ctx, &dtClass)).To(Succeed())
+
 			dtc := generateDevsandboxDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 				dtc.Annotations = map[string]string{
 					appstudiosharedv1.AnnTargetProvisioner: "sandbox",
 				}
-				dtc.Spec.DeploymentTargetClassName = appstudiosharedv1.DeploymentTargetClassName("test-sandbox-class")
+				dtc.Spec.DeploymentTargetClassName = appstudiosharedv1.DeploymentTargetClassName(dtClass.Name)
 			})
 			err := k8sClient.Create(ctx, &dtc)
 			Expect(err).ToNot(HaveOccurred())
@@ -175,12 +179,16 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 			Expect(found.Name).To(Equal(dtc.Name))
 		})
 
-		It("should not create an extra DT if there is an existiong one for a SpaceRequest", func() {
+		It("should not create an extra DT if there is an existing one for a SpaceRequest", func() {
+
+			dtClass := generateDeploymentTargetClass(appstudiosharedv1.ReclaimPolicy_Delete)
+			Expect(k8sClient.Create(ctx, &dtClass)).To(Succeed())
+
 			dtc := generateDevsandboxDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 				dtc.Annotations = map[string]string{
 					appstudiosharedv1.AnnTargetProvisioner: "sandbox",
 				}
-				dtc.Spec.DeploymentTargetClassName = appstudiosharedv1.DeploymentTargetClassName("test-sandbox-class")
+				dtc.Spec.DeploymentTargetClassName = appstudiosharedv1.DeploymentTargetClassName(dtClass.Name)
 			})
 			err := k8sClient.Create(ctx, &dtc)
 			Expect(err).ToNot(HaveOccurred())
@@ -214,11 +222,15 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 		})
 
 		It("should set Spec.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify field of DT to True, if it is a Dev environment.", func() {
+
+			dtClass := generateDeploymentTargetClass(appstudiosharedv1.ReclaimPolicy_Delete)
+			Expect(k8sClient.Create(ctx, &dtClass)).To(Succeed())
+
 			dtc := generateDevsandboxDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 				dtc.Annotations = map[string]string{
 					appstudiosharedv1.AnnTargetProvisioner: "sandbox",
 				}
-				dtc.Spec.DeploymentTargetClassName = appstudiosharedv1.DeploymentTargetClassName("test-sandbox-class")
+				dtc.Spec.DeploymentTargetClassName = appstudiosharedv1.DeploymentTargetClassName(dtClass.Name)
 			})
 			err := k8sClient.Create(ctx, &dtc)
 			Expect(err).ToNot(HaveOccurred())

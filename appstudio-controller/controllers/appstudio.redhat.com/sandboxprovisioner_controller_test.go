@@ -55,7 +55,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 
 		It("should skip handling a DTC that has a DTCLS that doesn't use a Sandbox provisioner", func() {
 			By("create a DTC that targets a DTCLS that exists")
-			dtcls := getSandboxDeploymentTargetClass(
+			dtcls := generateDeploymentTargetClass(appstudiosharedv1.ReclaimPolicy_Retain,
 				func(dtcls *appstudiosharedv1.DeploymentTargetClass) {
 					dtcls.Spec.Provisioner = ""
 				})
@@ -63,7 +63,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 			err := k8sClient.Create(ctx, &dtcls)
 			Expect(err).ToNot(HaveOccurred())
 
-			dtc := getDeploymentTargetClaim(
+			dtc := generateDeploymentTargetClaim(
 				func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 					dtc.Annotations = map[string]string{
 						appstudiosharedv1.AnnTargetProvisioner: "sandbox-provisioner",
@@ -91,7 +91,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 		It("should return an error when handling a DTC that doesn't have a matching DTCLS", func() {
 			By("create a DTC that targets a DTCLS that doesn't exist")
 			missingDTCLSName := "noSuchDTCLS"
-			dtc := getDeploymentTargetClaim(
+			dtc := generateDeploymentTargetClaim(
 				func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 					dtc.Annotations = map[string]string{
 						appstudiosharedv1.AnnTargetProvisioner: "sandbox-provisioner",
@@ -118,14 +118,13 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 
 		It("should create a new SpaceRequest for a new deploymentTargetClaim that's marked for dynamic provisioning", func() {
 			By("create a DTC that targets a DTCLS that exists")
-			dtcls := getSandboxDeploymentTargetClass(
-				func(dtcls *appstudiosharedv1.DeploymentTargetClass) {
-				})
+
+			dtcls := generateDeploymentTargetClass(appstudiosharedv1.ReclaimPolicy_Retain)
 
 			err := k8sClient.Create(ctx, &dtcls)
 			Expect(err).ToNot(HaveOccurred())
 
-			dtc := getDeploymentTargetClaim(
+			dtc := generateDeploymentTargetClaim(
 				func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 					dtc.Annotations = map[string]string{
 						appstudiosharedv1.AnnTargetProvisioner: "sandbox-provisioner",
@@ -154,14 +153,12 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 
 		It("should skip creation of an existing SpaceRequest for a new deploymentTargetClaim that's marked for dynamic provisioning", func() {
 			By("create a DTC that targets a DTCLS that exists")
-			dtcls := getSandboxDeploymentTargetClass(
-				func(dtcls *appstudiosharedv1.DeploymentTargetClass) {
-				})
+			dtcls := generateDeploymentTargetClass(appstudiosharedv1.ReclaimPolicy_Retain)
 
 			err := k8sClient.Create(ctx, &dtcls)
 			Expect(err).ToNot(HaveOccurred())
 
-			dtc := getDeploymentTargetClaim(
+			dtc := generateDeploymentTargetClaim(
 				func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 					dtc.Annotations = map[string]string{
 						appstudiosharedv1.AnnTargetProvisioner: "sandbox-provisioner",
@@ -174,7 +171,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 			err = k8sClient.Create(ctx, &dtc)
 			Expect(err).ToNot(HaveOccurred())
 
-			expected := getSandboxSpaceRequest(func(spaceRequest *codereadytoolchainv1alpha1.SpaceRequest) {
+			expected := generateSandboxSpaceRequest(func(spaceRequest *codereadytoolchainv1alpha1.SpaceRequest) {
 				spaceRequest.Labels = map[string]string{
 					DeploymentTargetClaimLabel: dtc.Name,
 				}
@@ -198,12 +195,12 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 
 		Context("Test findMatchingDTClassForDTC function", func() {
 			It("should match a sandbox provisioned matching DTCLS if found", func() {
-				expected := getSandboxDeploymentTargetClass(func(dt *appstudiosharedv1.DeploymentTargetClass) {
-				})
+				expected := generateDeploymentTargetClass(appstudiosharedv1.ReclaimPolicy_Retain)
+
 				err := k8sClient.Create(ctx, &expected)
 				Expect(err).ToNot(HaveOccurred())
 
-				dtc := getSandboxDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
+				dtc := generateSandboxDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 					dtc.Annotations = map[string]string{
 						appstudiosharedv1.AnnTargetProvisioner: "sandbox-provisioner",
 					}
@@ -220,7 +217,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 
 		Context("Test findMatchingSpaceRequestForDTC function", func() {
 			It("should match a sandbox provisioned matching SpaceRequest if found", func() {
-				dtc := getSandboxDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
+				dtc := generateSandboxDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 					dtc.Annotations = map[string]string{
 						appstudiosharedv1.AnnTargetProvisioner: "sandbox-provisioner",
 					}
@@ -228,7 +225,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 				err := k8sClient.Create(ctx, &dtc)
 				Expect(err).ToNot(HaveOccurred())
 
-				expected := getSandboxSpaceRequest(func(spaceRequest *codereadytoolchainv1alpha1.SpaceRequest) {
+				expected := generateSandboxSpaceRequest(func(spaceRequest *codereadytoolchainv1alpha1.SpaceRequest) {
 					spaceRequest.Labels = map[string]string{
 						DeploymentTargetClaimLabel: dtc.Name,
 					}
@@ -244,7 +241,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 	})
 })
 
-func getSandboxDeploymentTargetClaim(ops ...func(dtc *appstudiosharedv1.DeploymentTargetClaim)) appstudiosharedv1.DeploymentTargetClaim {
+func generateSandboxDeploymentTargetClaim(ops ...func(dtc *appstudiosharedv1.DeploymentTargetClaim)) appstudiosharedv1.DeploymentTargetClaim {
 	dtc := appstudiosharedv1.DeploymentTargetClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "test-dtc",
@@ -260,26 +257,7 @@ func getSandboxDeploymentTargetClaim(ops ...func(dtc *appstudiosharedv1.Deployme
 	return dtc
 }
 
-func getSandboxDeploymentTargetClass(ops ...func(dtc *appstudiosharedv1.DeploymentTargetClass)) appstudiosharedv1.DeploymentTargetClass {
-	dtcls := appstudiosharedv1.DeploymentTargetClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        "test-sandbox-class",
-			Namespace:   "test-ns",
-			Annotations: map[string]string{},
-		},
-		Spec: appstudiosharedv1.DeploymentTargetClassSpec{
-			Provisioner: appstudiosharedv1.Provisioner_Devsandbox,
-		},
-	}
-
-	for _, o := range ops {
-		o(&dtcls)
-	}
-
-	return dtcls
-}
-
-func getSandboxSpaceRequest(ops ...func(spaceRequest *codereadytoolchainv1alpha1.SpaceRequest)) codereadytoolchainv1alpha1.SpaceRequest {
+func generateSandboxSpaceRequest(ops ...func(spaceRequest *codereadytoolchainv1alpha1.SpaceRequest)) codereadytoolchainv1alpha1.SpaceRequest {
 	spaceRequest := codereadytoolchainv1alpha1.SpaceRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "test-sandbox-spacerequest",

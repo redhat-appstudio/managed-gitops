@@ -53,14 +53,14 @@ var _ = Describe("Test SetupArgoCD()", func() {
 
 		When("SetupArgoCD() is called", func() {
 			It("creates the required service account, secret, cluster role, rolebinding and cluster secret", func() {
-				By("starting a goroutine to add a token to the secret created by SetupArogCD()")
+				By("starting a goroutine to add a token to the secret created by SetupArgoCD()")
 				startSecretUpdater(ctx, k8sClient)
 
 				By("calling SetupArgoCD()")
 				err := SetupArgoCD(ctx, apiHost, namespace.Name, k8sClient, logger)
 				Expect(err).ToNot(HaveOccurred())
 
-				By("ensuring the sevice account was created")
+				By("ensuring the service account was created")
 				serviceAccount := &corev1.ServiceAccount{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      ArgoCDManagerServiceAccountName,
@@ -149,10 +149,10 @@ var _ = Describe("Test SetupArgoCD()", func() {
 
 		When("SetupArgoCD() is called and the resources already exist", func() {
 			It("creates the required service account, secret, cluster role, rolebinding and cluster secret", func() {
-				By("starting a goroutine to add a token to the secret created by SetupArogCD()")
+				By("starting a goroutine to add a token to the secret created by SetupArgoCD()")
 				startSecretUpdater(ctx, k8sClient)
 
-				By("creating the sevice account")
+				By("creating the service account")
 				serviceAccount := &corev1.ServiceAccount{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      ArgoCDManagerServiceAccountName,
@@ -209,6 +209,8 @@ var _ = Describe("Test SetupArgoCD()", func() {
 						},
 					},
 				}
+				err = k8sClient.Create(ctx, clusterRole)
+				Expect(err).ToNot(HaveOccurred())
 
 				By("creating the cluster role binding")
 				clusterRoleBinding := &rbac.ClusterRoleBinding{
@@ -248,7 +250,7 @@ var _ = Describe("Test SetupArgoCD()", func() {
 				err = SetupArgoCD(ctx, apiHost, namespace.Name, k8sClient, logger)
 				Expect(err).ToNot(HaveOccurred())
 
-				By("ensuring the sevice account was updated")
+				By("ensuring the service account was updated")
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(serviceAccount), serviceAccount)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(serviceAccount.Secrets).To(BeEmpty())

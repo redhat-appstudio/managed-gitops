@@ -329,7 +329,7 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 		}
 		logutil.LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, logutil.ResourceCreated, log)
 	} else {
-		// Some other error occured
+		// Some other error occurred
 		return fmt.Errorf("error on Get service account: %w", err)
 	}
 
@@ -365,7 +365,7 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 		}
 		logutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, logutil.ResourceCreated, log)
 	} else {
-		// Some other error occured
+		// Some other error occurred
 		return fmt.Errorf("error on Get secret: %w", err)
 	}
 
@@ -401,7 +401,7 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 		}
 		logutil.LogAPIResourceChangeEvent(clusterRole.Namespace, clusterRole.Name, clusterRole, logutil.ResourceCreated, log)
 	} else {
-		// Some other error occured
+		// Some other error occurred
 		return fmt.Errorf("error on Get cluster role: %w", err)
 	}
 
@@ -441,7 +441,7 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 		}
 		logutil.LogAPIResourceChangeEvent(clusterRoleBinding.Namespace, clusterRoleBinding.Name, clusterRoleBinding, logutil.ResourceCreated, log)
 	} else {
-		// Some other error occured
+		// Some other error occurred
 		return fmt.Errorf("error on Get cluster role binding: %w", err)
 	}
 
@@ -532,7 +532,7 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 		}
 		logutil.LogAPIResourceChangeEvent(clusterSecret.Namespace, clusterSecret.Name, clusterSecret, logutil.ResourceCreated, log)
 	} else {
-		// Some other error occured
+		// Some other error occurred
 		return fmt.Errorf("error on Get cluster secret:: %w", err)
 	}
 

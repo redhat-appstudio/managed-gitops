@@ -225,7 +225,7 @@ func handleResourceLoopRepositoryCredential(ctx context.Context, msg workspaceRe
 
 	req, ok := (msg.payload).(ctrl.Request)
 	if !ok {
-		return noRetry, fmt.Errorf("invalid payload in processWorkspaceResourceMessage")
+		return noRetry, fmt.Errorf("invalid RepositoryCredential payload in processWorkspaceResourceMessage")
 	}
 
 	// Retrieve the namespace that the repository credential is contained within
@@ -249,7 +249,7 @@ func handleResourceLoopRepositoryCredential(ctx context.Context, msg workspaceRe
 	// - If the GitOpsDeploymentRepositoryCredential does exist, but not in the DB, then create a RepositoryCredential DB entry
 	// - If the GitOpsDeploymentRepositoryCredential does exist, and also in the DB, then compare and change a RepositoryCredential DB entry
 	// Then, in all 3 cases, create an Operation to update the cluster-agent
-	_, err := sharedResourceLoop.ReconcileRepositoryCredential(ctx, msg.apiNamespaceClient, *namespace, req.Name, shared_resource_loop.DefaultK8sClientFactory{}, log)
+	_, err := sharedResourceLoop.ReconcileRepositoryCredential(ctx, msg.apiNamespaceClient, *namespace, req.Name, k8sClientFactory, log)
 
 	if err != nil {
 		return retry, fmt.Errorf("unable to reconcile repository credential. Error: %v", err)
@@ -262,7 +262,7 @@ func handleResourceLoopManagedEnvironment(ctx context.Context, msg workspaceReso
 
 	evlMessage, ok := (msg.payload).(eventlooptypes.EventLoopMessage)
 	if !ok {
-		return noRetry, fmt.Errorf("invalid payload in processWorkspaceResourceMessage")
+		return noRetry, fmt.Errorf("invalid ManagedEnvironment payload in processWorkspaceResourceMessage")
 	}
 
 	if evlMessage.Event == nil { // Sanity test the message
@@ -289,7 +289,7 @@ func handleResourceLoopManagedEnvironment(ctx context.Context, msg workspaceReso
 
 	// Ask the shared resource loop to ensure the managed environment is reconciled
 	_, err := sharedResourceLoop.ReconcileSharedManagedEnv(ctx, msg.apiNamespaceClient, *namespace, req.Name, req.Namespace,
-		false, shared_resource_loop.DefaultK8sClientFactory{}, log)
+		false, k8sClientFactory, log)
 
 	if err != nil {
 		return retry, fmt.Errorf("unable to reconcile shared managed env: %v", err)

@@ -358,7 +358,7 @@ func SetupForTestingDBGinkgo() error {
 	Expect(err).ToNot(HaveOccurred())
 	for idx := range apiCRToDatabaseMappings {
 		item := apiCRToDatabaseMappings[idx]
-		if strings.HasPrefix(item.APIResourceUID, "test-") || strings.HasPrefix(item.DBRelationKey, "test-") {
+		if strings.HasPrefix(item.APIResourceUID, "test-") || strings.HasPrefix(item.APIResourceName, "test-") || strings.HasPrefix(item.DBRelationKey, "test-") {
 			rowsAffected, err := dbq.DeleteAPICRToDatabaseMapping(ctx, &item)
 			Expect(err).ToNot(HaveOccurred())
 			if err == nil {

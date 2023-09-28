@@ -131,7 +131,6 @@ type FauxApplicationStatus struct {
 }
 
 // ResourceStatus holds the current sync and health status of a resource
-// TODO: describe members of this type
 type ResourceStatus struct {
 	Group           string         `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
 	Version         string         `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`

@@ -69,6 +69,22 @@ var _ = Describe("Devsandbox deployment controller tests", func() {
 				},
 			}
 
+			By("create a DeploymentTargetClass")
+
+			dtcls := appstudiosharedv1.DeploymentTargetClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "sandbox-provisioner",
+					Namespace:   namespace,
+					Annotations: map[string]string{},
+				},
+				Spec: appstudiosharedv1.DeploymentTargetClassSpec{
+					Provisioner:   appstudiosharedv1.Provisioner_Devsandbox,
+					ReclaimPolicy: appstudiosharedv1.ReclaimPolicy_Retain,
+				},
+			}
+
+			Expect(k8sClient.Create(ctx, &dtcls)).To(Succeed())
+
 			dtc = appstudiosharedv1.DeploymentTargetClaim{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      fixture.DTCName,

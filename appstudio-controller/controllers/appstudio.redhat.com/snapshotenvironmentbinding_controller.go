@@ -26,6 +26,7 @@ import (
 
 	"github.com/go-logr/logr"
 	appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	appstudiosharedv1beta1 "github.com/redhat-appstudio/application-api/api/v1beta1"
 	apibackend "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
@@ -121,7 +122,7 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 	// if our reconciliation changed the resource at all.
 	originalBinding := *binding.DeepCopy()
 
-	environment := appstudioshared.Environment{
+	environment := appstudiosharedv1beta1.Environment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      binding.Spec.Environment,
 			Namespace: req.Namespace,
@@ -489,7 +490,7 @@ func GenerateBindingGitOpsDeploymentName(binding appstudioshared.SnapshotEnviron
 
 func generateExpectedGitOpsDeployment(ctx context.Context, component appstudioshared.BindingComponentStatus,
 	binding appstudioshared.SnapshotEnvironmentBinding,
-	environment appstudioshared.Environment,
+	environment appstudiosharedv1beta1.Environment,
 	k8sClient client.Client, logger logr.Logger) (apibackend.GitOpsDeployment, gitopserrors.UserError) {
 
 	res := apibackend.GitOpsDeployment{
@@ -518,13 +519,23 @@ func generateExpectedGitOpsDeployment(ctx context.Context, component appstudiosh
 		},
 	}
 
+	/*fmt.Println("1111111111 ####################################################################")
+
+	fmt.Println("######### environment.Spec === ", environment.Spec)
+	fmt.Println("######### environment.Spec.Target === ", environment.Spec.Target)
+	fmt.Println("######### environment.Spec.Target.Claim === ", environment.Spec.Target.Claim)
+	fmt.Println("######### environment.Spec.Target.Claim.DeploymentTargetClaim === ", environment.Spec.Target.Claim.DeploymentTargetClaim)
+	fmt.Println("######### environment.Spec.Target.Claim.DeploymentTargetClaim.ClaimName === ", environment.Spec.Target.Claim.DeploymentTargetClaim.ClaimName)
+
+	fmt.Println("2222222222 ####################################################################")*/
+
 	// If the Environment references a DeploymentTargetClaim...
-	if environment.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName != "" {
+	if environment.Spec.Target != nil && environment.Spec.Target.Claim.DeploymentTargetClaim.ClaimName != "" {
 
 		// Retrieve the DTC
 		dtc := appstudioshared.DeploymentTargetClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      environment.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName,
+				Name:      environment.Spec.Target.Claim.DeploymentTargetClaim.ClaimName,
 				Namespace: environment.Namespace,
 			},
 		}
@@ -555,10 +566,10 @@ func generateExpectedGitOpsDeployment(ctx context.Context, component appstudiosh
 			Namespace:   dt.Spec.KubernetesClusterCredentials.DefaultNamespace, // Note: this might be empty
 		}
 
-	} else if environment.Spec.UnstableConfigurationFields != nil {
+	} else if environment.Spec.Target != nil {
 		// If the environment has a target cluster field defined, then set the destination to that managed environment
 
-		if environment.Spec.UnstableConfigurationFields.TargetNamespace == "" {
+		if environment.Spec.Target.TargetNamespace == "" {
 			devErr := fmt.Errorf("invalid target namespace: %s: '%s'", errMissingTargetNamespace, environment.Name)
 			return apibackend.GitOpsDeployment{}, gitopserrors.NewUserDevError("Environment is missing a TargetNamespace field", devErr)
 		}
@@ -567,7 +578,7 @@ func generateExpectedGitOpsDeployment(ctx context.Context, component appstudiosh
 
 		res.Spec.Destination = apibackend.ApplicationDestination{
 			Environment: managedEnvironmentName,
-			Namespace:   environment.Spec.UnstableConfigurationFields.TargetNamespace,
+			Namespace:   environment.Spec.Target.TargetNamespace,
 		}
 	}
 	// Else if neither of the above is true, it's necessarily just an Environment with no credentials specified,
@@ -623,7 +634,7 @@ func (r *SnapshotEnvironmentBindingReconciler) SetupWithManager(mgr ctrl.Manager
 		For(&appstudioshared.SnapshotEnvironmentBinding{}).
 		Owns(&apibackend.GitOpsDeployment{}).
 		Watches(
-			&source.Kind{Type: &appstudioshared.Environment{}},
+			&source.Kind{Type: &appstudiosharedv1beta1.Environment{}},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForEnvironment),
 			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
 		).
@@ -654,7 +665,7 @@ func (r *SnapshotEnvironmentBindingReconciler) findObjectsForDeploymentTargetCla
 	}
 
 	// 1. Find all Environments that are associated with this DeploymentTargetClaim.
-	envList := &appstudioshared.EnvironmentList{}
+	envList := &appstudiosharedv1beta1.EnvironmentList{}
 	if err := r.Client.List(context.Background(), envList, &client.ListOptions{Namespace: dtcObj.GetNamespace()}); err != nil {
 		handlerLog.Error(err, "failed to list Environments in the SEB DeploymentTargetClaim mapping function")
 		return []reconcile.Request{}
@@ -664,7 +675,7 @@ func (r *SnapshotEnvironmentBindingReconciler) findObjectsForDeploymentTargetCla
 	for _, env := range envList.Items {
 
 		// If the DTCs match the Environment's claim name, it's a match
-		if env.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName == dtcObj.Name {
+		if env.Spec.Target.Claim.DeploymentTargetClaim.ClaimName == dtcObj.Name {
 			environmentByName[env.Name] = true
 		}
 	}
@@ -718,7 +729,7 @@ func (r *SnapshotEnvironmentBindingReconciler) findObjectsForDeploymentTarget(dt
 	}
 
 	// 2. Find all Environments that are associated with this DeploymentTargetClaim.
-	envList := &appstudioshared.EnvironmentList{}
+	envList := &appstudiosharedv1beta1.EnvironmentList{}
 	if err := r.Client.List(context.Background(), envList, &client.ListOptions{Namespace: dt.GetNamespace()}); err != nil {
 		handlerLog.Error(err, "failed to list Environments in the SEB DeploymentTarget mapping function")
 		return []reconcile.Request{}
@@ -729,7 +740,7 @@ func (r *SnapshotEnvironmentBindingReconciler) findObjectsForDeploymentTarget(dt
 		matchFound := false
 		for _, dtc := range dtcs {
 			// If at least one of the DTCs match the Environment's claim name, it's a match
-			if env.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName == dtc.Name {
+			if env.Spec.Target.Claim.DeploymentTargetClaim.ClaimName == dtc.Name {
 				matchFound = true
 				break
 			}
@@ -767,7 +778,7 @@ func (r *SnapshotEnvironmentBindingReconciler) findObjectsForEnvironment(envPara
 		WithName(logutil.LogLogger_managed_gitops)
 
 	// 1) Cast the Environment obj
-	envObj, ok := envParam.(*appstudioshared.Environment)
+	envObj, ok := envParam.(*appstudiosharedv1beta1.Environment)
 	if !ok {
 		handlerLog.Error(nil, "incompatible object in the Environment mapping function, expected a Secret")
 		return []reconcile.Request{}

@@ -22,6 +22,7 @@ import (
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	appstudiosharedv1beta1 "github.com/redhat-appstudio/application-api/api/v1beta1"
 	apibackend "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 )
@@ -36,7 +37,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 		var binding *appstudiosharedv1.SnapshotEnvironmentBinding
 		var bindingReconciler SnapshotEnvironmentBindingReconciler
 
-		var environment appstudiosharedv1.Environment
+		var environment appstudiosharedv1beta1.Environment
 
 		BeforeEach(func() {
 			ctx = context.Background()
@@ -57,18 +58,21 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			err = appstudiosharedv1.AddToScheme(scheme)
 			Expect(err).ToNot(HaveOccurred())
 
+			err = appstudiosharedv1beta1.AddToScheme(scheme)
+			Expect(err).ToNot(HaveOccurred())
+
 			// Create placeholder environment
-			environment = appstudiosharedv1.Environment{
+			environment = appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "staging",
 					Namespace: apiNamespace.Name,
 				},
-				Spec: appstudiosharedv1.EnvironmentSpec{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
 					DisplayName:        "my-environment",
-					DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
+					DeploymentStrategy: appstudiosharedv1beta1.DeploymentStrategy_AppStudioAutomated,
 					ParentEnvironment:  "",
 					Tags:               []string{},
-					Configuration:      appstudiosharedv1.EnvironmentConfiguration{},
+					Configuration:      appstudiosharedv1beta1.EnvironmentConfiguration{},
 				},
 			}
 			err = k8sClient.Create(ctx, &environment)
@@ -377,17 +381,17 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			// The application name, environment name and component name are each limited to be at most 63 characters.
 			// The GitOpsDeployment name is formed from
 			// binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + componentName
-			environment = appstudiosharedv1.Environment{
+			environment = appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      strings.Repeat("e", 63),
 					Namespace: binding.Namespace,
 				},
-				Spec: appstudiosharedv1.EnvironmentSpec{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
 					DisplayName:        "my-environment",
-					DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
+					DeploymentStrategy: appstudiosharedv1beta1.DeploymentStrategy_AppStudioAutomated,
 					ParentEnvironment:  "",
 					Tags:               []string{},
-					Configuration:      appstudiosharedv1.EnvironmentConfiguration{},
+					Configuration:      appstudiosharedv1beta1.EnvironmentConfiguration{},
 				},
 			}
 			err := bindingReconciler.Create(ctx, &environment)
@@ -602,12 +606,15 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("creating an Environment that references the DTC")
-			environment.Spec.UnstableConfigurationFields = nil
-			environment.Spec.Configuration.Target = appstudiosharedv1.EnvironmentTarget{
-				DeploymentTargetClaim: appstudiosharedv1.DeploymentTargetClaimConfig{
-					ClaimName: dtc.Name,
+			environment.Spec.Target = &appstudiosharedv1beta1.TargetConfiguration{
+				Claim: appstudiosharedv1beta1.TargetClaim{
+
+					DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
+						ClaimName: dtc.Name,
+					},
 				},
 			}
+
 			err = bindingReconciler.Client.Update(ctx, &environment)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -640,8 +647,8 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 		It("should verify that if the Environment contains configuration information, that it is included in the generated GitOpsDeployment", func() {
 
 			By("creating an Environment with valid configuration fields")
-			environment.Spec.UnstableConfigurationFields = &appstudiosharedv1.UnstableEnvironmentConfiguration{
-				KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
+			environment.Spec.Target = &appstudiosharedv1beta1.TargetConfiguration{
+				KubernetesClusterCredentials: appstudiosharedv1beta1.KubernetesClusterCredentials{
 					TargetNamespace:          "my-target-namespace",
 					APIURL:                   "my-api-url",
 					ClusterCredentialsSecret: "secret",
@@ -671,11 +678,11 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 			managedEnvironmentName := generateEmptyManagedEnvironment(environment.Name, environment.Namespace).Name
 
-			Expect(gitopsDeployment.Spec.Destination.Namespace).To(Equal(environment.Spec.UnstableConfigurationFields.TargetNamespace))
+			Expect(gitopsDeployment.Spec.Destination.Namespace).To(Equal(environment.Spec.Target.TargetNamespace))
 			Expect(gitopsDeployment.Spec.Destination.Environment).To(Equal(managedEnvironmentName))
 
 			By("removing the field from Environment, and ensuring the GitOpsDeployment is updated")
-			environment.Spec.UnstableConfigurationFields = nil
+			environment.Spec.Target = nil
 			err = bindingReconciler.Client.Update(ctx, &environment)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -689,8 +696,8 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(gitopsDeployment.Spec.Destination.Environment).To(Equal(""))
 
 			By("testing with a missing TargetNamespace, which should return an error")
-			environment.Spec.UnstableConfigurationFields = &appstudiosharedv1.UnstableEnvironmentConfiguration{
-				KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
+			environment.Spec.Target = &appstudiosharedv1beta1.TargetConfiguration{
+				KubernetesClusterCredentials: appstudiosharedv1beta1.KubernetesClusterCredentials{
 					APIURL:                   "my-api-url",
 					ClusterCredentialsSecret: "secret",
 				},
@@ -995,6 +1002,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			err = appstudiosharedv1.AddToScheme(scheme)
 			Expect(err).ToNot(HaveOccurred())
 
+			err = appstudiosharedv1beta1.AddToScheme(scheme)
+			Expect(err).ToNot(HaveOccurred())
+
 		})
 
 		When("the function is passed an object that is not DeploymentTarget", func() {
@@ -1057,7 +1067,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				By("creating a new Environment that references the DeploymentTarget")
-				env := appstudiosharedv1.Environment{
+				env := appstudiosharedv1beta1.Environment{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "Environment",
 						APIVersion: appstudiosharedv1.GroupVersion.Identifier(),
@@ -1066,11 +1076,11 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 						Name:      "my-env",
 						Namespace: apiNamespace.Name,
 					},
-					Spec: appstudiosharedv1.EnvironmentSpec{
+					Spec: appstudiosharedv1beta1.EnvironmentSpec{
 						DisplayName: "my-env",
-						Configuration: appstudiosharedv1.EnvironmentConfiguration{
-							Target: appstudiosharedv1.EnvironmentTarget{
-								DeploymentTargetClaim: appstudiosharedv1.DeploymentTargetClaimConfig{
+						Target: &appstudiosharedv1beta1.TargetConfiguration{
+							Claim: appstudiosharedv1beta1.TargetClaim{
+								DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
 									ClaimName: dtc.Name,
 								},
 							},
@@ -1134,6 +1144,8 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			err = appstudiosharedv1.AddToScheme(scheme)
 			Expect(err).ToNot(HaveOccurred())
 
+			err = appstudiosharedv1beta1.AddToScheme(scheme)
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		When("the function is passed an object that is not DeploymentTargetClaim", func() {
@@ -1176,7 +1188,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				By("creating a new Environment that references the DeploymentTarget")
-				env := appstudiosharedv1.Environment{
+				env := appstudiosharedv1beta1.Environment{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "Environment",
 						APIVersion: appstudiosharedv1.GroupVersion.Identifier(),
@@ -1185,11 +1197,11 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 						Name:      "my-env",
 						Namespace: apiNamespace.Name,
 					},
-					Spec: appstudiosharedv1.EnvironmentSpec{
+					Spec: appstudiosharedv1beta1.EnvironmentSpec{
 						DisplayName: "my-env",
-						Configuration: appstudiosharedv1.EnvironmentConfiguration{
-							Target: appstudiosharedv1.EnvironmentTarget{
-								DeploymentTargetClaim: appstudiosharedv1.DeploymentTargetClaimConfig{
+						Target: &appstudiosharedv1beta1.TargetConfiguration{
+							Claim: appstudiosharedv1beta1.TargetClaim{
+								DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
 									ClaimName: dtc.Name,
 								},
 							},
@@ -1241,7 +1253,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				By("creating a new Environment that references the DeploymentTarget")
-				env := appstudiosharedv1.Environment{
+				env := appstudiosharedv1beta1.Environment{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "Environment",
 						APIVersion: appstudiosharedv1.GroupVersion.Identifier(),
@@ -1250,11 +1262,11 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 						Name:      "my-env",
 						Namespace: apiNamespace.Name,
 					},
-					Spec: appstudiosharedv1.EnvironmentSpec{
+					Spec: appstudiosharedv1beta1.EnvironmentSpec{
 						DisplayName: "my-env",
-						Configuration: appstudiosharedv1.EnvironmentConfiguration{
-							Target: appstudiosharedv1.EnvironmentTarget{
-								DeploymentTargetClaim: appstudiosharedv1.DeploymentTargetClaimConfig{
+						Target: &appstudiosharedv1beta1.TargetConfiguration{
+							Claim: appstudiosharedv1beta1.TargetClaim{
+								DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
 									ClaimName: dtc.Name,
 								},
 							},
@@ -1318,6 +1330,8 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			err = appstudiosharedv1.AddToScheme(scheme)
 			Expect(err).ToNot(HaveOccurred())
 
+			err = appstudiosharedv1beta1.AddToScheme(scheme)
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		When("SnapshotEnvironmentBinding points to a non-existing env", func() {
@@ -1339,7 +1353,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				err := k8sClient.Create(ctx, &seb)
 				Expect(err).ToNot(HaveOccurred())
 
-				env := appstudiosharedv1.Environment{
+				env := appstudiosharedv1beta1.Environment{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "Environment",
 						APIVersion: appstudiosharedv1.GroupVersion.Identifier(),
@@ -1348,7 +1362,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 						Name:      "some-other-env",
 						Namespace: apiNamespace.Name,
 					},
-					Spec: appstudiosharedv1.EnvironmentSpec{
+					Spec: appstudiosharedv1beta1.EnvironmentSpec{
 						DisplayName: "some-other-env",
 					},
 				}
@@ -1362,16 +1376,16 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 			It("verifies that findObjectForEnvironment should return an empty set", func() {
 
-				env := appstudiosharedv1.Environment{
+				env := appstudiosharedv1beta1.Environment{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "Environment",
-						APIVersion: appstudiosharedv1.GroupVersion.Identifier(),
+						APIVersion: appstudiosharedv1beta1.GroupVersion.Identifier(),
 					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "some-other-env",
 						Namespace: apiNamespace.Name,
 					},
-					Spec: appstudiosharedv1.EnvironmentSpec{
+					Spec: appstudiosharedv1beta1.EnvironmentSpec{
 						DisplayName: "some-other-env",
 					},
 				}
@@ -1393,7 +1407,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				err = k8sClient.Create(ctx, &seb)
 				Expect(err).ToNot(HaveOccurred())
 
-				thirdEnv := appstudiosharedv1.Environment{
+				thirdEnv := appstudiosharedv1beta1.Environment{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "Environment",
 						APIVersion: appstudiosharedv1.GroupVersion.Identifier(),
@@ -1402,7 +1416,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 						Name:      "a-third-env",
 						Namespace: apiNamespace.Name,
 					},
-					Spec: appstudiosharedv1.EnvironmentSpec{
+					Spec: appstudiosharedv1beta1.EnvironmentSpec{
 						DisplayName: "a-third-env",
 					},
 				}
@@ -1416,16 +1430,16 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 			It("verifies that findObjectForEnvironment should return the SEB pointing to that env", func() {
 
-				env := appstudiosharedv1.Environment{
+				env := appstudiosharedv1beta1.Environment{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "Environment",
-						APIVersion: appstudiosharedv1.GroupVersion.Identifier(),
+						APIVersion: appstudiosharedv1beta1.GroupVersion.Identifier(),
 					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "some-other-env",
 						Namespace: apiNamespace.Name,
 					},
-					Spec: appstudiosharedv1.EnvironmentSpec{
+					Spec: appstudiosharedv1beta1.EnvironmentSpec{
 						DisplayName: "some-other-env",
 					},
 				}
@@ -1481,7 +1495,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 		var binding *appstudiosharedv1.SnapshotEnvironmentBinding
 		var bindingReconciler SnapshotEnvironmentBindingReconciler
 
-		var environment appstudiosharedv1.Environment
+		var environment appstudiosharedv1beta1.Environment
 
 		BeforeEach(func() {
 			ctx = context.Background()
@@ -1502,18 +1516,21 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			err = appstudiosharedv1.AddToScheme(scheme)
 			Expect(err).ToNot(HaveOccurred())
 
+			err = appstudiosharedv1beta1.AddToScheme(scheme)
+			Expect(err).ToNot(HaveOccurred())
+
 			// Create placeholder environment
-			environment = appstudiosharedv1.Environment{
+			environment = appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "staging",
 					Namespace: apiNamespace.Name,
 				},
-				Spec: appstudiosharedv1.EnvironmentSpec{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
 					DisplayName:        "my-environment",
-					DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
+					DeploymentStrategy: appstudiosharedv1beta1.DeploymentStrategy_AppStudioAutomated,
 					ParentEnvironment:  "",
 					Tags:               []string{},
-					Configuration:      appstudiosharedv1.EnvironmentConfiguration{},
+					Configuration:      appstudiosharedv1beta1.EnvironmentConfiguration{},
 				},
 			}
 			err = k8sClient.Create(ctx, &environment)

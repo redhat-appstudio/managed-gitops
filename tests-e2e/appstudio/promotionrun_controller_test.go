@@ -6,6 +6,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	appstudiosharedv1beta1 "github.com/redhat-appstudio/application-api/api/v1beta1"
 	appstudiocontroller "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
@@ -19,7 +20,7 @@ import (
 
 var _ = Describe("Application Promotion Run E2E Tests.", func() {
 	Context("Testing Application Promotion Run Reconciler.", func() {
-		var environmentProd appstudiosharedv1.Environment
+		var environmentProd appstudiosharedv1beta1.Environment
 		var bindingStage appstudiosharedv1.SnapshotEnvironmentBinding
 		var bindingProd appstudiosharedv1.SnapshotEnvironmentBinding
 		var promotionRun appstudiosharedv1.PromotionRun
@@ -80,13 +81,13 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("Create Staging Environment.")
-			environmentStage := buildEnvironmentResource("staging", "Staging Environment", "staging", appstudiosharedv1.EnvironmentType_POC)
+			environmentStage := buildEnvironmentResource("staging", "Staging Environment", "staging", appstudiosharedv1beta1.EnvironmentType_POC)
 
 			// Staging environment must be in a different namespace from the production environment, else we get a
 			// problem with the same resource being owned by two different applications.
 			// See Jira issue https://issues.redhat.com/browse/GITOPSRVCE-544
-			environmentStage.Spec.UnstableConfigurationFields = &appstudiosharedv1.UnstableEnvironmentConfiguration{
-				KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
+			environmentStage.Spec.Target = &appstudiosharedv1beta1.TargetConfiguration{
+				KubernetesClusterCredentials: appstudiosharedv1beta1.KubernetesClusterCredentials{
 					TargetNamespace:            secondNamespace,
 					APIURL:                     apiServerURL,
 					ClusterCredentialsSecret:   secret.Name,
@@ -97,7 +98,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			Expect(err).To(Succeed())
 
 			By("Create Production Environment.")
-			environmentProd = buildEnvironmentResource("prod", "Production Environment", "prod", appstudiosharedv1.EnvironmentType_POC)
+			environmentProd = buildEnvironmentResource("prod", "Production Environment", "prod", appstudiosharedv1beta1.EnvironmentType_POC)
 			err = k8s.Create(&environmentProd, k8sClient)
 			Expect(err).To(Succeed())
 
@@ -271,19 +272,19 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 	})
 })
 
-func buildEnvironmentResource(name, displayName, parentEnvironment string, envType appstudiosharedv1.EnvironmentType) appstudiosharedv1.Environment {
-	environment := appstudiosharedv1.Environment{
+func buildEnvironmentResource(name, displayName, parentEnvironment string, envType appstudiosharedv1beta1.EnvironmentType) appstudiosharedv1beta1.Environment {
+	environment := appstudiosharedv1beta1.Environment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: fixture.GitOpsServiceE2ENamespace,
 		},
-		Spec: appstudiosharedv1.EnvironmentSpec{
+		Spec: appstudiosharedv1beta1.EnvironmentSpec{
 			DisplayName:        displayName,
-			DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
+			DeploymentStrategy: appstudiosharedv1beta1.DeploymentStrategy_AppStudioAutomated,
 			ParentEnvironment:  parentEnvironment,
 			Tags:               []string{name},
-			Configuration: appstudiosharedv1.EnvironmentConfiguration{
-				Env: []appstudiosharedv1.EnvVarPair{},
+			Configuration: appstudiosharedv1beta1.EnvironmentConfiguration{
+				Env: []appstudiosharedv1beta1.EnvVarPair{},
 			},
 		},
 	}

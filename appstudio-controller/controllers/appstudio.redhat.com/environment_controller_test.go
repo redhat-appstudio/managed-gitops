@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	appstudiosharedv1beta1 "github.com/redhat-appstudio/application-api/api/v1beta1"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
@@ -44,6 +45,9 @@ var _ = Describe("Environment controller tests", func() {
 			err = appstudioshared.AddToScheme(scheme)
 			Expect(err).ToNot(HaveOccurred())
 
+			err = appstudiosharedv1beta1.AddToScheme(scheme)
+			Expect(err).ToNot(HaveOccurred())
+
 			apiNamespace = *namespace
 
 			// Create fake client
@@ -75,19 +79,19 @@ var _ = Describe("Environment controller tests", func() {
 			err = k8sClient.Create(ctx, &secret)
 			Expect(err).ToNot(HaveOccurred())
 
-			env := appstudioshared.Environment{
+			env := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-env",
 					Namespace: apiNamespace.Name,
 				},
-				Spec: appstudioshared.EnvironmentSpec{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
 					DisplayName:        "my-environment",
-					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
+					DeploymentStrategy: appstudiosharedv1beta1.DeploymentStrategy_Manual,
 					ParentEnvironment:  "",
 					Tags:               []string{},
-					Configuration:      appstudioshared.EnvironmentConfiguration{},
-					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
-						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+					Configuration:      appstudiosharedv1beta1.EnvironmentConfiguration{},
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						KubernetesClusterCredentials: appstudiosharedv1beta1.KubernetesClusterCredentials{
 							TargetNamespace:            "my-target-namespace",
 							APIURL:                     "https://my-api-url",
 							ClusterCredentialsSecret:   secret.Name,
@@ -118,15 +122,15 @@ var _ = Describe("Environment controller tests", func() {
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
 			Expect(err).ToNot(HaveOccurred(), "the ManagedEnvironment object should have been created by the reconciler")
 
-			Expect(managedEnvCR.Spec.APIURL).To(Equal(env.Spec.UnstableConfigurationFields.APIURL),
+			Expect(managedEnvCR.Spec.APIURL).To(Equal(env.Spec.Target.APIURL),
 				"ManagedEnvironment should match the Environment")
-			Expect(managedEnvCR.Spec.ClusterCredentialsSecret).To(Equal(env.Spec.UnstableConfigurationFields.ClusterCredentialsSecret),
+			Expect(managedEnvCR.Spec.ClusterCredentialsSecret).To(Equal(env.Spec.Target.ClusterCredentialsSecret),
 				"ManagedEnvironment should match the Environment")
-			Expect(managedEnvCR.Spec.AllowInsecureSkipTLSVerify).To(Equal(env.Spec.UnstableConfigurationFields.AllowInsecureSkipTLSVerify),
+			Expect(managedEnvCR.Spec.AllowInsecureSkipTLSVerify).To(Equal(env.Spec.Target.AllowInsecureSkipTLSVerify),
 				"ManagedEnvironment should match the Environment")
-			Expect(managedEnvCR.Spec.Namespaces).To(Equal(env.Spec.UnstableConfigurationFields.Namespaces),
+			Expect(managedEnvCR.Spec.Namespaces).To(Equal(env.Spec.Target.Namespaces),
 				"ManagedEnvironment should match the Environment")
-			Expect(managedEnvCR.Spec.ClusterResources).To(Equal(env.Spec.UnstableConfigurationFields.ClusterResources),
+			Expect(managedEnvCR.Spec.ClusterResources).To(Equal(env.Spec.Target.ClusterResources),
 				"ManagedEnvironment should match the Environment")
 		}
 
@@ -177,19 +181,19 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("creating an Environment pointing to the first secret")
-			env := appstudioshared.Environment{
+			env := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-env",
 					Namespace: apiNamespace.Name,
 				},
-				Spec: appstudioshared.EnvironmentSpec{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
 					DisplayName:        "my-environment",
-					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
+					DeploymentStrategy: appstudiosharedv1beta1.DeploymentStrategy_Manual,
 					ParentEnvironment:  "",
 					Tags:               []string{},
-					Configuration:      appstudioshared.EnvironmentConfiguration{},
-					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
-						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+					Configuration:      appstudiosharedv1beta1.EnvironmentConfiguration{},
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						KubernetesClusterCredentials: appstudiosharedv1beta1.KubernetesClusterCredentials{
 							TargetNamespace:            "my-target-namespace",
 							APIURL:                     "https://my-api-url",
 							ClusterCredentialsSecret:   secret2.Name,
@@ -234,15 +238,15 @@ var _ = Describe("Environment controller tests", func() {
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&newManagedEnv), &newManagedEnv)
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(newManagedEnv.Spec.APIURL).To(Equal(env.Spec.UnstableConfigurationFields.APIURL),
+			Expect(newManagedEnv.Spec.APIURL).To(Equal(env.Spec.Target.APIURL),
 				"ManagedEnvironment should match the new Environment spec, not the old value of the managed env")
-			Expect(newManagedEnv.Spec.ClusterCredentialsSecret).To(Equal(env.Spec.UnstableConfigurationFields.ClusterCredentialsSecret),
+			Expect(newManagedEnv.Spec.ClusterCredentialsSecret).To(Equal(env.Spec.Target.ClusterCredentialsSecret),
 				"ManagedEnvironment should match the Environment, not the old value")
-			Expect(newManagedEnv.Spec.AllowInsecureSkipTLSVerify).To(Equal(env.Spec.UnstableConfigurationFields.AllowInsecureSkipTLSVerify),
+			Expect(newManagedEnv.Spec.AllowInsecureSkipTLSVerify).To(Equal(env.Spec.Target.AllowInsecureSkipTLSVerify),
 				"ManagedEnvironment should match the Environment, not the old value")
-			Expect(newManagedEnv.Spec.Namespaces).To(Equal(env.Spec.UnstableConfigurationFields.Namespaces),
+			Expect(newManagedEnv.Spec.Namespaces).To(Equal(env.Spec.Target.Namespaces),
 				"ManagedEnvironment should match the Environment, not the old value")
-			Expect(newManagedEnv.Spec.ClusterResources).To(Equal(env.Spec.UnstableConfigurationFields.ClusterResources),
+			Expect(newManagedEnv.Spec.ClusterResources).To(Equal(env.Spec.Target.ClusterResources),
 				"ManagedEnvironment should match the Environment, not the old value")
 
 			By("reconciling again, and confirming that nothing changed")
@@ -257,15 +261,15 @@ var _ = Describe("Environment controller tests", func() {
 			By("verify that error condition is not set")
 			Expect(env.Status.Conditions).To(BeNil())
 
-			Expect(newManagedEnv.Spec.APIURL).To(Equal(env.Spec.UnstableConfigurationFields.APIURL),
+			Expect(newManagedEnv.Spec.APIURL).To(Equal(env.Spec.Target.APIURL),
 				"ManagedEnvironment should continue to match the new Environment spec")
-			Expect(newManagedEnv.Spec.ClusterCredentialsSecret).To(Equal(env.Spec.UnstableConfigurationFields.ClusterCredentialsSecret),
+			Expect(newManagedEnv.Spec.ClusterCredentialsSecret).To(Equal(env.Spec.Target.ClusterCredentialsSecret),
 				"ManagedEnvironment should continue to match the Environment spec")
-			Expect(newManagedEnv.Spec.AllowInsecureSkipTLSVerify).To(Equal(env.Spec.UnstableConfigurationFields.AllowInsecureSkipTLSVerify),
+			Expect(newManagedEnv.Spec.AllowInsecureSkipTLSVerify).To(Equal(env.Spec.Target.AllowInsecureSkipTLSVerify),
 				"ManagedEnvironment should continue to match the new Environment spec")
-			Expect(newManagedEnv.Spec.Namespaces).To(Equal(env.Spec.UnstableConfigurationFields.Namespaces),
+			Expect(newManagedEnv.Spec.Namespaces).To(Equal(env.Spec.Target.Namespaces),
 				"ManagedEnvironment should continue to match the new Environment spec")
-			Expect(newManagedEnv.Spec.ClusterResources).To(Equal(env.Spec.UnstableConfigurationFields.ClusterResources),
+			Expect(newManagedEnv.Spec.ClusterResources).To(Equal(env.Spec.Target.ClusterResources),
 				"ManagedEnvironment should continue to match the new Environment spec")
 		}
 
@@ -305,19 +309,19 @@ var _ = Describe("Environment controller tests", func() {
 		It("should update the Environment status condition if the Environment references a Secret that doesn't exist, but should not return an error", func() {
 
 			By("creating an Environment resource pointing to a Secret that doesn't exist")
-			env := appstudioshared.Environment{
+			env := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-env",
 					Namespace: apiNamespace.Name,
 				},
-				Spec: appstudioshared.EnvironmentSpec{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
 					DisplayName:        "my-environment",
-					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
+					DeploymentStrategy: appstudiosharedv1beta1.DeploymentStrategy_Manual,
 					ParentEnvironment:  "",
 					Tags:               []string{},
-					Configuration:      appstudioshared.EnvironmentConfiguration{},
-					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
-						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+					Configuration:      appstudiosharedv1beta1.EnvironmentConfiguration{},
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						KubernetesClusterCredentials: appstudiosharedv1beta1.KubernetesClusterCredentials{
 							TargetNamespace:          "my-target-namespace",
 							APIURL:                   "https://my-api-url",
 							ClusterCredentialsSecret: "secret-that-doesnt-exist",
@@ -347,19 +351,19 @@ var _ = Describe("Environment controller tests", func() {
 		It("should update the Environment status condition when an error is resolved", func() {
 
 			By("creating an Environment resource pointing to a Secret that doesn't exist")
-			env := appstudioshared.Environment{
+			env := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-env",
 					Namespace: apiNamespace.Name,
 				},
-				Spec: appstudioshared.EnvironmentSpec{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
 					DisplayName:        "my-environment",
-					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
+					DeploymentStrategy: appstudiosharedv1beta1.DeploymentStrategy_Manual,
 					ParentEnvironment:  "",
 					Tags:               []string{},
-					Configuration:      appstudioshared.EnvironmentConfiguration{},
-					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
-						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+					Configuration:      appstudiosharedv1beta1.EnvironmentConfiguration{},
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						KubernetesClusterCredentials: appstudiosharedv1beta1.KubernetesClusterCredentials{
 							TargetNamespace:          "my-target-namespace",
 							APIURL:                   "https://my-api-url",
 							ClusterCredentialsSecret: "secret-that-doesnt-exist",
@@ -398,7 +402,7 @@ var _ = Describe("Environment controller tests", func() {
 			err = k8sClient.Create(ctx, &secret)
 			Expect(err).ToNot(HaveOccurred())
 
-			env.Spec.UnstableConfigurationFields.ClusterCredentialsSecret = secret.Name
+			env.Spec.Target.ClusterCredentialsSecret = secret.Name
 			Expect(k8sClient.Update(ctx, &env)).To(Succeed())
 
 			By("reconciling again")
@@ -435,17 +439,17 @@ var _ = Describe("Environment controller tests", func() {
 		It("should not return an error if the Environment does not contain UnstableConfigurationFields", func() {
 
 			By("creating an Environment resource pointing to a Secret that doesn't exist")
-			env := appstudioshared.Environment{
+			env := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-env",
 					Namespace: apiNamespace.Name,
 				},
-				Spec: appstudioshared.EnvironmentSpec{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
 					DisplayName:        "my-environment",
-					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
+					DeploymentStrategy: appstudiosharedv1beta1.DeploymentStrategy_Manual,
 					ParentEnvironment:  "",
 					Tags:               []string{},
-					Configuration:      appstudioshared.EnvironmentConfiguration{},
+					Configuration:      appstudiosharedv1beta1.EnvironmentConfiguration{},
 				},
 			}
 			err := k8sClient.Create(ctx, &env)
@@ -464,21 +468,20 @@ var _ = Describe("Environment controller tests", func() {
 
 		It("should return an error if both cluster credentials and DeploymentTargetClaim are provided", func() {
 			By("create an environment with both cluster credentials and DTC specified")
-			env := appstudioshared.Environment{
+			env := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-env",
 					Namespace: apiNamespace.Name,
 				},
-				Spec: appstudioshared.EnvironmentSpec{
-					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
-						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						KubernetesClusterCredentials: appstudiosharedv1beta1.KubernetesClusterCredentials{
 							APIURL:                   "abc",
 							ClusterCredentialsSecret: "test",
 						},
-					},
-					Configuration: appstudioshared.EnvironmentConfiguration{
-						Target: appstudioshared.EnvironmentTarget{
-							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+
+						Claim: appstudiosharedv1beta1.TargetClaim{
+							DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
 								ClaimName: "test-dtc",
 							},
 						},
@@ -496,7 +499,7 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("Checking status field after calling Reconciler")
-			env = appstudioshared.Environment{}
+			env = appstudiosharedv1beta1.Environment{}
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
 			Expect(err).ToNot(HaveOccurred())
 			expectEnvironmentStatusConditionError("Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set", EnvironmentReasonInvalid, env)
@@ -558,15 +561,15 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("create an Environment that refers to the above DTC")
-			env := appstudioshared.Environment{
+			env := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-env-1",
 					Namespace: dtc.Namespace,
 				},
-				Spec: appstudioshared.EnvironmentSpec{
-					Configuration: appstudioshared.EnvironmentConfiguration{
-						Target: appstudioshared.EnvironmentTarget{
-							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						Claim: appstudiosharedv1beta1.TargetClaim{
+							DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
 								ClaimName: dtc.Name,
 							},
 						},
@@ -712,15 +715,15 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("create an Environment that refer the above DTC")
-			env := appstudioshared.Environment{
+			env := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-env-1",
 					Namespace: dtc.Namespace,
 				},
-				Spec: appstudioshared.EnvironmentSpec{
-					Configuration: appstudioshared.EnvironmentConfiguration{
-						Target: appstudioshared.EnvironmentTarget{
-							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						Claim: appstudiosharedv1beta1.TargetClaim{
+							DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
 								ClaimName: dtc.Name,
 							},
 						},
@@ -819,15 +822,15 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("create an Environment that refer the above DTC")
-			env := appstudioshared.Environment{
+			env := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-env-1",
 					Namespace: dtc.Namespace,
 				},
-				Spec: appstudioshared.EnvironmentSpec{
-					Configuration: appstudioshared.EnvironmentConfiguration{
-						Target: appstudioshared.EnvironmentTarget{
-							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						Claim: appstudiosharedv1beta1.TargetClaim{
+							DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
 								ClaimName: dtc.Name,
 							},
 						},
@@ -852,15 +855,15 @@ var _ = Describe("Environment controller tests", func() {
 		It("should set an error condition, but not return an error, if the Environment references a DTC that doesn't exist", func() {
 
 			By("create an Environment that refers to a non-existent DTC")
-			env := appstudioshared.Environment{
+			env := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-env-1",
 					Namespace: apiNamespace.Name,
 				},
-				Spec: appstudioshared.EnvironmentSpec{
-					Configuration: appstudioshared.EnvironmentConfiguration{
-						Target: appstudioshared.EnvironmentTarget{
-							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						Claim: appstudiosharedv1beta1.TargetClaim{
+							DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
 								ClaimName: "a-dtc-that-does-not-exist",
 							},
 						},
@@ -877,7 +880,7 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			By("Checking status field after calling Reconciler")
-			env = appstudioshared.Environment{}
+			env = appstudiosharedv1beta1.Environment{}
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -912,15 +915,15 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("create and Environment that refer the above DTC")
-			env := appstudioshared.Environment{
+			env := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-env-1",
 					Namespace: dtc.Namespace,
 				},
-				Spec: appstudioshared.EnvironmentSpec{
-					Configuration: appstudioshared.EnvironmentConfiguration{
-						Target: appstudioshared.EnvironmentTarget{
-							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						Claim: appstudiosharedv1beta1.TargetClaim{
+							DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
 								ClaimName: dtc.Name,
 							},
 						},
@@ -937,7 +940,7 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			By("Checking status field after calling Reconciler")
-			env = appstudioshared.Environment{}
+			env = appstudiosharedv1beta1.Environment{}
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -963,15 +966,15 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("create and Environment that refer the above DTC")
-			env := appstudioshared.Environment{
+			env := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-env-1",
 					Namespace: dtc.Namespace,
 				},
-				Spec: appstudioshared.EnvironmentSpec{
-					Configuration: appstudioshared.EnvironmentConfiguration{
-						Target: appstudioshared.EnvironmentTarget{
-							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						Claim: appstudiosharedv1beta1.TargetClaim{
+							DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
 								ClaimName: dtc.Name,
 							},
 						},
@@ -988,7 +991,7 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			By("Checking status field after calling Reconciler")
-			env = appstudioshared.Environment{}
+			env = appstudiosharedv1beta1.Environment{}
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
 			Expect(err).ToNot(HaveOccurred())
 			expectEnvironmentStatusConditionError("DeploymentTargetClaim references a DeploymentTarget that does not exist", EnvironmentReasonDeploymentTargetNotFound, env)
@@ -996,7 +999,7 @@ var _ = Describe("Environment controller tests", func() {
 
 		It("shouldn't process the Environment if neither credentials nor DTC is provided", func() {
 			By("create an Environment without DTC and credentials")
-			env := appstudioshared.Environment{
+			env := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-env-1",
 					Namespace: apiNamespace.Name,
@@ -1067,15 +1070,15 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("create an Environment that refer the above DTC")
-			env := appstudioshared.Environment{
+			env := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-env-1",
 					Namespace: dtc.Namespace,
 				},
-				Spec: appstudioshared.EnvironmentSpec{
-					Configuration: appstudioshared.EnvironmentConfiguration{
-						Target: appstudioshared.EnvironmentTarget{
-							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						Claim: appstudiosharedv1beta1.TargetClaim{
+							DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
 								ClaimName: dtc.Name,
 							},
 						},
@@ -1129,19 +1132,19 @@ var _ = Describe("Environment controller tests", func() {
 			err = k8sClient.Create(ctx, &secret)
 			Expect(err).ToNot(HaveOccurred())
 
-			env := appstudioshared.Environment{
+			env := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-env",
 					Namespace: apiNamespace.Name,
 				},
-				Spec: appstudioshared.EnvironmentSpec{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
 					DisplayName:        "my-environment",
-					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
+					DeploymentStrategy: appstudiosharedv1beta1.DeploymentStrategy_Manual,
 					ParentEnvironment:  "",
 					Tags:               []string{},
-					Configuration:      appstudioshared.EnvironmentConfiguration{},
-					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
-						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+					Configuration:      appstudiosharedv1beta1.EnvironmentConfiguration{},
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						KubernetesClusterCredentials: appstudiosharedv1beta1.KubernetesClusterCredentials{
 							TargetNamespace:            "my-target-namespace",
 							APIURL:                     "https://my-api-url",
 							ClusterCredentialsSecret:   secret.Name,
@@ -1180,15 +1183,15 @@ var _ = Describe("Environment controller tests", func() {
 				}
 
 				By("create Environments that refer the above DTC")
-				env1 := appstudioshared.Environment{
+				env1 := appstudiosharedv1beta1.Environment{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-env-1",
 						Namespace: dtc.Namespace,
 					},
-					Spec: appstudioshared.EnvironmentSpec{
-						Configuration: appstudioshared.EnvironmentConfiguration{
-							Target: appstudioshared.EnvironmentTarget{
-								DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+					Spec: appstudiosharedv1beta1.EnvironmentSpec{
+						Target: &appstudiosharedv1beta1.TargetConfiguration{
+							Claim: appstudiosharedv1beta1.TargetClaim{
+								DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
 									ClaimName: dtc.Name,
 								},
 							},
@@ -1198,14 +1201,23 @@ var _ = Describe("Environment controller tests", func() {
 				err := k8sClient.Create(ctx, &env1)
 				Expect(err).ToNot(HaveOccurred())
 
-				env2 := appstudioshared.Environment{
+				env2 := appstudiosharedv1beta1.Environment{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-env-2",
-						Namespace: dtc.Namespace,
+						Name:            "test-env-2",
+						Namespace:       dtc.Namespace,
+						ResourceVersion: "",
+					},
+					Spec: appstudiosharedv1beta1.EnvironmentSpec{
+						Target: &appstudiosharedv1beta1.TargetConfiguration{
+							Claim: appstudiosharedv1beta1.TargetClaim{
+								DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
+									ClaimName: dtc.Name,
+								},
+							},
+						},
 					},
 				}
-				env2.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName = dtc.Name
-				env2.ResourceVersion = ""
+
 				err = k8sClient.Create(ctx, &env2)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -1273,15 +1285,15 @@ var _ = Describe("Environment controller tests", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				By("create Environments that refer the above DTC")
-				env1 := appstudioshared.Environment{
+				env1 := appstudiosharedv1beta1.Environment{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-env-1",
 						Namespace: dtc.Namespace,
 					},
-					Spec: appstudioshared.EnvironmentSpec{
-						Configuration: appstudioshared.EnvironmentConfiguration{
-							Target: appstudioshared.EnvironmentTarget{
-								DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+					Spec: appstudiosharedv1beta1.EnvironmentSpec{
+						Target: &appstudiosharedv1beta1.TargetConfiguration{
+							Claim: appstudiosharedv1beta1.TargetClaim{
+								DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
 									ClaimName: dtc.Name,
 								},
 							},
@@ -1291,14 +1303,23 @@ var _ = Describe("Environment controller tests", func() {
 				err = k8sClient.Create(ctx, &env1)
 				Expect(err).ToNot(HaveOccurred())
 
-				env2 := appstudioshared.Environment{
+				env2 := appstudiosharedv1beta1.Environment{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-env-2",
-						Namespace: dtc.Namespace,
+						Name:            "test-env-2",
+						Namespace:       dtc.Namespace,
+						ResourceVersion: "",
+					},
+					Spec: appstudiosharedv1beta1.EnvironmentSpec{
+						Target: &appstudiosharedv1beta1.TargetConfiguration{
+							Claim: appstudiosharedv1beta1.TargetClaim{
+								DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
+									ClaimName: dtc.Name,
+								},
+							},
+						},
 					},
 				}
-				env2.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName = dtc.Name
-				env2.ResourceVersion = ""
+
 				err = k8sClient.Create(ctx, &env2)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -1386,15 +1407,15 @@ var _ = Describe("Environment controller tests", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				By("create Environments that refer the above DTC")
-				env1 := appstudioshared.Environment{
+				env1 := appstudiosharedv1beta1.Environment{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-env-1",
 						Namespace: dtc.Namespace,
 					},
-					Spec: appstudioshared.EnvironmentSpec{
-						Configuration: appstudioshared.EnvironmentConfiguration{
-							Target: appstudioshared.EnvironmentTarget{
-								DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+					Spec: appstudiosharedv1beta1.EnvironmentSpec{
+						Target: &appstudiosharedv1beta1.TargetConfiguration{
+							Claim: appstudiosharedv1beta1.TargetClaim{
+								DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
 									ClaimName: dtc.Name,
 								},
 							},
@@ -1404,13 +1425,22 @@ var _ = Describe("Environment controller tests", func() {
 				err = k8sClient.Create(ctx, &env1)
 				Expect(err).ToNot(HaveOccurred())
 
-				env2 := appstudioshared.Environment{
+				env2 := appstudiosharedv1beta1.Environment{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-env-2",
 						Namespace: dtc.Namespace,
 					},
+					Spec: appstudiosharedv1beta1.EnvironmentSpec{
+						Target: &appstudiosharedv1beta1.TargetConfiguration{
+							Claim: appstudiosharedv1beta1.TargetClaim{
+								DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
+									ClaimName: dtc.Name,
+								},
+							},
+						},
+					},
 				}
-				env2.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName = dtc.Name
+
 				err = k8sClient.Create(ctx, &env2)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -1523,6 +1553,9 @@ var _ = Describe("Environment controller tests", func() {
 			err = appstudioshared.AddToScheme(scheme)
 			Expect(err).ToNot(HaveOccurred())
 
+			err = appstudiosharedv1beta1.AddToScheme(scheme)
+			Expect(err).ToNot(HaveOccurred())
+
 			apiNamespace = *namespace
 
 			// Create fake client
@@ -1536,17 +1569,17 @@ var _ = Describe("Environment controller tests", func() {
 		DescribeTable("verify updateStatusConditionOfEnvironment works as expected",
 			func(preCondition []metav1.Condition, newCondition metav1.Condition, expectedResult []metav1.Condition) {
 
-				env := appstudioshared.Environment{
+				env := appstudiosharedv1beta1.Environment{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "my-env",
 						Namespace: apiNamespace.Name,
 					},
-					Spec: appstudioshared.EnvironmentSpec{
+					Spec: appstudiosharedv1beta1.EnvironmentSpec{
 						DisplayName:        "my-environment",
-						DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
+						DeploymentStrategy: appstudiosharedv1beta1.DeploymentStrategy_Manual,
 						ParentEnvironment:  "",
 						Tags:               []string{},
-						Configuration:      appstudioshared.EnvironmentConfiguration{},
+						Configuration:      appstudiosharedv1beta1.EnvironmentConfiguration{},
 					},
 				}
 				err := k8sClient.Create(ctx, &env)
@@ -1723,6 +1756,9 @@ var _ = Describe("Environment controller tests", func() {
 			err = appstudioshared.AddToScheme(scheme)
 			Expect(err).ToNot(HaveOccurred())
 
+			err = appstudiosharedv1beta1.AddToScheme(scheme)
+			Expect(err).ToNot(HaveOccurred())
+
 			apiNamespace = *namespace
 
 			// Create fake client
@@ -1783,7 +1819,7 @@ var _ = Describe("Environment controller tests", func() {
 // expectEnvironmentStatusConditionError verifies that both a Reconciled and an EnvironmentConditionErrorOccurred
 // status conditions are set, with the appropriate message, and in the case of the Reconciled condition, with the
 // appropriate reason.
-func expectEnvironmentStatusConditionError(envMessage, envReason string, env appstudioshared.Environment) {
+func expectEnvironmentStatusConditionError(envMessage, envReason string, env appstudiosharedv1beta1.Environment) {
 
 	// WithOffset tells Gingko to ignore this function when reporting the failing line in the test
 

@@ -160,6 +160,7 @@ require (
 
 replace (
 	// Monorepo
+	github.com/redhat-appstudio/application-api => github.com/jparsai/application-api v0.0.0-20230927095310-edd7f1064c68
 	github.com/redhat-appstudio/managed-gitops/backend-shared => ../../backend-shared
 	github.com/redhat-appstudio/managed-gitops/tests-e2e => ../../tests-e2e
 )

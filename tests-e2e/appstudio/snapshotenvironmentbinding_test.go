@@ -14,6 +14,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	appstudiosharedv1beta1 "github.com/redhat-appstudio/application-api/api/v1beta1"
 	appstudiocontroller "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
@@ -29,7 +30,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 	Context("Testing SnapshotEnvironmentBinding Reconciler.", func() {
 
-		var environment appstudiosharedv1.Environment
+		var environment appstudiosharedv1beta1.Environment
 		var k8sClient client.Client
 		var err error
 
@@ -540,22 +541,22 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 		It("ensures that GitOpsDeployments .spec.destination.namespace field always matching the expected Environment value", func() {
 			By("creating a new Environment targetting a fake remote cluster")
-			environment := appstudiosharedv1.Environment{
+			environment := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-env",
 					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
-				Spec: appstudiosharedv1.EnvironmentSpec{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
 					DisplayName:        "my-env",
-					DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
+					DeploymentStrategy: appstudiosharedv1beta1.DeploymentStrategy_AppStudioAutomated,
 					ParentEnvironment:  "",
 					Tags:               []string{},
-					Configuration: appstudiosharedv1.EnvironmentConfiguration{
-						Env: []appstudiosharedv1.EnvVarPair{},
+					Configuration: appstudiosharedv1beta1.EnvironmentConfiguration{
+						Env: []appstudiosharedv1beta1.EnvVarPair{},
 					},
 					// The cluster doesn't need to be real for this test
-					UnstableConfigurationFields: &appstudiosharedv1.UnstableEnvironmentConfiguration{
-						KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						KubernetesClusterCredentials: appstudiosharedv1beta1.KubernetesClusterCredentials{
 							TargetNamespace:            "namespace1",
 							APIURL:                     "https://fake-url-does-not-exist.redhat.com",
 							ClusterCredentialsSecret:   "my-secret",
@@ -587,16 +588,16 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 				},
 			}
 			Eventually(gitopsDepl, "60s", "1s").
-				Should(gitopsDeplFixture.HaveTargetNamespace(environment.Spec.UnstableConfigurationFields.TargetNamespace),
+				Should(gitopsDeplFixture.HaveTargetNamespace(environment.Spec.Target.TargetNamespace),
 					"should match the Environment's current target ns value")
 
 			By("updating the Environment to target another namespace")
 			err = k8s.UpdateWithoutConflict(&environment, k8sClient, func(obj client.Object) {
 
-				envObj, ok := obj.(*appstudiosharedv1.Environment)
+				envObj, ok := obj.(*appstudiosharedv1beta1.Environment)
 
 				Expect(ok).To(BeTrue())
-				envObj.Spec.UnstableConfigurationFields.TargetNamespace = "another-namespace"
+				envObj.Spec.Target.TargetNamespace = "another-namespace"
 
 			})
 			Expect(err).ToNot(HaveOccurred())
@@ -638,18 +639,18 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			By("updating the Environment to instead point to the DeploymentTargetClaim")
 			err = k8s.UpdateWithoutConflict(&environment, k8sClient, func(obj client.Object) {
 
-				envObj, ok := obj.(*appstudiosharedv1.Environment)
+				envObj, ok := obj.(*appstudiosharedv1beta1.Environment)
 				Expect(ok).To(BeTrue())
-				envObj.Spec.UnstableConfigurationFields = nil
-				envObj.Spec.Configuration = appstudiosharedv1.EnvironmentConfiguration{
-					Env: []appstudiosharedv1.EnvVarPair{},
-					Target: appstudiosharedv1.EnvironmentTarget{
-						DeploymentTargetClaim: appstudiosharedv1.DeploymentTargetClaimConfig{
+				envObj.Spec.Target = &appstudiosharedv1beta1.TargetConfiguration{
+					Claim: appstudiosharedv1beta1.TargetClaim{
+						DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
 							ClaimName: dtc.Name,
 						},
 					},
 				}
-
+				envObj.Spec.Configuration = appstudiosharedv1beta1.EnvironmentConfiguration{
+					Env: []appstudiosharedv1beta1.EnvVarPair{},
+				}
 			})
 			Expect(err).ToNot(HaveOccurred())
 
@@ -672,14 +673,14 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			By("updating the Environment back from DTC-based credentials, back to K8s cluster credentials, and using another namespace")
 			err = k8s.UpdateWithoutConflict(&environment, k8sClient, func(obj client.Object) {
 
-				envObj, ok := obj.(*appstudiosharedv1.Environment)
+				envObj, ok := obj.(*appstudiosharedv1beta1.Environment)
 				Expect(ok).To(BeTrue())
 
-				envObj.Spec.Configuration = appstudiosharedv1.EnvironmentConfiguration{
-					Env: []appstudiosharedv1.EnvVarPair{},
+				envObj.Spec.Configuration = appstudiosharedv1beta1.EnvironmentConfiguration{
+					Env: []appstudiosharedv1beta1.EnvVarPair{},
 				}
-				envObj.Spec.UnstableConfigurationFields = &appstudiosharedv1.UnstableEnvironmentConfiguration{
-					KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
+				envObj.Spec.Target = &appstudiosharedv1beta1.TargetConfiguration{
+					KubernetesClusterCredentials: appstudiosharedv1beta1.KubernetesClusterCredentials{
 						TargetNamespace:            "namespace1",
 						APIURL:                     "https://fake-url-does-not-exist.redhat.com",
 						ClusterCredentialsSecret:   "my-secret",
@@ -713,8 +714,8 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			err = k8s.Get(&environment, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
 
-			environment.Spec.UnstableConfigurationFields = &appstudiosharedv1.UnstableEnvironmentConfiguration{
-				KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
+			environment.Spec.Target = &appstudiosharedv1beta1.TargetConfiguration{
+				KubernetesClusterCredentials: appstudiosharedv1beta1.KubernetesClusterCredentials{
 					TargetNamespace:          fixture.GitOpsServiceE2ENamespace,
 					APIURL:                   "https://api-url",
 					ClusterCredentialsSecret: "my-secret",
@@ -754,7 +755,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			Expect(gitopsDeployment.Spec.Destination.Environment).To(Equal("managed-environment-"+environment.Name),
 				"the destination should be the environment")
 			Expect(gitopsDeployment.Spec.Destination.Namespace).
-				To(Equal(environment.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.TargetNamespace),
+				To(Equal(environment.Spec.Target.KubernetesClusterCredentials.TargetNamespace),
 					"the namespace of the GitOpsDeployment should come from the Environment")
 		})
 

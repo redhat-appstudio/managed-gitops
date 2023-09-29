@@ -13,6 +13,7 @@ import (
 
 	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	appstudiosharedv1beta1 "github.com/redhat-appstudio/application-api/api/v1beta1"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	dtfixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/deploymenttarget"
 	dtcfixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/deploymenttargetclaim"
@@ -77,18 +78,20 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 			Expect(err).ToNot(HaveOccurred())
 
 			By("Step 2- Create an Environment that references the DTC")
-			env := &appstudiosharedv1.Environment{
+			env := &appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-env",
 					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
-				Spec: appstudiosharedv1.EnvironmentSpec{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
 					DisplayName:        "my environment",
-					DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
-					Configuration: appstudiosharedv1.EnvironmentConfiguration{
-						Env: []appstudiosharedv1.EnvVarPair{},
-						Target: appstudiosharedv1.EnvironmentTarget{
-							DeploymentTargetClaim: appstudiosharedv1.DeploymentTargetClaimConfig{
+					DeploymentStrategy: appstudiosharedv1beta1.DeploymentStrategy_AppStudioAutomated,
+					Configuration: appstudiosharedv1beta1.EnvironmentConfiguration{
+						Env: []appstudiosharedv1beta1.EnvVarPair{},
+					},
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						Claim: appstudiosharedv1beta1.TargetClaim{
+							DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
 								ClaimName: dtc.Name,
 							},
 						},

@@ -6,6 +6,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	appstudiosharedv1beta1 "github.com/redhat-appstudio/application-api/api/v1beta1"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	promotionRunFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/promotionrun"
@@ -15,7 +16,7 @@ import (
 
 var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests.", func() {
 	Context("Testing Promotion Run Creation of SnapshotEnvironmentBinding.", func() {
-		var environmentProd appstudiosharedv1.Environment
+		var environmentProd appstudiosharedv1beta1.Environment
 		var promotionRun appstudiosharedv1.PromotionRun
 		var k8sClient client.Client
 		var err error
@@ -27,12 +28,12 @@ var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests
 			Expect(err).To(Succeed())
 
 			By("Create Staging Environment.")
-			environmentStage := buildEnvironmentResource("staging", "Staging Environment", "staging", appstudiosharedv1.EnvironmentType_POC)
+			environmentStage := buildEnvironmentResource("staging", "Staging Environment", "staging", appstudiosharedv1beta1.EnvironmentType_POC)
 			err = k8s.Create(&environmentStage, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Create Production Environment.")
-			environmentProd = buildEnvironmentResource("prod", "Production Environment", "prod", appstudiosharedv1.EnvironmentType_POC)
+			environmentProd = buildEnvironmentResource("prod", "Production Environment", "prod", appstudiosharedv1beta1.EnvironmentType_POC)
 			err = k8s.Create(&environmentProd, k8sClient)
 			Expect(err).To(Succeed())
 

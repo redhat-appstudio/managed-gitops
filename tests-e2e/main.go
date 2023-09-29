@@ -35,6 +35,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	applicationv1alpha1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	applicationv1alpha1beta1 "github.com/redhat-appstudio/application-api/api/v1beta1"
+
 	gitopsdeploymentv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
@@ -51,6 +53,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(applicationv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(applicationv1alpha1beta1.AddToScheme(scheme))
 	utilruntime.Must(gitopsdeploymentv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(appv1.AddToScheme(scheme))
 	utilruntime.Must(codereadytoolchainv1alpha1.AddToScheme(scheme))

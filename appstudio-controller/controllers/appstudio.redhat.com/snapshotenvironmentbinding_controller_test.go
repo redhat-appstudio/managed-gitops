@@ -487,7 +487,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).ToNot(HaveOccurred())
 
-			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "Can not Reconcile Binding 'appa-staging-binding', since GitOps Repo Conditions status is false.", metav1.ConditionFalse, SnapshotEnvironmentBindingReasonGitOpsRepoNotReady)
+			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "Cannot Reconcile Binding 'appa-staging-binding', since GitOps Repo Conditions status is false.", metav1.ConditionFalse, SnapshotEnvironmentBindingReasonGitOpsRepoNotReady)
 		})
 
 		It("should update the previous binding condition status if there is no longer a repo condition error", func() {
@@ -506,7 +506,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).ToNot(HaveOccurred())
 
-			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "Can not Reconcile Binding 'appa-staging-binding', since GitOps Repo Conditions status is false.", metav1.ConditionFalse, SnapshotEnvironmentBindingReasonGitOpsRepoNotReady)
+			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "Cannot Reconcile Binding 'appa-staging-binding', since GitOps Repo Conditions status is false.", metav1.ConditionFalse, SnapshotEnvironmentBindingReasonGitOpsRepoNotReady)
 
 			By("update the repo condition and verify if the binding condition is updated")
 			binding.Status.GitOpsRepoConditions = []metav1.Condition{

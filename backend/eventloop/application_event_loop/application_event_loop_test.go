@@ -25,7 +25,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 		It("should forward messages received on the input channel, to the runner, without a response channel", func() {
 
 			mockApplicationEventLoopRunnerFactory := mockApplicationEventLoopRunnerFactory{
-				mockChannel: make(chan *eventlooptypes.EventLoopEvent),
+				mockChannel: make(chan eventlooptypes.EventLoopEvent),
 			}
 
 			aeqlParam := ApplicationEventQueueLoop{
@@ -94,10 +94,10 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 				activeSyncOperationEvent:   nil,
 				waitingSyncOperationEvents: []*RequestMessage{},
 
-				deploymentEventRunner:         make(chan *eventlooptypes.EventLoopEvent, 5),
+				deploymentEventRunner:         make(chan eventlooptypes.EventLoopEvent, 5),
 				deploymentEventRunnerShutdown: false,
 
-				syncOperationEventRunner:         make(chan *eventlooptypes.EventLoopEvent, 5),
+				syncOperationEventRunner:         make(chan eventlooptypes.EventLoopEvent, 5),
 				syncOperationEventRunnerShutdown: false,
 			}
 
@@ -128,7 +128,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 					Expect(shouldTerminate).To(BeFalse())
 
 					event := <-state.syncOperationEventRunner
-					Expect(event).To(Equal(newEvent.Message.Event))
+					Expect(event).To(Equal(*newEvent.Message.Event))
 					Expect(state.waitingSyncOperationEvents).To(BeEmpty())
 					Expect(state.activeSyncOperationEvent.Message).To(Equal(newEvent.Message))
 				})
@@ -191,7 +191,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 					Expect(shouldTerminate).To(BeFalse())
 
 					event := <-state.syncOperationEventRunner
-					Expect(event).To(Equal(newEvent.Message.Event))
+					Expect(event).To(Equal(*newEvent.Message.Event))
 					Expect(state.waitingSyncOperationEvents).To(BeEmpty())
 					Expect(state.activeSyncOperationEvent.Message).To(Equal(newEvent.Message))
 
@@ -236,7 +236,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 					Expect(shouldTerminate).To(BeFalse())
 
 					event := <-state.deploymentEventRunner
-					Expect(event).To(Equal(newEvent.Message.Event))
+					Expect(event).To(Equal(*newEvent.Message.Event))
 					Expect(state.waitingDeploymentEvents).To(BeEmpty())
 					Expect(state.activeDeploymentEvent.Message).To(Equal(newEvent.Message))
 				})
@@ -299,7 +299,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 					Expect(shouldTerminate).To(BeFalse())
 
 					event := <-state.deploymentEventRunner
-					Expect(event).To(Equal(newEvent.Message.Event))
+					Expect(event).To(Equal(*newEvent.Message.Event))
 					Expect(state.waitingDeploymentEvents).To(BeEmpty())
 					Expect(state.activeDeploymentEvent.Message).To(Equal(newEvent.Message))
 
@@ -346,7 +346,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 					Expect(shouldTerminate).To(BeFalse())
 
 					event := <-state.deploymentEventRunner
-					Expect(event).To(Equal(newEvent.Message.Event))
+					Expect(event).To(Equal(*newEvent.Message.Event))
 					Expect(state.waitingDeploymentEvents).To(BeEmpty())
 					Expect(state.activeDeploymentEvent.Message).To(Equal(newEvent.Message))
 
@@ -393,7 +393,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 					Expect(shouldTerminate).To(BeFalse())
 
 					event := <-state.deploymentEventRunner
-					Expect(event).To(Equal(newEvent.Message.Event))
+					Expect(event).To(Equal(*newEvent.Message.Event))
 					Expect(state.waitingDeploymentEvents).To(BeEmpty())
 					Expect(state.activeDeploymentEvent.Message).To(Equal(newEvent.Message))
 
@@ -497,7 +497,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 
 		It("should start a runner based on incoming GitOpsDeployment request ", func() {
 			mockApplicationEventLoopRunnerFactory := mockApplicationEventLoopRunnerFactory{
-				mockChannel: make(chan *eventlooptypes.EventLoopEvent),
+				mockChannel: make(chan eventlooptypes.EventLoopEvent),
 			}
 
 			startApplicationEventQueueLoopWithFactory(context.Background(), aeqlParam, &mockApplicationEventLoopRunnerFactory)
@@ -585,14 +585,14 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 
 // mockApplicationEventLoopRunnerFactory which returns a pre-provided channel, rather than starting a new goroutine.
 type mockApplicationEventLoopRunnerFactory struct {
-	mockChannel chan *eventlooptypes.EventLoopEvent
+	mockChannel chan eventlooptypes.EventLoopEvent
 }
 
 var _ applicationEventRunnerFactory = &mockApplicationEventLoopRunnerFactory{}
 
-func (fact *mockApplicationEventLoopRunnerFactory) createNewApplicationEventLoopRunner(informWorkCompleteChan chan RequestMessage,
+func (fact *mockApplicationEventLoopRunnerFactory) createNewApplicationEventLoopRunner(ctx context.Context, informWorkCompleteChan chan RequestMessage,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, gitopsDeplName string, gitopsDeplNamespace string,
-	workspaceID string, debugContext string) chan *eventlooptypes.EventLoopEvent {
+	workspaceID string, debugContext string, k8sFactory shared_resource_loop.SRLK8sClientFactory) chan eventlooptypes.EventLoopEvent {
 
 	return fact.mockChannel
 

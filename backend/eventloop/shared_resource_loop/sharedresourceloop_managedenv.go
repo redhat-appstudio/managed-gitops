@@ -67,6 +67,8 @@ func internalProcessMessage_internalReconcileSharedManagedEnv(ctx context.Contex
 
 	log = log.WithValues("managedEnvCRName", managedEnvironmentCRName)
 
+	log.Info("reconciling reference to Managed Environment")
+
 	gitopsEngineClient, err := k8sClientFactory.GetK8sClientForGitOpsEngineInstance(ctx, nil)
 	if err != nil {
 		return newSharedResourceManagedEnvContainer(), createUnknownErrorEnvInitCondition(), err

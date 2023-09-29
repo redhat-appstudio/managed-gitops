@@ -117,7 +117,7 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 				WorkspaceID: workspaceID,
 			}
 
-			shutdownSignalled, err := handleDeploymentModified(ctx, &eventLoopEvent, appEventLoopRunnerAction, dbQueries, log.FromContext(context.Background()))
+			shutdownSignalled, err := handleDeploymentModified(ctx, eventLoopEvent, appEventLoopRunnerAction, dbQueries, log.FromContext(context.Background()))
 			Expect(shutdownSignalled).To(BeFalse())
 
 			Expect(err).To(HaveOccurred())
@@ -130,7 +130,7 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 
 			err = k8sClient.Delete(ctx, gitopsDepl)
 			Expect(err).ToNot(HaveOccurred())
-			shutdownSignalled, err = handleDeploymentModified(ctx, &eventLoopEvent, appEventLoopRunnerAction, dbQueries, log.FromContext(context.Background()))
+			shutdownSignalled, err = handleDeploymentModified(ctx, eventLoopEvent, appEventLoopRunnerAction, dbQueries, log.FromContext(context.Background()))
 			Expect(shutdownSignalled).To(BeFalse())
 			Expect(err).ToNot(HaveOccurred())
 
@@ -216,7 +216,7 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 				WorkspaceID: workspaceID,
 			}
 
-			shutdownSignalled, err := handleDeploymentModified(ctx, &eventLoopEvent, appEventLoopRunnerAction, dbQueries, log.FromContext(context.Background()))
+			shutdownSignalled, err := handleDeploymentModified(ctx, eventLoopEvent, appEventLoopRunnerAction, dbQueries, log.FromContext(context.Background()))
 			Expect(shutdownSignalled).To(BeFalse())
 
 			Expect(err).ToNot(HaveOccurred())
@@ -229,7 +229,7 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 
 			err = k8sClient.Delete(ctx, gitopsDepl)
 			Expect(err).ToNot(HaveOccurred())
-			shutdownSignalled, err = handleDeploymentModified(ctx, &eventLoopEvent, appEventLoopRunnerAction, dbQueries, log.FromContext(context.Background()))
+			shutdownSignalled, err = handleDeploymentModified(ctx, eventLoopEvent, appEventLoopRunnerAction, dbQueries, log.FromContext(context.Background()))
 			Expect(shutdownSignalled).To(BeFalse())
 			Expect(err).ToNot(HaveOccurred())
 

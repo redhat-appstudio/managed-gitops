@@ -61,27 +61,26 @@ import (
 // For more information on how events are distributed between goroutines by event loop, see:
 // https://miro.com/app/board/o9J_lgiqJAs=/?moveToWidget=3458764514216218600&cot=14
 
-func startNewApplicationEventLoopRunner(informWorkCompleteChan chan RequestMessage,
+func startNewApplicationEventLoopRunner(ctx context.Context, informWorkCompleteChan chan RequestMessage,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop,
-	gitopsDeplName string, gitopsDeplNamespace, workspaceID string, debugContext string) chan *eventlooptypes.EventLoopEvent {
+	gitopsDeplName string, gitopsDeplNamespace, workspaceID string, debugContext string, k8sFactory shared_resource_loop.SRLK8sClientFactory) chan eventlooptypes.EventLoopEvent {
 
-	inputChannel := make(chan *eventlooptypes.EventLoopEvent)
+	inputChannel := make(chan eventlooptypes.EventLoopEvent)
 
 	go func() {
-		applicationEventLoopRunner(inputChannel, informWorkCompleteChan, sharedResourceEventLoop, gitopsDeplName, gitopsDeplNamespace,
-			workspaceID, debugContext)
+		applicationEventLoopRunner(ctx, inputChannel, informWorkCompleteChan, sharedResourceEventLoop, gitopsDeplName, gitopsDeplNamespace,
+			workspaceID, debugContext, k8sFactory)
 	}()
 
 	return inputChannel
 
 }
 
-func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent,
+func applicationEventLoopRunner(outerContext context.Context, inputChannel chan eventlooptypes.EventLoopEvent,
 	informWorkCompleteChan chan RequestMessage,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, gitopsDeploymentName string,
-	gitopsDeploymentNamespace string, namespaceID string, debugContext string) {
+	gitopsDeploymentNamespace string, namespaceID string, debugContext string, k8sFactory shared_resource_loop.SRLK8sClientFactory) {
 
-	outerContext := context.Background()
 	log := log.FromContext(outerContext).
 		WithName(logutil.LogLogger_managed_gitops).
 		WithValues(
@@ -104,7 +103,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 		// Process the event
 
 		if !(newEvent.EventType == eventlooptypes.UpdateDeploymentStatusTick && disableDeploymentStatusTickLogging == true) {
-			log.V(logutil.LogLevel_Debug).Info("applicationEventLoopRunner - event received", "event", eventlooptypes.StringEventLoopEvent(newEvent))
+			log.V(logutil.LogLevel_Debug).Info("applicationEventLoopRunner - event received", "event", eventlooptypes.StringEventLoopEvent(&newEvent))
 		}
 
 		// Keep attempting the process the event until no error is returned, or the request is cancelled.
@@ -114,7 +113,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 		for {
 
 			if !(newEvent.EventType == eventlooptypes.UpdateDeploymentStatusTick && disableDeploymentStatusTickLogging == true) {
-				log.V(logutil.LogLevel_Debug).Info("applicationEventLoopRunner - processing event", "event", eventlooptypes.StringEventLoopEvent(newEvent), "attempt", attempts)
+				log.V(logutil.LogLevel_Debug).Info("applicationEventLoopRunner - processing event", "event", eventlooptypes.StringEventLoopEvent(&newEvent), "attempt", attempts)
 			}
 
 			// Break if the context is cancelled
@@ -133,7 +132,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 					sharedResourceEventLoop: sharedResourceEventLoop,
 					log:                     log,
 					workspaceID:             namespaceID,
-					k8sClientFactory:        shared_resource_loop.DefaultK8sClientFactory{},
+					k8sClientFactory:        k8sFactory,
 				}
 
 				var err error
@@ -179,6 +178,8 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 				return err
 			})
 
+			log.V(logutil.LogLevel_Debug).Info("completed processing event")
+
 			if err == nil {
 				break inner_for
 			} else {
@@ -186,9 +187,9 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 				// If we recognize this error is a connection error due to the user providing us invalid credentials, don't bother to log it.
 				if IsManagedEnvironmentConnectionUserError(err, log) {
 					// log this error message at info level
-					log.Info(fmt.Sprintf("user cluster credentials or URL are invalid: %v", err), "event", eventlooptypes.StringEventLoopEvent(newEvent))
+					log.Info(fmt.Sprintf("user cluster credentials or URL are invalid: %v", err), "event", eventlooptypes.StringEventLoopEvent(&newEvent))
 				} else {
-					log.Error(err, "error from inner event handler in applicationEventLoopRunner", "event", eventlooptypes.StringEventLoopEvent(newEvent))
+					log.Error(err, "error from inner event handler in applicationEventLoopRunner", "event", eventlooptypes.StringEventLoopEvent(&newEvent))
 				}
 
 				backoff.DelayOnFail(ctx)
@@ -200,7 +201,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 		informWorkCompleteChan <- RequestMessage{
 			Message: eventlooptypes.EventLoopMessage{
 				MessageType:       eventlooptypes.ApplicationEventLoopMessageType_WorkComplete,
-				Event:             newEvent,
+				Event:             &newEvent,
 				ShutdownSignalled: signalledShutdown},
 			ResponseChan: nil,
 		}
@@ -218,7 +219,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 // handleManagedEnvironmentModified_shouldInformGitOpsDeployment returns true if the GitOpsDeployment CR references
 // the ManagedEnvironment resource that changed, false otherwise.
 func handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx context.Context, gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment,
-	managedEnvEvent *eventlooptypes.EventLoopEvent, dbQueries db.DatabaseQueries) (bool, error) {
+	managedEnvEvent eventlooptypes.EventLoopEvent, dbQueries db.DatabaseQueries) (bool, error) {
 
 	informGitOpsDeployment := false // whether or not this gitopsdeployment references the managed environment that changed
 
@@ -316,17 +317,17 @@ func handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx context.C
 // GitOpsDeployment is reconciled, because it might need to respond to the ManagedEnvironment change.
 //
 // returns true if shutdown was signalled by 'handleDeploymentModified', false otherwise.
-func handleManagedEnvironmentModified(ctx context.Context, expectedResourceName string, newEvent *eventlooptypes.EventLoopEvent,
+func handleManagedEnvironmentModified(ctx context.Context, expectedResourceName string, newEvent eventlooptypes.EventLoopEvent,
 	action applicationEventLoopRunner_Action, dbQueries db.DatabaseQueries, log logr.Logger) (bool, error) {
 
 	// 1) Retrieve the GitOpsDeployment that the runner is handling events for
-	gitopsDeployment := &managedgitopsv1alpha1.GitOpsDeployment{
+	gitopsDeployment := managedgitopsv1alpha1.GitOpsDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      expectedResourceName,
 			Namespace: newEvent.Request.Namespace,
 		},
 	}
-	if err := newEvent.Client.Get(ctx, client.ObjectKeyFromObject(gitopsDeployment), gitopsDeployment); err != nil {
+	if err := newEvent.Client.Get(ctx, client.ObjectKeyFromObject(&gitopsDeployment), &gitopsDeployment); err != nil {
 		if apierr.IsNotFound(err) {
 			// gitopsdeployment doesn't exist; no work for us to do here.
 			return false, nil
@@ -335,13 +336,14 @@ func handleManagedEnvironmentModified(ctx context.Context, expectedResourceName 
 		}
 	}
 
-	informGitOpsDeployment, err := handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx, *gitopsDeployment,
+	// 2) Determine if the GitOpsDeployment refers to the GitOpsDeploymentManagedEnvironment in the the event
+	informGitOpsDeployment, err := handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx, gitopsDeployment,
 		newEvent, dbQueries)
 	if err != nil {
 		return false, err
 	}
 
-	// If we discovered that this GitOpsDeployment CR or Application row is referencing this ManagedEnvironment,
+	// 3) If we discovered that this GitOpsDeployment CR or Application row is referencing this ManagedEnvironment,
 	// then call handle deployment modified to ensure that the GitOpsDeployment is reconciled to the latest
 	// contents of the managed environment.
 	if informGitOpsDeployment {
@@ -366,7 +368,7 @@ func handleManagedEnvironmentModified(ctx context.Context, expectedResourceName 
 }
 
 // Handle events originating from the GitOpsDeployment controller
-func handleDeploymentModified(ctx context.Context, newEvent *eventlooptypes.EventLoopEvent, action applicationEventLoopRunner_Action,
+func handleDeploymentModified(ctx context.Context, newEvent eventlooptypes.EventLoopEvent, action applicationEventLoopRunner_Action,
 	scopedDBQueries db.ApplicationScopedQueries, log logr.Logger) (bool, error) {
 
 	// Handle all GitOpsDeployment related events

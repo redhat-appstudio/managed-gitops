@@ -247,7 +247,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	if err != nil {
 
 		userError := "Unable to reconcile the ManagedEnvironment. Verify that the ManagedEnvironment and Secret are correctly defined, and have valid credentials"
-		devError := fmt.Errorf("unable to get or create managed environment, isworkspacetarget:%v: %v", isWorkspaceTarget, err)
+		devError := fmt.Errorf("unable to get or create managed environment, isworkspacetarget:%v: %w", isWorkspaceTarget, err)
 
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, devError)
 
@@ -527,7 +527,7 @@ func (a applicationEventLoopRunner_Action) reconcileManagedEnvironmentOfGitOpsDe
 		a.k8sClientFactory, a.log)
 
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("unable to get or create managed environment when reconciling for GitOpsDeployment: %v", err)
+		return nil, nil, "", fmt.Errorf("unable to get or create managed environment when reconciling for GitOpsDeployment: %w", err)
 	}
 
 	var destinationName string
@@ -760,6 +760,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		err = fmt.Errorf("gitopsengineinstance namespace is nil, expected non-nil:  %s", engineInstance.Gitopsengineinstance_id)
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 	}
+
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput, clusterUser.Clusteruser_id,
 		engineInstance.Namespace_name, dbQueries, gitopsEngineClient, log)
 	if err != nil {

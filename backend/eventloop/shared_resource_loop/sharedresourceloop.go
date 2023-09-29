@@ -764,13 +764,13 @@ func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, gito
 	clusterUser, isNewUser, err := internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx, workspaceNamespace, dbQueries, l)
 	if err != nil {
 		return SharedResourceManagedEnvContainer{}, createUnknownErrorEnvInitCondition(),
-			fmt.Errorf("unable to retrieve cluster user in processMessage, '%s': %v", string(workspaceNamespace.UID), err)
+			fmt.Errorf("unable to retrieve cluster user in processMessage, '%s': %w", string(workspaceNamespace.UID), err)
 	}
 
 	managedEnv, isNewManagedEnv, err := dbutil.GetOrCreateManagedEnvironmentByNamespaceUID(ctx, workspaceNamespace, dbQueries, l)
 	if err != nil {
 		return SharedResourceManagedEnvContainer{}, createUnknownErrorEnvInitCondition(),
-			fmt.Errorf("unable to get or created managed env on deployment modified event: %v", err)
+			fmt.Errorf("unable to get or created managed env on deployment modified event: %w", err)
 	}
 
 	engineInstance, isNewInstance, gitopsEngineCluster, uerr := internalDetermineGitOpsEngineInstance(ctx, *clusterUser, gitopsEngineClient, dbQueries, l)
@@ -821,14 +821,14 @@ func internalDetermineGitOpsEngineInstance(ctx context.Context, user db.ClusterU
 	// TODO: GITOPSRVCE-73 - Once we have a way to distribute work between Argo CD instances, update this function.
 	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: dbutil.GetGitOpsEngineSingleInstanceNamespace()}}
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace); err != nil {
-		devError := fmt.Errorf("unable to retrieve gitopsengine namespace in determineGitOpsEngineInstanceForNewApplication: %w", err)
+		devError := fmt.Errorf("unable to retrieve gitopsengine namespace in internalDetermineGitOpsEngineInstanceForNewApplication: %w", err)
 		userMsg := gitopserrors.UnknownError
 		return nil, false, nil, gitopserrors.NewUserConditionError(userMsg, devError, string(managedgitopsv1alpha1.ConditionReasonKubeError))
 	}
 
 	kubeSystemNamespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(kubeSystemNamespace), kubeSystemNamespace); err != nil {
-		devError := fmt.Errorf("unable to retrieve kube-system namespace in determineGitOpsEngineInstanceForNewApplication: %w", err)
+		devError := fmt.Errorf("unable to retrieve kube-system namespace in internalDetermineGitOpsEngineInstanceForNewApplication: %w", err)
 		userMsg := gitopserrors.UnknownError
 		return nil, false, nil, gitopserrors.NewUserConditionError(userMsg, devError, string(managedgitopsv1alpha1.ConditionReasonKubeError))
 	}

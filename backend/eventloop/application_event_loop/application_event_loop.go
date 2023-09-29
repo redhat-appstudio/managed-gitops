@@ -6,9 +6,13 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -128,13 +132,13 @@ type applicationEventQueueLoopState struct {
 	waitingSyncOperationEvents []*RequestMessage
 
 	// Channel which can be used to communicate with the active deployment event runner
-	deploymentEventRunner chan *eventlooptypes.EventLoopEvent
+	deploymentEventRunner chan eventlooptypes.EventLoopEvent
 
 	// deploymentEventRunnerShutdown is true if the runner has shut down, false otherwise
 	deploymentEventRunnerShutdown bool
 
 	// Channel which can be used to communicate with the active sync event runner
-	syncOperationEventRunner chan *eventlooptypes.EventLoopEvent
+	syncOperationEventRunner chan eventlooptypes.EventLoopEvent
 
 	// syncOperationEventRunnerShutdown is true if the runner has shut down, false otherwise
 	syncOperationEventRunnerShutdown bool
@@ -164,12 +168,12 @@ func applicationEventQueueLoop(ctx context.Context, k8sClient client.Client,
 		activeSyncOperationEvent:   nil,
 		waitingSyncOperationEvents: []*RequestMessage{},
 
-		deploymentEventRunner: aerFactory.createNewApplicationEventLoopRunner(input, sharedResourceEventLoop, gitopsDeploymentName,
-			gitopsDeploymentNamespace, workspaceID, "deployment"),
+		deploymentEventRunner: aerFactory.createNewApplicationEventLoopRunner(ctx, input, sharedResourceEventLoop, gitopsDeploymentName,
+			gitopsDeploymentNamespace, workspaceID, "deployment", ExistingK8sClientFactory{existingK8sClient: k8sClient}),
 		deploymentEventRunnerShutdown: false,
 
-		syncOperationEventRunner: aerFactory.createNewApplicationEventLoopRunner(input, sharedResourceEventLoop, gitopsDeploymentName,
-			gitopsDeploymentNamespace, workspaceID, "sync-operation"),
+		syncOperationEventRunner: aerFactory.createNewApplicationEventLoopRunner(ctx, input, sharedResourceEventLoop, gitopsDeploymentName,
+			gitopsDeploymentNamespace, workspaceID, "sync-operation", ExistingK8sClientFactory{existingK8sClient: k8sClient}),
 		syncOperationEventRunnerShutdown: false,
 	}
 
@@ -367,7 +371,7 @@ func processApplicationEventQueueLoopMessage(ctx context.Context, newEvent Reque
 				"event", eventlooptypes.StringEventLoopEvent(state.activeDeploymentEvent.Message.Event))
 		}
 
-		state.deploymentEventRunner <- state.activeDeploymentEvent.Message.Event
+		state.deploymentEventRunner <- *state.activeDeploymentEvent.Message.Event
 
 		if !(state.activeDeploymentEvent.Message.Event.EventType == eventlooptypes.UpdateDeploymentStatusTick &&
 			disableDeploymentStatusTickLogging == true) {
@@ -385,7 +389,7 @@ func processApplicationEventQueueLoopMessage(ctx context.Context, newEvent Reque
 		state.waitingSyncOperationEvents = state.waitingSyncOperationEvents[1:]
 
 		// Send the work to the runner
-		state.syncOperationEventRunner <- state.activeSyncOperationEvent.Message.Event
+		state.syncOperationEventRunner <- *state.activeSyncOperationEvent.Message.Event
 		log.V(logutil.LogLevel_Debug).Info("Sent work to sync op runner",
 			"event", eventlooptypes.StringEventLoopEvent(state.activeSyncOperationEvent.Message.Event))
 
@@ -438,9 +442,9 @@ func startNewStatusUpdateTimer(ctx context.Context, k8sClient client.Client, inp
 //
 // The defaultApplicationEventRunnerFactory should be used in all cases, except for when writing mocks for unit tests.
 type applicationEventRunnerFactory interface {
-	createNewApplicationEventLoopRunner(informWorkCompleteChan chan RequestMessage,
+	createNewApplicationEventLoopRunner(ctx context.Context, informWorkCompleteChan chan RequestMessage,
 		sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop,
-		gitopsDeplName string, gitopsDeplNamespace string, workspaceID string, debugContext string) chan *eventlooptypes.EventLoopEvent
+		gitopsDeplName string, gitopsDeplNamespace string, workspaceID string, debugContext string, k8sFactory shared_resource_loop.SRLK8sClientFactory) chan eventlooptypes.EventLoopEvent
 }
 
 type defaultApplicationEventRunnerFactory struct {
@@ -449,10 +453,36 @@ type defaultApplicationEventRunnerFactory struct {
 var _ applicationEventRunnerFactory = defaultApplicationEventRunnerFactory{}
 
 // createNewApplicationEventLoopRunner is a simple wrapper around the default function.
-func (defaultApplicationEventRunnerFactory) createNewApplicationEventLoopRunner(informWorkCompleteChan chan RequestMessage,
+func (defaultApplicationEventRunnerFactory) createNewApplicationEventLoopRunner(ctx context.Context, informWorkCompleteChan chan RequestMessage,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop,
-	gitopsDeplName string, gitopsDeplNamespace string, workspaceID string, debugContext string) chan *eventlooptypes.EventLoopEvent {
+	gitopsDeplName string, gitopsDeplNamespace string, workspaceID string, debugContext string, k8sFactory shared_resource_loop.SRLK8sClientFactory) chan eventlooptypes.EventLoopEvent {
 
-	return startNewApplicationEventLoopRunner(informWorkCompleteChan, sharedResourceEventLoop, gitopsDeplName, gitopsDeplNamespace,
-		workspaceID, debugContext)
+	return startNewApplicationEventLoopRunner(ctx, informWorkCompleteChan, sharedResourceEventLoop, gitopsDeplName, gitopsDeplNamespace,
+		workspaceID, debugContext, k8sFactory)
+}
+
+var _ shared_resource_loop.SRLK8sClientFactory = ExistingK8sClientFactory{}
+
+// ExistingK8sClientFactory can be used when a caller already has a Service Workspace context they wish to use.
+type ExistingK8sClientFactory struct {
+	existingK8sClient client.Client
+}
+
+func (e ExistingK8sClientFactory) GetK8sClientForGitOpsEngineInstance(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+	return eventlooptypes.GetK8sClientForGitOpsEngineInstance(ctx, gitopsEngineInstance)
+}
+
+func (e ExistingK8sClientFactory) GetK8sClientForServiceWorkspace() (client.Client, error) {
+	return e.existingK8sClient, nil
+}
+
+func (e ExistingK8sClientFactory) BuildK8sClient(restConfig *rest.Config) (client.Client, error) {
+	k8sClient, err := client.New(restConfig, client.Options{Scheme: scheme.Scheme})
+	k8sClient = sharedutil.IfEnabledSimulateUnreliableClient(k8sClient)
+	if err != nil {
+		return nil, err
+	}
+
+	return k8sClient, err
+
 }

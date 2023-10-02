@@ -94,6 +94,12 @@ var _ = Describe("Webhook E2E tests", func() {
 				Skip("skipping as snapshotenvironmentbindings webhook is not installed")
 			}
 
+			By("Create Application.")
+
+			application := buildApplication("new-demo-app", fixture.GitOpsServiceE2ENamespace, fixture.RepoURL)
+			err = k8s.Create(&application, k8sClient)
+			Expect(err).To(Succeed())
+
 			By("Create SnapshotEnvironmentBindings")
 
 			binding = buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})

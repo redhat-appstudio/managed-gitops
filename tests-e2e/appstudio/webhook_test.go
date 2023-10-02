@@ -145,6 +145,11 @@ var _ = Describe("Webhook E2E tests", func() {
 
 			ctx = context.Background()
 
+			By("Create Application.")
+			application := buildApplication("new-demo-app", fixture.GitOpsServiceE2ENamespace, fixture.RepoURL)
+			err = k8s.Create(&application, k8sClient)
+			Expect(err).To(Succeed())
+
 			By("Create SnapshotEnvironmentBindingResource.")
 			binding = buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			err = k8s.Create(&binding, k8sClient)

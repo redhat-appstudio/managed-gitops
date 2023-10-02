@@ -22,6 +22,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 		var environmentProd appstudiosharedv1.Environment
 		var bindingStage appstudiosharedv1.SnapshotEnvironmentBinding
 		var bindingProd appstudiosharedv1.SnapshotEnvironmentBinding
+		var application appstudiosharedv1.Application
 		var promotionRun appstudiosharedv1.PromotionRun
 
 		BeforeEach(func() {
@@ -99,6 +100,11 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			By("Create Production Environment.")
 			environmentProd = buildEnvironmentResource("prod", "Production Environment", "prod", appstudiosharedv1.EnvironmentType_POC)
 			err = k8s.Create(&environmentProd, k8sClient)
+			Expect(err).To(Succeed())
+
+			By("Create Application.")
+			application = buildApplication("new-demo-app", fixture.GitOpsServiceE2ENamespace, fixture.RepoURL)
+			err = k8s.Create(&application, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Create Snapshot.")

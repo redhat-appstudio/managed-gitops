@@ -118,6 +118,24 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 		return ctrl.Result{}, nil
 	}
 
+	// If the associated application doesn't exist, delete the Binding
+	application := appstudioshared.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      binding.Spec.Application,
+			Namespace: req.Namespace,
+		},
+	}
+	if err := rClient.Get(ctx, client.ObjectKeyFromObject(&application), &application); apierr.IsNotFound(err) {
+		err = rClient.Delete(ctx, binding)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("unable to delete Binding %s in Namespace %s: %w", binding.Name, binding.Namespace, err)
+		}
+		logutil.LogAPIResourceChangeEvent(binding.Namespace, binding.Name, binding, logutil.ResourceDeleted, log)
+		return ctrl.Result{}, nil
+	} else if err != nil {
+		return ctrl.Result{}, fmt.Errorf("error getting Application %s associated with Binding %s in Namespace %s: %w", binding.Spec.Application, binding.Name, binding.Namespace, err)
+	}
+
 	// Make a copy of the original SnapshotEnvironmentBinding, so we can compare it with the updated value, to see
 	// if our reconciliation changed the resource at all.
 	originalBinding := binding.DeepCopy()
@@ -649,7 +667,13 @@ func (r *SnapshotEnvironmentBindingReconciler) SetupWithManager(mgr ctrl.Manager
 			&source.Kind{Type: &appstudioshared.DeploymentTargetClaim{}},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForDeploymentTargetClaim),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
-		).Complete(r)
+		).
+		Watches(
+			&source.Kind{Type: &appstudioshared.Application{}},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForApplication),
+			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
+		).
+		Complete(r)
 }
 
 // findObjectsForDeploymentTarget maps an incoming DT event to the corresponding Environment request.
@@ -797,6 +821,40 @@ func (r *SnapshotEnvironmentBindingReconciler) findObjectsForEnvironment(envPara
 	for idx := range snapshotEnvBindings.Items {
 		seb := snapshotEnvBindings.Items[idx]
 		if seb.Spec.Environment == envObj.Name {
+			res = append(res, reconcile.Request{
+				NamespacedName: client.ObjectKeyFromObject(&seb),
+			})
+		}
+	}
+
+	return res
+}
+
+// findObjectsForApplication will reconcile on any Applications that are referenced by SEBs
+func (r *SnapshotEnvironmentBindingReconciler) findObjectsForApplication(appParam client.Object) []reconcile.Request {
+	ctx := context.Background()
+	handlerLog := log.FromContext(ctx).
+		WithName(logutil.LogLogger_managed_gitops)
+
+	// 1) Cast the Application obj
+	appObj, ok := appParam.(*appstudioshared.Application)
+	if !ok {
+		handlerLog.Error(nil, "incompatible object in the Application mapping function, expected an Application")
+		return []reconcile.Request{}
+	}
+
+	// 2) Retrieve all the SEBs in the same Namespace as the Application
+	var snapshotEnvBindings appstudioshared.SnapshotEnvironmentBindingList
+	if err := r.Client.List(context.Background(), &snapshotEnvBindings, &client.ListOptions{Namespace: appObj.Namespace}); err != nil {
+		handlerLog.Error(err, "failed to get SnapshotEnvironmentBindings list in the Application mapping function")
+		return []reconcile.Request{}
+	}
+
+	// 3) Reconcile any SEBs that reference this Application
+	var res []reconcile.Request
+	for idx := range snapshotEnvBindings.Items {
+		seb := snapshotEnvBindings.Items[idx]
+		if seb.Spec.Application == appObj.Name {
 			res = append(res, reconcile.Request{
 				NamespacedName: client.ObjectKeyFromObject(&seb),
 			})

@@ -17,6 +17,7 @@ var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests
 	Context("Testing Promotion Run Creation of SnapshotEnvironmentBinding.", func() {
 		var environmentProd appstudiosharedv1.Environment
 		var promotionRun appstudiosharedv1.PromotionRun
+		var application appstudiosharedv1.Application
 		var k8sClient client.Client
 		var err error
 
@@ -34,6 +35,11 @@ var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests
 			By("Create Production Environment.")
 			environmentProd = buildEnvironmentResource("prod", "Production Environment", "prod", appstudiosharedv1.EnvironmentType_POC)
 			err = k8s.Create(&environmentProd, k8sClient)
+			Expect(err).To(Succeed())
+
+			By("Create Application")
+			application = buildApplication("new-demo-app", fixture.GitOpsServiceE2ENamespace, fixture.RepoURL)
+			err = k8s.Create(&application, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Create Snapshot.")
@@ -89,7 +95,10 @@ var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests
 
 		It("Creates a SnapshotEnvironmentBinding if one exists that targets the environment, but NOT the application.", func() {
 			By("Create binding targeting the environment but not the application.")
-			bindingApp := buildSnapshotEnvironmentBindingResource("appx-prod-binding", "app-x", "prod", "my-snapshot", 3, []string{"component-a"})
+			appx := buildApplication("app-x", fixture.GitOpsServiceE2ENamespace, fixture.RepoURL)
+			err = k8s.Create(&appx, k8sClient)
+			Expect(err).To(Succeed())
+			bindingApp := buildSnapshotEnvironmentBindingResource("appx-prod-binding", appx.Name, "prod", "my-snapshot", 3, []string{"component-a"})
 			err = k8s.Create(&bindingApp, k8sClient)
 			Expect(err).To(Succeed())
 

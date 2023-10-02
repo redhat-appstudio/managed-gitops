@@ -37,6 +37,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 		var bindingReconciler SnapshotEnvironmentBindingReconciler
 
 		var environment appstudiosharedv1.Environment
+		var application appstudiosharedv1.Application
 
 		BeforeEach(func() {
 			ctx = context.Background()
@@ -72,6 +73,19 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &environment)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Create placeholder application
+			application = appstudiosharedv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "new-demo-app",
+					Namespace: apiNamespace.Name,
+				},
+				Spec: appstudiosharedv1.ApplicationSpec{
+					DisplayName: "my-application",
+				},
+			}
+			err = k8sClient.Create(ctx, &application)
 			Expect(err).ToNot(HaveOccurred())
 
 			bindingReconciler = SnapshotEnvironmentBindingReconciler{Client: k8sClient, Scheme: scheme}
@@ -118,6 +132,22 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 			// Create request object for Reconciler
 			request = newRequest(apiNamespace.Name, binding.Name)
+		})
+
+		It("Should delete the SnapshotEnvironmentBinding if the Application doesn't exist", func() {
+			// Create the Binding
+			binding.Spec.Application = "no-such-app"
+			err := bindingReconciler.Create(ctx, binding)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Call the Reconciler
+			_, err = bindingReconciler.Reconcile(ctx, request)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Check that the binding has been deleted
+			err = bindingReconciler.Client.Get(ctx, request.NamespacedName, binding)
+			Expect(err).To(HaveOccurred())
+			Expect(apierr.IsNotFound(err)).To(BeTrue())
 		})
 
 		It("Should set the .status.GitOpsDeployments field of Binding.", func() {
@@ -394,7 +424,18 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 			binding.Spec.Environment = environment.Name
 			binding.ObjectMeta.Labels["appstudio.environment"] = environment.Name
-			binding.Spec.Application = strings.Repeat("a", 63)
+			application = appstudiosharedv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      strings.Repeat("a", 63),
+					Namespace: binding.Namespace,
+				},
+				Spec: appstudiosharedv1.ApplicationSpec{
+					DisplayName: "my-application",
+				},
+			}
+			err = bindingReconciler.Create(ctx, &application)
+			Expect(err).ToNot(HaveOccurred())
+			binding.Spec.Application = application.Name
 			binding.Name = strings.Repeat("b", 111)
 			request = newRequest(binding.Namespace, binding.Name)
 
@@ -426,13 +467,24 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			// The GitOpsDeployment name is formed from
 			// binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + componentName
 			binding.Name = strings.Repeat("abcd", 45) + "1234567" // length = 187
-			binding.Spec.Application = strings.Repeat("a", 63)
+			application = appstudiosharedv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      strings.Repeat("a", 63),
+					Namespace: binding.Namespace,
+				},
+				Spec: appstudiosharedv1.ApplicationSpec{
+					DisplayName: "my-application",
+				},
+			}
+			err := bindingReconciler.Create(ctx, &application)
+			Expect(err).ToNot(HaveOccurred())
+			binding.Spec.Application = application.Name
 			compName := strings.Repeat("c", 63)
 			binding.Status.Components[0].Name = compName
 			request = newRequest(binding.Namespace, binding.Name)
 
 			// Create ApplicationSnapshotEnvironmentBinding CR in cluster.
-			err := bindingReconciler.Create(ctx, binding)
+			err = bindingReconciler.Create(ctx, binding)
 			Expect(err).ToNot(HaveOccurred())
 
 			// Trigger Reconciler
@@ -1536,6 +1588,188 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 	})
 
+	Context("Test SnapshotEnvironmentBinding's findObjectsForApplication function", func() {
+		ctx := context.Background()
+		var apiNamespace *corev1.Namespace
+
+		var k8sClient client.WithWatch
+
+		var bindingReconciler SnapshotEnvironmentBindingReconciler
+		BeforeEach(func() {
+			scheme,
+				argocdNamespace,
+				kubesystemNamespace,
+				testApiNamespace,
+				err := tests.GenericTestSetup()
+			Expect(err).ToNot(HaveOccurred())
+
+			apiNamespace = testApiNamespace
+
+			// Create fake client
+			k8sClient = fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(testApiNamespace, argocdNamespace, kubesystemNamespace).
+				Build()
+
+			bindingReconciler = SnapshotEnvironmentBindingReconciler{
+				Client: k8sClient,
+				Scheme: scheme,
+			}
+
+			err = appstudiosharedv1.AddToScheme(scheme)
+			Expect(err).ToNot(HaveOccurred())
+
+		})
+
+		When("SnapshotEnvironmentBinding points to a non-existing app", func() {
+			It("verifies that findObjectsForApplication should return an empty slice", func() {
+
+				seb := appstudiosharedv1.SnapshotEnvironmentBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "my-seb",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
+						Application: "does-not-exist",
+						Environment: "my-env",
+						Snapshot:    "my-snapshot",
+						Components:  []appstudiosharedv1.BindingComponent{},
+					},
+				}
+				err := k8sClient.Create(ctx, &seb)
+				Expect(err).ToNot(HaveOccurred())
+
+				app := appstudiosharedv1.Application{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: appstudiosharedv1.GroupVersion.Identifier(),
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "some-other-app",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudiosharedv1.ApplicationSpec{
+						DisplayName: "some-other-app",
+					},
+				}
+
+				Expect(bindingReconciler.findObjectsForApplication(&app)).To(BeEmpty())
+			})
+		})
+
+		When("SnapshotEnvironmentBinding points to a different app", func() {
+			It("verifies that findObjectsForApplication should return an empty slice", func() {
+
+				app := appstudiosharedv1.Application{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: appstudiosharedv1.GroupVersion.Identifier(),
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "some-other-app",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudiosharedv1.ApplicationSpec{
+						DisplayName: "some-other-app",
+					},
+				}
+				err := k8sClient.Create(ctx, &app)
+				Expect(err).ToNot(HaveOccurred())
+
+				seb := appstudiosharedv1.SnapshotEnvironmentBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "my-seb",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
+						Application: "some-other-app",
+						Environment: "my-env",
+						Snapshot:    "my-snapshot",
+						Components:  []appstudiosharedv1.BindingComponent{},
+					},
+				}
+				err = k8sClient.Create(ctx, &seb)
+				Expect(err).ToNot(HaveOccurred())
+
+				thirdApp := appstudiosharedv1.Application{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: appstudiosharedv1.GroupVersion.Identifier(),
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "a-third-app",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudiosharedv1.ApplicationSpec{
+						DisplayName: "a-third-app",
+					},
+				}
+
+				Expect(bindingReconciler.findObjectsForApplication(&thirdApp)).To(BeEmpty())
+			})
+		})
+
+		When("SnapshotEnvironmentBinding points to the same Application that is passed into findObjectsForApplication", func() {
+			It("verifies that findObjectsForApplication should return the SEB pointing to that app", func() {
+
+				env := appstudiosharedv1.Application{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: appstudiosharedv1.GroupVersion.Identifier(),
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "some-other-app",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudiosharedv1.ApplicationSpec{
+						DisplayName: "some-other-app",
+					},
+				}
+				err := k8sClient.Create(ctx, &env)
+				Expect(err).ToNot(HaveOccurred())
+
+				seb := appstudiosharedv1.SnapshotEnvironmentBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "my-seb",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
+						Application: "some-other-app",
+						Environment: "my-env",
+						Snapshot:    "my-snapshot",
+						Components:  []appstudiosharedv1.BindingComponent{},
+					},
+				}
+				err = k8sClient.Create(ctx, &seb)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(bindingReconciler.findObjectsForApplication(&env)).
+					To(Equal([]reconcile.Request{{NamespacedName: client.ObjectKeyFromObject(&seb)}}))
+			})
+		})
+
+		When("bindingReconciler.findObjectsForApplication is passed another object", func() {
+			It("should return an empty slice", func() {
+
+				seb := appstudiosharedv1.SnapshotEnvironmentBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "my-seb",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
+						Application: "some-other-app",
+						Environment: "my-env",
+						Snapshot:    "my-snapshot",
+						Components:  []appstudiosharedv1.BindingComponent{},
+					},
+				}
+
+				Expect(bindingReconciler.findObjectsForApplication(&seb)).To(BeEmpty())
+			})
+		})
+
+	})
+
 	Context("SnapshotEnvironmentBindingReconciler ComponentDeploymentConditions", func() {
 		var ctx context.Context
 		var request reconcile.Request
@@ -1543,6 +1777,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 		var bindingReconciler SnapshotEnvironmentBindingReconciler
 
 		var environment appstudiosharedv1.Environment
+		var application appstudiosharedv1.Application
 
 		BeforeEach(func() {
 			ctx = context.Background()
@@ -1578,6 +1813,19 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &environment)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Create placeholder application
+			application = appstudiosharedv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "new-demo-app",
+					Namespace: apiNamespace.Name,
+				},
+				Spec: appstudiosharedv1.ApplicationSpec{
+					DisplayName: "my-application",
+				},
+			}
+			err = k8sClient.Create(ctx, &application)
 			Expect(err).ToNot(HaveOccurred())
 
 			bindingReconciler = SnapshotEnvironmentBindingReconciler{Client: k8sClient, Scheme: scheme}

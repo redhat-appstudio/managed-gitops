@@ -30,6 +30,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 	Context("Testing SnapshotEnvironmentBinding Reconciler.", func() {
 
 		var environment appstudiosharedv1.Environment
+		var application appstudiosharedv1.Application
 		var k8sClient client.Client
 		var err error
 
@@ -44,18 +45,36 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			err = k8s.Create(&environment, k8sClient)
 			Expect(err).To(Succeed())
 
-			if fixture.IsRunningInStonesoupEnvironment() {
-				// Create an application
-				application := buildApplication("new-demo-app", fixture.GitOpsServiceE2ENamespace, fixture.RepoURL)
-				err = k8s.Create(&application, k8sClient)
-				Expect(err).To(Succeed())
+			// Create an application
+			application = buildApplication("new-demo-app", fixture.GitOpsServiceE2ENamespace, fixture.RepoURL)
+			err = k8s.Create(&application, k8sClient)
+			Expect(err).To(Succeed())
 
+			if fixture.IsRunningInStonesoupEnvironment() {
 				// Create a snapshot for the application
 				snapshot := buildSnapshotResource("my-snapshot", "new-demo-app", "", "", "", "")
 				err = k8s.Create(&snapshot, k8sClient)
 				Expect(err).To(Succeed())
 			}
 
+		})
+
+		It("Should delete the Binding if the associated Application is deleted", func() {
+			By("Creating the binding")
+			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a", "component-b"})
+			err = k8s.Create(&binding, k8sClient)
+			Expect(err).To(Succeed())
+			Eventually(&binding, "1m", "1s").Should(k8s.ExistByName(k8sClient))
+
+			By("Deleting the Application")
+			Expect(&application).Should(k8s.ExistByName(k8sClient))
+			err = k8s.Delete(&application, k8sClient)
+			Expect(err).To(Succeed())
+			Eventually(&application, "1m", "1s").ShouldNot(k8s.ExistByName(k8sClient))
+
+			By("Checking that the binding gets deleted")
+			Eventually(&binding, "1m", "1s").ShouldNot(k8s.ExistByName(k8sClient))
+			Consistently(&binding, "1m", "5s").ShouldNot(k8s.ExistByName(k8sClient))
 		})
 
 		// This test is to verify the scenario when a user creates an SnapshotEnvironmentBinding CR in Cluster.
@@ -444,10 +463,13 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			err = k8s.Create(&environment, k8sClient)
 			Expect(err).To(Succeed())
 
-			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
+			By("Creating an Application with a long name")
+			application := buildApplication(strings.Repeat("a", 63), fixture.GitOpsServiceE2ENamespace, fixture.RepoURL)
+			err = k8s.Create((&application), k8sClient)
+			Expect(err).To(Succeed())
 
-			binding := buildSnapshotEnvironmentBindingResource(strings.Repeat("b", 111), "new-demo-app", environment.Name, "my-snapshot", 3, []string{"component-a"})
-			binding.Spec.Application = strings.Repeat("a", 63)
+			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
+			binding := buildSnapshotEnvironmentBindingResource(strings.Repeat("b", 111), application.Name, environment.Name, "my-snapshot", 3, []string{"component-a"})
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 

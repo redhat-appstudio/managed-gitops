@@ -216,7 +216,7 @@ func (srEventLoop *SharedResourceEventLoop) ReconcileSharedManagedEnv(ctx contex
 
 func (srEventLoop *SharedResourceEventLoop) ReconcileRepositoryCredential(ctx context.Context,
 	workspaceClient client.Client, workspaceNamespace corev1.Namespace,
-	repositoryCredentialCRName string, k8sClientFactory SRLK8sClientFactory) (*db.RepositoryCredentials, error) {
+	repositoryCredentialCRName string, k8sClientFactory SRLK8sClientFactory, l logr.Logger) (*db.RepositoryCredentials, error) {
 
 	request := sharedResourceLoopMessage_reconcileRepositoryCredentialRequest{
 		repositoryCredentialCRName:      repositoryCredentialCRName,
@@ -225,11 +225,6 @@ func (srEventLoop *SharedResourceEventLoop) ReconcileRepositoryCredential(ctx co
 	}
 
 	responseChannel := make(chan any)
-
-	// Create a logger with context
-	l := log.FromContext(ctx).
-		WithName(logutil.LogLogger_managed_gitops).
-		WithValues("namespace", workspaceNamespace.Name)
 
 	msg := sharedResourceLoopMessage{
 		log:                l,
@@ -396,12 +391,9 @@ func internalSharedResourceEventLoop(inputChan chan sharedResourceLoopMessage) {
 	}
 }
 
-func processSharedResourceMessage(ctx context.Context, msg sharedResourceLoopMessage, dbQueries db.DatabaseQueries, l logr.Logger) {
+func processSharedResourceMessage(ctx context.Context, msg sharedResourceLoopMessage, dbQueries db.DatabaseQueries, log logr.Logger) {
 
-	log := l.WithValues("workspace", msg.workspaceNamespace.Name)
-
-	log.V(logutil.LogLevel_Debug).Info("sharedResourceEventLoop received message: "+string(msg.messageType),
-		"workspace", msg.workspaceNamespace.UID)
+	log.V(logutil.LogLevel_Debug).Info("sharedResourceEventLoop received message: " + string(msg.messageType))
 
 	if msg.messageType == sharedResourceLoopMessage_getOrCreateSharedManagedEnv {
 
@@ -640,7 +632,7 @@ func reconcileAppProjectRepositories(ctx context.Context, namespace corev1.Names
 func deleteRepoCredFromDB(ctx context.Context, repoCredRow db.RepositoryCredentials, repositoryCredentialCRNamespace corev1.Namespace, apiNamespaceClient client.Client, dbQueries db.DatabaseQueries, l logr.Logger) (bool, error) {
 	const retry, noRetry = true, false
 
-	l = l.WithValues("RepositoryCredential ID", repoCredRow.RepositoryCredentialsID)
+	l = l.WithValues("repositoryCredentialID", repoCredRow.RepositoryCredentialsID)
 
 	if _, err := reconcileAppProjectRepositories(ctx, repositoryCredentialCRNamespace, apiNamespaceClient, dbQueries, l); err != nil {
 		// Log the error and retry

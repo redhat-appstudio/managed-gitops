@@ -197,6 +197,7 @@ var _ = Describe("Tests for the small number of utility functions in cluster-age
 			Expect(err).ToNot(HaveOccurred())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&application), &application)
+
 			Expect(err).To(HaveOccurred(), "Application should not exist: it should have been deleted")
 
 		})
@@ -209,7 +210,7 @@ var _ = Describe("Tests for the small number of utility functions in cluster-age
 					Name:      "my-name",
 					Namespace: "my-namespace",
 					DeletionTimestamp: &metav1.Time{
-						Time: time.Now().Truncate(time.Hour * 3),
+						Time: time.Now().Add(-1 * time.Hour),
 					},
 					Labels: map[string]string{
 						ArgoCDApplicationDatabaseIDLabel: "test-my-database-id-label",

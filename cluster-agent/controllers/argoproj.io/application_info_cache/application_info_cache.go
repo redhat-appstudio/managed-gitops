@@ -201,7 +201,7 @@ func applicationInfoCacheLoop(inputChan chan applicationInfoCacheRequest) {
 	})
 
 	log := log.FromContext(context.Background()).
-		WithName(logutil.LogLogger_managed_gitops)
+		WithName(logutil.LogLogger_managed_gitops).WithValues(logutil.Log_Component, logutil.Log_Component_Appstudio_Controller)
 
 	cacheAppState := map[string]applicationStateCacheEntry{}
 	cacheApp := map[string]applicationCacheEntry{}

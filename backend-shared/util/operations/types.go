@@ -74,10 +74,10 @@ func createOperationInternal(ctx context.Context, waitForOperation bool, dbOpera
 	l logr.Logger) (*managedgitopsv1alpha1.Operation, *db.Operation, error) {
 
 	var err error
-	l = l.WithValues("Operation GitOpsEngineInstanceID", dbOperationParam.Instance_id,
-		"Operation ResourceID", dbOperationParam.Resource_id,
-		"Operation ResourceType", dbOperationParam.Resource_type,
-		"Operation OwnerUserID", clusterUserID,
+	l = l.WithValues("operationGitOpsEngineInstanceID", dbOperationParam.Instance_id,
+		"operationResourceID", dbOperationParam.Resource_id,
+		"operationResourceType", dbOperationParam.Resource_type,
+		"operationOwnerUserID", clusterUserID,
 	)
 
 	// GitopsEngineInstance Namespace and OperationNamespace should match, if it doesn't match we won't process the operation further.
@@ -90,20 +90,20 @@ func createOperationInternal(ctx context.Context, waitForOperation bool, dbOpera
 	}
 
 	if gitopsEngineInstance.Namespace_name == "" {
-		l.Error(err, "Invalid: GitopsEngineInstance namespace is empty, GitopsEngineInstanceID: %s", gitopsEngineInstance.Gitopsengineinstance_id)
-		return nil, nil, fmt.Errorf("Invalid GitopsEngine namespace")
+		l.Error(err, "Invalid: GitopsEngineInstance namespace is empty")
+		return nil, nil, fmt.Errorf("invalid GitopsEngine namespace")
 
 	}
 
 	if operationNamespace == "" {
-		l.Error(err, "Invalid: Operation namespace is empty, OperationID: %s", dbOperationParam.Operation_id)
-		return nil, nil, fmt.Errorf("Invalid Operation namespace")
+		l.Error(err, "Invalid: Operation namespace is empty")
+		return nil, nil, fmt.Errorf("invalid Operation namespace")
 
 	}
 
 	if operationNamespace != gitopsEngineInstance.Namespace_name {
 		mismatchedNamespace := "OperationNS: " + operationNamespace + " " + "GitopsEngineInstanceNS: " + gitopsEngineInstance.Namespace_name
-		return nil, nil, fmt.Errorf("Namespace mismatched in given OperationCR and existing GitopsEngineInstance " + mismatchedNamespace)
+		return nil, nil, fmt.Errorf("namespace mismatched in given OperationCR and existing GitopsEngineInstance " + mismatchedNamespace)
 	}
 
 	var dbOperationList []db.Operation
@@ -131,7 +131,7 @@ func createOperationInternal(ctx context.Context, waitForOperation bool, dbOpera
 		}
 
 		if err = gitopsEngineClient.Get(ctx, client.ObjectKeyFromObject(&k8sOperation), &k8sOperation); err != nil {
-			l.Error(err, "unable to fetch existing Operation from cluster, skipping.", "Operation k8s Name", k8sOperation.Name)
+			l.Error(err, "unable to fetch existing Operation from cluster, skipping.", "operationK8sName", k8sOperation.Name)
 			// We intentionally don't return here: we keep going through the list, even if an error occurs.
 			// Only one needs to match.
 		} else {
@@ -157,7 +157,7 @@ func createOperationInternal(ctx context.Context, waitForOperation bool, dbOpera
 		l.Error(err, "Unable to create Operation database row")
 		return nil, nil, err
 	}
-	l.Info("Created Operation database row", "Operation DB ID", dbOperation.Operation_id)
+	l.Info("Created Operation database row", "operationDBID", dbOperation.Operation_id)
 
 	// Create K8s operation
 	operation := managedgitopsv1alpha1.Operation{
@@ -179,20 +179,21 @@ func createOperationInternal(ctx context.Context, waitForOperation bool, dbOpera
 		l.Error(err, "Unable to create K8s Operation")
 		return nil, nil, err
 	}
-	l.Info("Created K8s Operation CR", "Operation CR Name", operation.Name,
-		"Operation CR Namespace", operation.Namespace, "Operation CR ID", operation.Spec.OperationID,
-		"Operation CR State", operation.Status)
+
+	l = l.WithValues("operationDBID", dbOperation.Operation_id)
+
+	l.Info("Created K8s Operation CR", "operationCRName", operation.Name, "operationCRNamespace", operation.Namespace)
 
 	// Wait for operation to complete.
 	if waitForOperation {
 		l.V(logutil.LogLevel_Debug).Info("Waiting for Operation to complete")
 
 		if err = waitForOperationToComplete(ctx, &dbOperation, dbQueries, l); err != nil {
-			l.Error(err, "operation did not complete", "operation", dbOperation.Operation_id, "namespace", operation.Namespace)
+			l.Error(err, "operation did not complete", "operation", dbOperation.Operation_id, "operationNamespace", operation.Namespace)
 			return nil, nil, err
 		}
 
-		l.Info("Operation completed", "operation", fmt.Sprintf("%v", operation.Spec.OperationID))
+		l.Info("Operation completed")
 	}
 
 	return &operation, &dbOperation, nil
@@ -203,7 +204,7 @@ func createOperationInternal(ctx context.Context, waitForOperation bool, dbOpera
 func CleanupOperation(ctx context.Context, dbOperation db.Operation, k8sOperation managedgitopsv1alpha1.Operation,
 	dbQueries db.ApplicationScopedQueries, gitopsEngineClient client.Client, deleteDBOperation bool, log logr.Logger) error {
 
-	log = log.WithValues("operation", dbOperation.Operation_id, "namespace", k8sOperation.Namespace)
+	log = log.WithValues("dbOperationID", dbOperation.Operation_id, "operationNamespace", k8sOperation.Namespace)
 
 	if deleteDBOperation {
 		// Delete the database entry
@@ -212,8 +213,10 @@ func CleanupOperation(ctx context.Context, dbOperation db.Operation, k8sOperatio
 			return err
 		}
 		if rowsDeleted != 1 {
-			log.V(logutil.LogLevel_Warn).Info("unexpected number of operation rows deleted", "operation-id", dbOperation.Operation_id, "rows", rowsDeleted)
+			log.V(logutil.LogLevel_Warn).Info("Unexpected number of operation rows deleted", "rows", rowsDeleted)
 		}
+
+		log.V(logutil.LogLevel_Debug).Info("Deleted operation Row")
 	}
 
 	// Delete the Operation CR
@@ -223,7 +226,7 @@ func CleanupOperation(ctx context.Context, dbOperation db.Operation, k8sOperatio
 			return err
 		}
 	}
-	log.V(logutil.LogLevel_Debug).Info("Deleted operation CR: " + k8sOperation.Name)
+	log.V(logutil.LogLevel_Debug).Info("Deleted Operation CR", "operationName", k8sOperation.Name)
 
 	return nil
 

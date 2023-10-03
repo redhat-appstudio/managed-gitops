@@ -38,24 +38,24 @@ import (
 
 // Start a workspace event loop router go routine, which is responsible for handling API namespace events and
 // then passing them to the controller loop.
-func newWorkspaceEventLoopRouter(workspaceID string) WorkspaceEventLoopRouterStruct {
+func newWorkspaceEventLoopRouter(namespaceName string, namespaceID string) WorkspaceEventLoopRouterStruct {
 
 	res := WorkspaceEventLoopRouterStruct{
 		channel: make(chan workspaceEventLoopMessage),
 	}
 
-	internalStartWorkspaceEventLoopRouter(res.channel, workspaceID, defaultApplicationEventLoopFactory{})
+	internalStartWorkspaceEventLoopRouter(res.channel, namespaceName, namespaceID, defaultApplicationEventLoopFactory{})
 
 	return res
 }
 
-func newWorkspaceEventLoopRouterWithFactory(workspaceID string, applEventLoopFactory applicationEventQueueLoopFactory) WorkspaceEventLoopRouterStruct {
+func newWorkspaceEventLoopRouterWithFactory(namespaceName string, namespaceID string, applEventLoopFactory applicationEventQueueLoopFactory) WorkspaceEventLoopRouterStruct {
 
 	res := WorkspaceEventLoopRouterStruct{
 		channel: make(chan workspaceEventLoopMessage),
 	}
 
-	internalStartWorkspaceEventLoopRouter(res.channel, workspaceID, applEventLoopFactory)
+	internalStartWorkspaceEventLoopRouter(res.channel, namespaceName, namespaceID, applEventLoopFactory)
 
 	return res
 }
@@ -88,7 +88,7 @@ type workspaceEventLoopMessage struct {
 
 // internalStartWorkspaceEventLoopRouter has the primary goal of catching panics from the workspaceEventLoopRouter, and
 // recovering from them.
-func internalStartWorkspaceEventLoopRouter(input chan workspaceEventLoopMessage, workspaceID string,
+func internalStartWorkspaceEventLoopRouter(input chan workspaceEventLoopMessage, namespaceName string, namespaceID string,
 	applEventLoopFactory applicationEventQueueLoopFactory) {
 
 	go func() {
@@ -102,7 +102,7 @@ func internalStartWorkspaceEventLoopRouter(input chan workspaceEventLoopMessage,
 
 		for {
 			isPanic, _ := sharedutil.CatchPanic(func() error {
-				workspaceEventLoopRouter(input, workspaceID, applEventLoopFactory)
+				workspaceEventLoopRouter(input, namespaceName, namespaceID, applEventLoopFactory)
 				return nil
 			})
 
@@ -181,6 +181,9 @@ type workspaceEventLoopInternalState struct {
 	// namespaceID is the UID of the namespace that the workspace event loop is handling
 	namespaceID string
 
+	// namespaceName is the name of the namespace that the workspace event loop is handling
+	namespaceName string
+
 	// log is the logger to use when logging inside the workspace event loop
 	log logr.Logger
 
@@ -190,14 +193,14 @@ type workspaceEventLoopInternalState struct {
 
 // workspaceEventLoopRouter receives all events for the namespace, and passes them to specific goroutine responsible
 // for handling events for individual applications.
-func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, namespaceID string,
+func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, namespaceName string, namespaceID string,
 	applEventLoopFactory applicationEventQueueLoopFactory) {
 
 	ctx := context.Background()
 
 	log := log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops).
-		WithValues("namespaceID", namespaceID)
+		WithValues(logutil.Log_K8s_Request_NamespaceID, namespaceID)
 
 	log.Info("workspaceEventLoopRouter started")
 	defer log.Info("workspaceEventLoopRouter ended.")
@@ -209,11 +212,12 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, namespaceID 
 		orphanedResources:       map[string]map[string]eventlooptypes.EventLoopEvent{},
 		applicationMap:          map[string]workspaceEventLoop_applicationEventLoopEntry{},
 		applEventLoopFactory:    applEventLoopFactory,
-		workspaceResourceLoop:   newWorkspaceResourceLoop(sharedResourceEventLoop, input),
+		workspaceResourceLoop:   newWorkspaceResourceLoop(sharedResourceEventLoop, input, namespaceName, namespaceID),
 
-		log:         log,
-		input:       input,
-		namespaceID: namespaceID,
+		log:           log,
+		input:         input,
+		namespaceName: namespaceName,
+		namespaceID:   namespaceID,
 	}
 
 	statusTicker := startStatusCheckTicker(statusCheckInterval, input)
@@ -258,7 +262,8 @@ func handleWorkspaceEventLoopMessage(ctx context.Context, event eventlooptypes.E
 		return
 	}
 
-	log := state.log.WithValues("namespace", event.Event.Request.Namespace)
+	log := state.log.WithValues(logutil.Log_K8s_Request_Namespace, event.Event.Request.Namespace,
+		logutil.Log_K8s_Request_Name, event.Event.Request.Name)
 
 	// First, sanity check the event
 	if event.MessageType == eventlooptypes.ApplicationEventLoopMessageType_WorkComplete {
@@ -369,7 +374,7 @@ func handleWorkspaceEventLoopMessage(ctx context.Context, event eventlooptypes.E
 // the applictions event loops about the event.
 func handleManagedEnvProcessedMessage(event eventlooptypes.EventLoopMessage, state workspaceEventLoopInternalState) {
 
-	log := state.log.WithValues("namespace", event.Event.Request.Namespace)
+	log := state.log.WithValues(logutil.Log_K8s_Request_Namespace, event.Event.Request.Namespace)
 
 	log.V(logutil.LogLevel_Debug).Info(fmt.Sprintf("received ManagedEnvironment event, passed event to %d applications",
 		len(state.applicationMap)))
@@ -507,7 +512,7 @@ func checkIfOrphanedGitOpsDeploymentSyncRun(ctx context.Context, event eventloop
 	}
 	if err := event.Event.Client.Get(ctx, client.ObjectKeyFromObject(syncRunCR), syncRunCR); err != nil {
 		if apierr.IsNotFound(err) {
-			log.V(logutil.LogLevel_Debug).Info("skipping potentially orphaned resource that could no longer be found:", "resource", syncRunCR.ObjectMeta)
+			log.V(logutil.LogLevel_Debug).Info("skipping potentially orphaned resource that could no longer be found:")
 
 			// The SyncRun CR doesn't exist, so try fetching the SyncOperation from the database and extract the name of GitOpsDeployment
 			dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
@@ -524,7 +529,7 @@ func checkIfOrphanedGitOpsDeploymentSyncRun(ctx context.Context, event eventloop
 
 			return syncOperation.DeploymentNameField
 		} else {
-			log.Error(err, "unexpected client error on retrieving syncrun object", "resource", syncRunCR.ObjectMeta)
+			log.Error(err, "unexpected client error on retrieving syncrun object")
 			return ""
 		}
 	}
@@ -539,7 +544,7 @@ func checkIfOrphanedGitOpsDeploymentSyncRun(ctx context.Context, event eventloop
 	if err := event.Event.Client.Get(ctx, client.ObjectKeyFromObject(gitopsDeplCR), gitopsDeplCR); err != nil {
 
 		if !apierr.IsNotFound(err) {
-			log.Error(err, "unexpected client error on retrieving GitOpsDeployment references by GitOpsDeploymentSyncRun", "resource", syncRunCR.ObjectMeta)
+			log.Error(err, "unexpected client error on retrieving GitOpsDeployment references by GitOpsDeploymentSyncRun", "gitopsDeplResource", gitopsDeplCR.ObjectMeta)
 			return ""
 		}
 

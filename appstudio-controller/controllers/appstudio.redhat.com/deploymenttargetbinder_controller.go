@@ -59,7 +59,10 @@ type DeploymentTargetClaimReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
 func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).
-		WithName(logutil.LogLogger_managed_gitops)
+		WithName(logutil.LogLogger_managed_gitops).WithValues(
+		logutil.Log_K8s_Request_Namespace, req.Namespace,
+		logutil.Log_K8s_Request_Name, req.Name,
+		logutil.Log_Component, logutil.Log_Component_Appstudio_Controller)
 
 	dtc := applicationv1alpha1.DeploymentTargetClaim{
 		ObjectMeta: metav1.ObjectMeta{

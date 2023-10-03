@@ -64,7 +64,10 @@ type ApplicationReconciler struct {
 func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
 	log := log.FromContext(ctx).
-		WithName(logutil.LogLogger_managed_gitops)
+		WithName(logutil.LogLogger_managed_gitops).WithValues(
+		logutil.Log_K8s_Request_Namespace, req.Namespace,
+		logutil.Log_K8s_Request_Name, req.Name,
+		logutil.Log_Component, logutil.Log_Component_ClusterAgent)
 
 	defer log.V(logutil.LogLevel_Debug).Info("Application Reconcile() complete.")
 
@@ -76,10 +79,10 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	app := appv1.Application{}
 	if err := r.Get(ctx, req.NamespacedName, &app); err != nil {
 		if apierr.IsNotFound(err) {
-			log.Info("Application deleted '" + req.NamespacedName.String() + "'")
+			log.Info("Application deleted")
 			return ctrl.Result{}, nil
 		} else {
-			log.Error(err, "Unexpected error on retrieving Application '"+req.NamespacedName.String()+"'")
+			log.Error(err, "Unexpected error on retrieving Application")
 			return ctrl.Result{}, err
 		}
 	}
@@ -94,11 +97,13 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	} else {
 		applicationDB.Application_id = databaseID
 	}
+
+	log = log.WithValues(logutil.Log_ApplicationID, applicationDB.Application_id)
+
 	if _, _, err := r.Cache.GetApplicationById(ctx, applicationDB.Application_id); err != nil {
 		if db.IsResultNotFoundError(err) {
 
-			log.V(logutil.LogLevel_Warn).Info("Application CR '" + req.NamespacedName.String() +
-				"' missing corresponding database entry: " + applicationDB.Application_id)
+			log.V(logutil.LogLevel_Warn).Info("Application CR missing corresponding database entry")
 
 			adt := applicationDeleteTask{
 				applicationCR: app,
@@ -112,12 +117,12 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 			return ctrl.Result{}, nil
 		} else {
-			log.Error(err, "Unable to retrieve Application from database: "+applicationDB.Application_id)
+			log.Error(err, "Unable to retrieve Application from database")
 			return ctrl.Result{}, err
 		}
 	}
 
-	log = log.WithValues("applicationID", applicationDB.Application_id)
+	log = log.WithValues(logutil.Log_ApplicationID, applicationDB.Application_id)
 
 	// 3) Does there exist an ApplicationState for this Application, already?
 	applicationState := &db.ApplicationState{
@@ -174,7 +179,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			// Successfully created ApplicationState
 			return ctrl.Result{}, nil
 		} else {
-			log.Error(errGet, "Unable to retrieve ApplicationState from database: "+applicationDB.Application_id)
+			log.Error(errGet, "Unable to retrieve ApplicationState from database")
 			return ctrl.Result{}, errGet
 		}
 	}

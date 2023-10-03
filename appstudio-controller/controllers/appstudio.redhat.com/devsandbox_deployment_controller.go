@@ -64,7 +64,10 @@ func (r *DevsandboxDeploymentReconciler) Reconcile(ctx context.Context, req ctrl
 	var err error
 
 	log := log.FromContext(ctx).
-		WithName(logutil.LogLogger_managed_gitops)
+		WithName(logutil.LogLogger_managed_gitops).WithValues(
+		logutil.Log_Component, logutil.Log_Component_Appstudio_Controller,
+		logutil.Log_K8s_Request_Namespace, req.Namespace,
+		logutil.Log_K8s_Request_Name, req.Name)
 
 	spacerequest := codereadytoolchainv1alpha1.SpaceRequest{
 		ObjectMeta: metav1.ObjectMeta{

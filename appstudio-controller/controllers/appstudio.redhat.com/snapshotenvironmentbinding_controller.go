@@ -94,8 +94,10 @@ type SnapshotEnvironmentBindingReconciler struct {
 func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
 	log := log.FromContext(ctx).
-		WithName(logutil.LogLogger_managed_gitops).
-		WithValues("name", req.Name, "namespace", req.Namespace, "component", "bindingReconcile")
+		WithName(logutil.LogLogger_managed_gitops).WithValues(
+		logutil.Log_Component, logutil.Log_Component_Appstudio_Controller,
+		logutil.Log_K8s_Request_Namespace, req.Namespace,
+		logutil.Log_K8s_Request_Name, req.Name)
 
 	defer log.V(logutil.LogLevel_Debug).Info("Snapshot Environment Binding Reconcile() complete.")
 
@@ -417,9 +419,9 @@ const (
 
 // processExpectedGitOpsDeployment processed the GitOpsDeployment that is expected for a particular Component
 func processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployment apibackend.GitOpsDeployment,
-	binding appstudioshared.SnapshotEnvironmentBinding, k8sClient client.Client, l logr.Logger) error {
+	binding appstudioshared.SnapshotEnvironmentBinding, k8sClient client.Client, logParam logr.Logger) error {
 
-	log := l.WithValues("binding", binding.Name, "gitOpsDeployment", expectedGitopsDeployment.Name, "bindingNamespace", binding.Namespace)
+	log := logParam.WithValues("expectedGitOpsDeploymentName", expectedGitopsDeployment.Name)
 
 	actualGitOpsDeployment := apibackend.GitOpsDeployment{}
 

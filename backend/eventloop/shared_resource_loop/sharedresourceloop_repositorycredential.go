@@ -38,9 +38,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 	repositoryCredentialCRName string,
 	repositoryCredentialCRNamespace corev1.Namespace,
 	apiNamespaceClient client.Client,
-	dbQueries db.DatabaseQueries, shouldWait bool, log logr.Logger) (*db.RepositoryCredentials, error) {
-
-	l := log.WithValues("namespace", repositoryCredentialCRNamespace)
+	dbQueries db.DatabaseQueries, shouldWait bool, l logr.Logger) (*db.RepositoryCredentials, error) {
 
 	resourceNS := repositoryCredentialCRNamespace.Name
 
@@ -439,10 +437,10 @@ func createRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCreden
 // Updates the given repository credential CR's status condition to match the given condition and additional checks.
 // If there is an existing status condition with the exact same status, reason and message, no update is made in order
 // to preserve the LastTransitionTime (see https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Condition.LastTransitionTime )
-func UpdateGitopsDeploymentRepositoryCredentialStatus(ctx context.Context, repositoryCredential *managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential, client client.Client, secret *corev1.Secret, log logr.Logger) error {
+func UpdateGitopsDeploymentRepositoryCredentialStatus(ctx context.Context, repositoryCredential *managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential, k8sClient client.Client, secret *corev1.Secret, log logr.Logger) error {
 
 	// if the condition was sent along with the function call, we don't need to perform additional checks
-	newConditions := generateValidRepositoryCredentialsConditions(repositoryCredential, ctx, secret)
+	newConditions := generateValidRepositoryCredentialsConditions(*repositoryCredential, ctx, secret)
 
 	needToUpdateConditions := false
 	for _, condition := range newConditions {
@@ -457,20 +455,20 @@ func UpdateGitopsDeploymentRepositoryCredentialStatus(ctx context.Context, repos
 
 	if needToUpdateConditions || len(repositoryCredential.Status.Conditions) != 3 {
 		// 1) Attempt to get the latest gitopsDeploymentRepositoryCredentialCR from the namespace
-		if err := client.Get(ctx, types.NamespacedName{Namespace: repositoryCredential.Namespace, Name: repositoryCredential.Name},
-			repositoryCredential); err != nil {
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(repositoryCredential), repositoryCredential); err != nil {
 
 			if apierr.IsNotFound(err) {
 				return nil
 			}
 			// Something went wrong, retry
 			vErr := fmt.Errorf("unexpected error in retrieving repository credentials: %v", err)
-			log.Error(err, vErr.Error(), "DebugErr", errGenericCR, "CR Name", repositoryCredential, "Namespace", repositoryCredential.Namespace)
+			log.Error(vErr, errGenericCR, "repositoryCredCRName", repositoryCredential)
 			return vErr
 		}
+
 		repositoryCredential.Status.SetConditions(newConditions)
 		// Update the GitOpsDeploymentRepositoryCredential CR
-		if err := client.Status().Update(ctx, repositoryCredential); err != nil {
+		if err := k8sClient.Status().Update(ctx, repositoryCredential); err != nil {
 			log.Error(err, "updating repository credential CR's status condition")
 		}
 	}
@@ -478,7 +476,7 @@ func UpdateGitopsDeploymentRepositoryCredentialStatus(ctx context.Context, repos
 	return nil
 }
 
-func generateValidRepositoryCredentialsConditions(repositoryCredential *managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential, ctx context.Context, secret *corev1.Secret) []metav1.Condition {
+func generateValidRepositoryCredentialsConditions(repositoryCredential managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential, ctx context.Context, secret *corev1.Secret) []metav1.Condition {
 
 	var validRepoUrlCondition, validRepoCredCondition metav1.Condition
 

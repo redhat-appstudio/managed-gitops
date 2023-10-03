@@ -44,7 +44,10 @@ var _ webhook.Defaulter = &GitOpsDeploymentManagedEnvironment{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (r *GitOpsDeploymentManagedEnvironment) Default() {
-	gitopsdeploymentmanagedenvironmentlog.Info("default", "name", r.Name)
+
+	log := gitopsdeploymentmanagedenvironmentlog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeploymentManagedEnvironment")
+
+	log.V(logutil.LogLevel_Debug).Info("default", "name", r.Name)
 
 }
 
@@ -54,9 +57,13 @@ var _ webhook.Validator = &GitOpsDeploymentManagedEnvironment{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *GitOpsDeploymentManagedEnvironment) ValidateCreate() error {
-	gitopsdeploymentmanagedenvironmentlog.Info("validate create", "name", r.Name)
+
+	log := gitopsdeploymentmanagedenvironmentlog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeploymentManagedEnvironment")
+
+	log.V(logutil.LogLevel_Debug).Info("validate create")
 
 	if err := r.ValidateGitOpsDeploymentManagedEnv(); err != nil {
+		log.Info("webhook rejected invalid create", "error", fmt.Sprintf("%v", err))
 		return err
 	}
 
@@ -65,9 +72,13 @@ func (r *GitOpsDeploymentManagedEnvironment) ValidateCreate() error {
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *GitOpsDeploymentManagedEnvironment) ValidateUpdate(old runtime.Object) error {
-	gitopsdeploymentmanagedenvironmentlog.Info("validate update", "name", r.Name)
+
+	log := gitopsdeploymentmanagedenvironmentlog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeploymentManagedEnvironment")
+
+	log.V(logutil.LogLevel_Debug).Info("validate update")
 
 	if err := r.ValidateGitOpsDeploymentManagedEnv(); err != nil {
+		log.Info("webhook rejected invalid update", "error", fmt.Sprintf("%v", err))
 		return err
 	}
 
@@ -76,7 +87,10 @@ func (r *GitOpsDeploymentManagedEnvironment) ValidateUpdate(old runtime.Object) 
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
 func (r *GitOpsDeploymentManagedEnvironment) ValidateDelete() error {
-	gitopsdeploymentmanagedenvironmentlog.Info("validate delete", "name", r.Name)
+
+	log := gitopsdeploymentmanagedenvironmentlog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeploymentManagedEnvironment")
+
+	log.V(logutil.LogLevel_Debug).Info("validate delete", "name", r.Name)
 
 	return nil
 }

@@ -74,7 +74,11 @@ const (
 func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
 	log := log.FromContext(ctx).
-		WithName(logutil.LogLogger_managed_gitops)
+		WithName(logutil.LogLogger_managed_gitops).WithValues(
+		logutil.Log_Component, logutil.Log_Component_Appstudio_Controller,
+		logutil.Log_K8s_Request_Namespace, req.Namespace,
+		logutil.Log_K8s_Request_Name, req.Name)
+
 	defer log.V(logutil.LogLevel_Debug).Info("Promotion Run Reconcile() complete.")
 	promotionRun := &appstudioshared.PromotionRun{}
 

@@ -38,7 +38,7 @@ const (
 // - If the Application is not deleted after X+2 minutes, return an error
 func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application, eventClient client.Client, log logr.Logger) error {
 
-	log = log.WithValues("name", appFromList.Name, "namespace", appFromList.Namespace, "uid", string(appFromList.UID))
+	log = log.WithValues("argoCDApplicationName", appFromList.Name, "argoCDApplicationNamespace", appFromList.Namespace, "argoCDApplicationUID", string(appFromList.UID))
 
 	log.Info("Attempting to delete Argo CD Application CR")
 
@@ -188,9 +188,9 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 	}
 
 	if !success {
-		log.Info("Application was not successfully deleted")
+		log.Error(nil, "Argo CD Application was not successfully deleted")
 	} else {
-		log.Info("Application was successfully deleted")
+		log.Info("Argo CD Application was successfully deleted")
 	}
 
 	return nil

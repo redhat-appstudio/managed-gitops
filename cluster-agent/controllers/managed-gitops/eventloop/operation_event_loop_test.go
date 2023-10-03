@@ -235,7 +235,7 @@ var _ = Describe("Operation Controller", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("calling function to test")
-			err = ensureManagedEnvironmentExists(ctx, *applicationDB, opConfigVal)
+			err = ensureManagedEnvironmentExists(ctx, *applicationDB, opConfigVal, logger)
 			Expect(err).ToNot(HaveOccurred())
 
 			secretName := argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: applicationDB.Managed_environment_id})
@@ -306,7 +306,7 @@ var _ = Describe("Operation Controller", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("calling function to test")
-			err = ensureManagedEnvironmentExists(ctx, *applicationDB, opConfigVal)
+			err = ensureManagedEnvironmentExists(ctx, *applicationDB, opConfigVal, logger)
 			Expect(err).ToNot(HaveOccurred())
 
 			managedEnvironmentSecret := corev1.Secret{
@@ -353,7 +353,7 @@ var _ = Describe("Operation Controller", func() {
 			err := k8sClient.Create(ctx, &managedEnvironmentSecret)
 			Expect(err).ToNot(HaveOccurred())
 
-			err = ensureManagedEnvironmentExists(ctx, *applicationDB, opConfigVal)
+			err = ensureManagedEnvironmentExists(ctx, *applicationDB, opConfigVal, logger)
 			Expect(err).ToNot(HaveOccurred())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvironmentSecret), &managedEnvironmentSecret)

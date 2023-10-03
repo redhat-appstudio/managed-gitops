@@ -52,7 +52,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	log := log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops)
 
-	log.Info("Detected AppStudio Application event:", "request", req)
+	log.V(logutil.LogLevel_Debug).Info("AppStudio Application event", "request", req)
 
 	return ctrl.Result{}, nil
 }

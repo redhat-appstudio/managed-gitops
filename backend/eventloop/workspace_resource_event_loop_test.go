@@ -52,7 +52,7 @@ var _ = Describe("Test Workspace Resource Loop", func() {
 
 			sharedResourceLoop := shared_resource_loop.NewSharedResourceLoop()
 			workspaceChan = make(chan workspaceEventLoopMessage)
-			wel := newWorkspaceResourceLoopWithFactory(sharedResourceLoop, workspaceChan, MockSRLK8sClientFactory{fakeClient: k8sClient})
+			wel := newWorkspaceResourceLoopWithFactory(sharedResourceLoop, workspaceChan, MockSRLK8sClientFactory{fakeClient: k8sClient}, apiNamespace.Name, string(apiNamespace.UID))
 			Expect(wel).ToNot(BeNil())
 
 			inputChan = wel.inputChannel

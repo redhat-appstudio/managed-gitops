@@ -93,7 +93,7 @@ func SetupForTestingDBGinkgo() error {
 	// 'testSetup' deletes all database rows that start with 'test-' in the primary key of the row.
 	// This ensures a clean slate for the test run.
 
-	dbq, err := NewUnsafePostgresDBQueries(true, true)
+	dbq, err := NewUnsafePostgresDBQueries(false, true)
 	Expect(err).ToNot(HaveOccurred())
 
 	var specialClusterUser ClusterUser
@@ -205,9 +205,8 @@ func SetupForTestingDBGinkgo() error {
 
 		if instanceToBeDeleted || strings.HasPrefix(operation.Operation_id, "test-") || strings.HasPrefix(operation.Operation_owner_user_id, "test-") || operation.Operation_owner_user_id == specialClusterUser.Clusteruser_id {
 			rowsAffected, err := dbq.CheckedDeleteOperationById(ctx, operation.Operation_id, operation.Operation_owner_user_id)
-			Expect(rowsAffected).Should(Equal(1))
 			Expect(err).ToNot(HaveOccurred())
-
+			Expect(rowsAffected).Should(Equal(1))
 		}
 	}
 
@@ -359,7 +358,7 @@ func SetupForTestingDBGinkgo() error {
 	Expect(err).ToNot(HaveOccurred())
 	for idx := range apiCRToDatabaseMappings {
 		item := apiCRToDatabaseMappings[idx]
-		if strings.HasPrefix(item.APIResourceUID, "test-") || strings.HasPrefix(item.DBRelationKey, "test-") {
+		if strings.HasPrefix(item.APIResourceUID, "test-") || strings.HasPrefix(item.APIResourceName, "test-") || strings.HasPrefix(item.DBRelationKey, "test-") {
 			rowsAffected, err := dbq.DeleteAPICRToDatabaseMapping(ctx, &item)
 			Expect(err).ToNot(HaveOccurred())
 			if err == nil {

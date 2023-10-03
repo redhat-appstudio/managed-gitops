@@ -75,7 +75,10 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	log := log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops).
-		WithValues("request", req)
+		WithValues(
+			logutil.Log_Component, logutil.Log_Component_Appstudio_Controller,
+			logutil.Log_K8s_Request_Namespace, req.Namespace,
+			logutil.Log_K8s_Request_Name, req.Name)
 
 	rClient := sharedutil.IfEnabledSimulateUnreliableClient(r.Client)
 

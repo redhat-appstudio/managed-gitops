@@ -47,7 +47,7 @@ type mockWorkspaceEventLoopFactory struct {
 
 var _ workspaceEventLoopRouterFactory = &mockWorkspaceEventLoopFactory{}
 
-func (cetf *mockWorkspaceEventLoopFactory) startWorkspaceEventLoopRouter(workspaceID string) WorkspaceEventLoopRouterStruct {
+func (cetf *mockWorkspaceEventLoopFactory) startWorkspaceEventLoopRouter(namespaceName string, namespaceID string) WorkspaceEventLoopRouterStruct {
 	// Rather than starting a new workspace event loop, instead just return a pre-provided channel
 	return WorkspaceEventLoopRouterStruct{
 		channel: cetf.mockChannel,

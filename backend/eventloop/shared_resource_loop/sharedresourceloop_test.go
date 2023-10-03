@@ -1010,7 +1010,8 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(dbRepoCred).ToNot(BeNil())
 
-			sharedResourceEventLoopRepoCred, err := sharedResourceEventLoop.ReconcileRepositoryCredential(ctx, k8sClient, repositoryCredentialCRNamespace, cr.Name, MockSRLK8sClientFactory{fakeClient: k8sClient})
+			sharedResourceEventLoopRepoCred, err := sharedResourceEventLoop.ReconcileRepositoryCredential(ctx, k8sClient, repositoryCredentialCRNamespace, cr.Name, MockSRLK8sClientFactory{fakeClient: k8sClient}, log.FromContext(context.Background()))
+
 			Expect(sharedResourceEventLoopRepoCred.RepositoryCredentialsID).To(Equal(dbRepoCred.RepositoryCredentialsID))
 			Expect(err).ToNot(HaveOccurred())
 			// To be used by AfterEach to clean up the resources created by test
@@ -1029,7 +1030,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			go internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
 
-			sharedResourceLoop, err := sharedResourceEventLoop.ReconcileRepositoryCredential(ctx, k8sClient, *namespace, "test-name", MockSRLK8sClientFactory{fakeClient: k8sClient})
+			sharedResourceLoop, err := sharedResourceEventLoop.ReconcileRepositoryCredential(ctx, k8sClient, *namespace, "test-name", MockSRLK8sClientFactory{fakeClient: k8sClient}, log.FromContext(context.Background()))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(sharedResourceLoop).To(BeNil())
 

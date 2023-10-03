@@ -57,7 +57,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 			tAELF = &testApplicationEventLoopFactory{}
 
 			// Start the workspace event loop with our custom test factory, so that we can capture output
-			workspaceEventLoopRouter = newWorkspaceEventLoopRouterWithFactory(string(apiNamespace.UID), tAELF)
+			workspaceEventLoopRouter = newWorkspaceEventLoopRouterWithFactory(apiNamespace.Name, string(apiNamespace.UID), tAELF)
 
 			k8sClient = fake.NewClientBuilder().
 				WithScheme(scheme).
@@ -445,7 +445,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 			tAELF := &managedEnvironmentTestApplicationEventLoopFactory{
 				outputChannelMap: map[string]chan application_event_loop.RequestMessage{},
 			}
-			workspaceEventLoopRouter := newWorkspaceEventLoopRouterWithFactory(string(apiNamespace.UID), tAELF)
+			workspaceEventLoopRouter := newWorkspaceEventLoopRouterWithFactory(apiNamespace.Name, string(apiNamespace.UID), tAELF)
 
 			k8sClient := fake.NewClientBuilder().
 				WithScheme(scheme).
@@ -479,7 +479,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 			tAELF := &managedEnvironmentTestApplicationEventLoopFactory{
 				outputChannelMap: map[string]chan application_event_loop.RequestMessage{},
 			}
-			workspaceEventLoopRouter := newWorkspaceEventLoopRouterWithFactory(string(apiNamespace.UID), tAELF)
+			workspaceEventLoopRouter := newWorkspaceEventLoopRouterWithFactory(apiNamespace.Name, string(apiNamespace.UID), tAELF)
 
 			k8sClient := fake.NewClientBuilder().
 				WithScheme(scheme).
@@ -748,8 +748,9 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 
 				By("simulating a newly initialized workspace event loop")
 				state := workspaceEventLoopInternalState{
-					namespaceID: "namespace-id",
-					log:         log.FromContext(ctx),
+					namespaceID:   "namespace-id",
+					namespaceName: "namespace-name",
+					log:           log.FromContext(ctx),
 					workspaceResourceLoop: &workspaceResourceEventLoop{
 						inputChannel: responseChannel,
 					},
@@ -904,6 +905,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 				applEventLoopFactory: tAELF,
 				applicationMap:       map[string]workspaceEventLoop_applicationEventLoopEntry{},
 				namespaceID:          "namespace-id",
+				namespaceName:        apiNamespace.Name,
 			}
 
 			By("calling the function beign tested")

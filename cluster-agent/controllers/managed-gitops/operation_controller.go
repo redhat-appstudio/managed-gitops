@@ -99,25 +99,30 @@ func (g *garbageCollector) StartGarbageCollector() {
 
 func (g *garbageCollector) startGarbageCollectionCycle() {
 	go func() {
+		ctx := context.Background()
+
+		log := log.FromContext(ctx).
+			WithName(logutil.LogLogger_managed_gitops).
+			WithValues(logutil.Log_Component, logutil.Log_Component_Appstudio_Controller)
+
 		for {
 			// garbage collect the operations after a specified interval
 			<-time.After(garbageCollectionInterval)
 
-			_, _ = sharedutil.CatchPanic(func() error {
-				ctx := context.Background()
-				log := log.FromContext(ctx).
-					WithName(logutil.LogLogger_managed_gitops)
+			_, err := sharedutil.CatchPanic(func() error {
 
 				// get failed/completed operations with non-zero gc interval
 				operations := []db.Operation{}
-				err := g.db.ListOperationsToBeGarbageCollected(ctx, &operations)
-				if err != nil {
+				if err := g.db.ListOperationsToBeGarbageCollected(ctx, &operations); err != nil {
 					log.Error(err, "failed to list operations ready for garbage collection")
 				}
 
 				g.garbageCollectOperations(ctx, operations, log)
 				return nil
 			})
+
+			log.Error(err, "error in garbage collector")
+
 		}
 	}()
 }
@@ -162,14 +167,18 @@ type removeOperationCRTask struct {
 }
 
 func (r *removeOperationCRTask) PerformTask(ctx context.Context) (bool, error) {
+
+	log := r.log.WithValues("operation_id", r.operation.Spec.OperationID)
+
 	if err := r.Delete(ctx, r.operation); err != nil {
 		if errors.IsNotFound(err) {
 			return false, nil
 		}
-		r.log.Error(err, "failed to delete operation from the cluster", "operation_id", r.operation.Spec.OperationID)
+		log.Error(err, "failed to delete Operation from the cluster")
 		return true, err
 	}
+
 	logutil.LogAPIResourceChangeEvent(r.operation.Namespace, r.operation.Name, r.operation, logutil.ResourceDeleted, r.log)
-	r.log.Info("successfully garbage collected operation", "operation_id", r.operation.Spec.OperationID)
+	log.Info("successfully garbage collected Operation")
 	return false, nil
 }

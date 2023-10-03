@@ -59,7 +59,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 			ctx = context.Background()
 			log = logger.FromContext(ctx)
-			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+			dbq, err = db.NewUnsafePostgresDBQueries(false, true)
 			Expect(err).ToNot(HaveOccurred())
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err = db.CreateSampleData(dbq)

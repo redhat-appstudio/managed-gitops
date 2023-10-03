@@ -22,7 +22,7 @@ import (
 )
 
 // workspaceResourceEventLoop is responsible for handling events for API-namespaced-scoped resources, like events for RepositoryCredentials resources.
-// An api-namespace-scoped resources are resources that can be used by (and reference from) multiple GitOpsDeployments.
+// An api-namespace-scoped resources is a resource that can be used by (and reference from) multiple GitOpsDeployments at the same time.
 //
 // For example, a ManagedEnvironment could be referenced by 2 separate GitOpsDeployments in a namespace.
 //
@@ -185,7 +185,12 @@ func (wert *workspaceResourceEventTask) PerformTask(taskContext context.Context)
 		// PerformTask only uses the error for logging, so we log here then supress the return value
 		return retry, nil
 	}
-	return retry, err
+
+	if err != nil {
+		wert.log.Error(err, "unable to process workspace resource message")
+	}
+
+	return retry, nil // error return is only used for logging: we don't need to log in the calling function, because we are logging above
 }
 
 // Returns true if the task should be retried, false otherwise, plus an error
@@ -288,11 +293,20 @@ func handleResourceLoopManagedEnvironment(ctx context.Context, msg workspaceReso
 	}
 
 	// Ask the shared resource loop to ensure the managed environment is reconciled
-	_, err := sharedResourceLoop.ReconcileSharedManagedEnv(ctx, msg.apiNamespaceClient, *namespace, req.Name, req.Namespace,
+	_, isUserErr, err := sharedResourceLoop.ReconcileSharedManagedEnv(ctx, msg.apiNamespaceClient, *namespace, req.Name, req.Namespace,
 		false, k8sClientFactory, log)
 
 	if err != nil {
-		return retry, fmt.Errorf("unable to reconcile shared managed env: %v", err)
+
+		if isUserErr {
+			log.Info("user error: user specified invalid managed environment parameters", "error", err)
+			// A user error indicates that the user specified invalid parameters, for example, they specified a Secret that doesn't exist.
+			// We do not need to retry in this case, as the user needs to make a change before their resource is valid.
+			return noRetry, nil
+		} else {
+			return retry, fmt.Errorf("unable to reconcile shared managed env: %v", err)
+		}
+
 	}
 
 	// Once we finish processing the managed environment, send it back to the workspace event loop, so it can be passed to GitOpsDeployments.

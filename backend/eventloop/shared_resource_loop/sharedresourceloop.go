@@ -163,16 +163,20 @@ func (srEventLoop *SharedResourceEventLoop) GetGitopsEngineInstanceById(ctx cont
 
 // Ensure the user's workspace is configured, ensure a GitOpsEngineInstance exists that will target it, and ensure
 // a cluster access exists the give the user permission to target them from the engine.
+// Return values:
+// - SharedResourceManagedEnvContainer: contains DB resources that were created/retrieved by the call
+// - bool: whether or not the error param is a user error (see elsewhere for definition of user error)
+// - error: whether an error occurred during reconciliation
 func (srEventLoop *SharedResourceEventLoop) ReconcileSharedManagedEnv(ctx context.Context,
 	workspaceClient client.Client, workspaceNamespace corev1.Namespace,
 	managedEnvironmentCRName string, managedEnvironmentCRNamespace string, isWorkspaceTarget bool,
-	k8sClientFactory SRLK8sClientFactory, l logr.Logger) (SharedResourceManagedEnvContainer, error) {
+	k8sClientFactory SRLK8sClientFactory, l logr.Logger) (SharedResourceManagedEnvContainer, bool, error) {
 
 	res := newSharedResourceManagedEnvContainer()
 
 	if !isWorkspaceTarget && (managedEnvironmentCRName == "" || managedEnvironmentCRNamespace == "") {
 		// Sanity test the parameters
-		return res, fmt.Errorf("managed environment name or namespace were empty")
+		return res, userError_false, fmt.Errorf("managed environment name or namespace were empty")
 	}
 
 	request := sharedResourceLoopMessage_getOrCreateSharedResourceManagedEnvRequest{
@@ -201,16 +205,16 @@ func (srEventLoop *SharedResourceEventLoop) ReconcileSharedManagedEnv(ctx contex
 	select {
 	case rawResponse = <-responseChannel:
 	case <-ctx.Done():
-		return res, fmt.Errorf("context cancelled in GetOrCreateSharedManagedEnv")
+		return res, userError_false, fmt.Errorf("context cancelled in GetOrCreateSharedManagedEnv")
 	}
 
 	response, ok := rawResponse.(sharedResourceLoopMessage_getOrCreateSharedResourcesResponse)
 	if !ok {
-		return res, fmt.Errorf("SEVERE: unexpected response type")
+		return res, userError_false, fmt.Errorf("SEVERE: unexpected response type")
 	}
 	res = response.responseContainer
 
-	return res, response.err
+	return res, response.isUserError, response.err
 
 }
 
@@ -301,7 +305,19 @@ type sharedResourceLoopMessage_getOrCreateSharedResourceManagedEnvRequest struct
 }
 
 type sharedResourceLoopMessage_getOrCreateSharedResourcesResponse struct {
-	err               error
+
+	// err is whether an error occurred while reconciling the managed env
+	err error
+
+	// if 'err' is non-nil, the 'isUserError' field will indicate whether the error is a user error.
+	// A user error is case where the user has specified an invalid value in the GitOpsDeploymentManagedEnvironment, or the Secret
+	//
+	// - An example of a user error: user specified a Secret (in the GitOpsDeploymentManagedEnvironment) that doesn't exist.
+	// - An exampe of a non-user error: unable to connect to the database
+	//
+	// We do not need to continue to reconcile a resource that has a user error: a fix is required to the resource (for example, creating a missing Secret)
+	isUserError bool
+
 	responseContainer SharedResourceManagedEnvContainer
 }
 
@@ -411,12 +427,13 @@ func processSharedResourceMessage(ctx context.Context, msg sharedResourceLoopMes
 			return
 		}
 
-		res, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, msg.workspaceClient, payload.managedEnvironmentCRName,
+		res, isUserError, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, msg.workspaceClient, payload.managedEnvironmentCRName,
 			payload.managedEnvironmentCRNamespace, payload.isWorkspaceTarget, msg.workspaceNamespace,
 			payload.k8sClientFactory, dbQueries, log)
 
 		response := sharedResourceLoopMessage_getOrCreateSharedResourcesResponse{
 			err:               err,
+			isUserError:       isUserError,
 			responseContainer: res,
 		}
 
@@ -756,7 +773,6 @@ const (
 
 // Ensure the user's workspace is configured, ensure a GitOpsEngineInstance exists that will target it, and ensure
 // a cluster access exists the give the user permission to target them from the engine.
-// The bool return value is 'true' if respective resource is created; 'false' if it already exists in DB or in case of failure.
 func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, gitopsEngineClient client.Client,
 	workspaceNamespace corev1.Namespace, dbQueries db.DatabaseQueries,
 	l logr.Logger) (SharedResourceManagedEnvContainer, connectionInitializedCondition, error) {
@@ -776,8 +792,7 @@ func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, gito
 	engineInstance, isNewInstance, gitopsEngineCluster, uerr := internalDetermineGitOpsEngineInstance(ctx, *clusterUser, gitopsEngineClient, dbQueries, l)
 	if uerr != nil {
 		return SharedResourceManagedEnvContainer{},
-			createUnknownErrorEnvInitCondition(),
-			fmt.Errorf("unable to determine gitops engine instance: %w", uerr.DevError())
+			createUnknownErrorEnvInitCondition(), fmt.Errorf("unable to determine gitops engine instance: %w", uerr.DevError())
 	}
 
 	// Create the cluster access object, to allow us to interact with the GitOpsEngine and ManagedEnvironment on the user's behalf

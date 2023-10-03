@@ -195,10 +195,11 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			go internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
 
 			// At first assuming there are no existing resources, hence creating new.
-			sharedResourceOld, err := sharedResourceEventLoop.ReconcileSharedManagedEnv(ctx, k8sClient, *namespace, "", "",
+			sharedResourceOld, isUserErr, err := sharedResourceEventLoop.ReconcileSharedManagedEnv(ctx, k8sClient, *namespace, "", "",
 				true, MockSRLK8sClientFactory{fakeClient: k8sClient}, l)
 
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(sharedResourceOld.ClusterUser).NotTo(BeNil())
 			Expect(sharedResourceOld.ManagedEnv).NotTo(BeNil())
 			Expect(sharedResourceOld.GitopsEngineInstance).NotTo(BeNil())
@@ -210,10 +211,11 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(sharedResourceOld.IsNewClusterAccess).To(BeTrue())
 
 			// Resources are created in previous call, then same resources should be returned instead of creating new.
-			sharedResourceNew, err := sharedResourceEventLoop.ReconcileSharedManagedEnv(ctx, k8sClient, *namespace, "", "",
+			sharedResourceNew, isUserErr, err := sharedResourceEventLoop.ReconcileSharedManagedEnv(ctx, k8sClient, *namespace, "", "",
 				true, MockSRLK8sClientFactory{fakeClient: k8sClient}, l)
 
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(sharedResourceNew.ClusterUser).NotTo(BeNil())
 			Expect(sharedResourceNew.ManagedEnv).NotTo(BeNil())
 			Expect(sharedResourceNew.GitopsEngineInstance).NotTo(BeNil())

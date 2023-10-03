@@ -134,9 +134,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 
 				By("calling reconcileSharedManagedEnv for the first time, and verifying the database rows are created")
 
-				src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 					false, *namespace, mockFactory, dbQueries, log)
 				Expect(err).ToNot(HaveOccurred())
+				Expect(isUserErr).To(BeFalse())
 				Expect(src.ManagedEnv).To(Not(BeNil()))
 
 				verifyResult(managedEnv, src)
@@ -147,9 +148,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 				err = k8sClient.List(ctx, &saList)
 				Expect(err).ToNot(HaveOccurred())
 
-				src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				src, isUserErr, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 					false, *namespace, mockFactory, dbQueries, log)
 				Expect(err).ToNot(HaveOccurred())
+				Expect(isUserErr).To(BeFalse())
 				Expect(src.ManagedEnv).To(Not(BeNil()))
 				verifyResult(managedEnv, src)
 
@@ -167,9 +169,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 				err = dbQueries.CreateAPICRToDatabaseMapping(ctx, oldAPICRToDBMapping)
 				Expect(err).ToNot(HaveOccurred())
 
-				src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				src, isUserErr, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 					false, *namespace, mockFactory, dbQueries, log)
 				Expect(err).ToNot(HaveOccurred())
+				Expect(isUserErr).To(BeFalse())
 
 				// Update our copy of the ManagedEnvironment, since the call to reconcile will have added status to it.
 				// This prevents an "object was modified" error when we update it.
@@ -187,9 +190,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 				managedEnv.Spec.APIURL = "https://api2.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443"
 				err = k8sClient.Update(ctx, &managedEnv)
 				Expect(err).ToNot(HaveOccurred())
-				src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				src, isUserErr, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 					false, *namespace, mockFactory, dbQueries, log)
 				Expect(err).ToNot(HaveOccurred())
+				Expect(isUserErr).To(BeFalse())
 
 				By("verifying the old cluster credentials have been deleted, after update")
 				err = dbQueries.GetClusterCredentialsById(ctx, oldClusterCreds)
@@ -214,9 +218,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 
 				oldManagedEnv := src.ManagedEnv
 
-				src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				src, isUserErr, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 					false, *namespace, mockFactory, dbQueries, log)
 				Expect(err).ToNot(HaveOccurred())
+				Expect(isUserErr).To(BeFalse())
 
 				err = dbQueries.GetManagedEnvironmentById(ctx, oldManagedEnv)
 				Expect(db.IsResultNotFoundError(err)).To(BeTrue())
@@ -262,9 +267,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			err = dbQueries.CreateAPICRToDatabaseMapping(ctx, apiCR)
 			Expect(err).ToNot(HaveOccurred())
 
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(src.ManagedEnv).ToNot(BeNil())
 
 			mappings := []db.APICRToDatabaseMapping{}
@@ -290,9 +296,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).ToNot(HaveOccurred())
 
 			By("calling ReconcileSharedManagedEnv")
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(src.ManagedEnv).To(Not(BeNil()))
 
 			By("verifying the status condition")
@@ -305,9 +312,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 
 			By("ensuring the LastTransitionTime is not updated if nothing has changed")
 			lastTransitionTime := managedEnv.Status.Conditions[0].LastTransitionTime
-			src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(src.ManagedEnv).To(Not(BeNil()))
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
 			Expect(err).ToNot(HaveOccurred())
@@ -331,9 +339,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).ToNot(HaveOccurred())
 
 			By("calling ReconcileSharedManagedEnv")
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(src.ManagedEnv).To(Not(BeNil()))
 
 			By("verifying the status condition")
@@ -348,11 +357,12 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			managedEnv.Status.Conditions = []metav1.Condition{}
 			err = k8sClient.Update(ctx, &managedEnv)
 			Expect(err).ToNot(HaveOccurred())
-			src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 
 			By("ensuring the status condition is recreated")
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(src.ManagedEnv).To(Not(BeNil()))
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
 			Expect(err).ToNot(HaveOccurred())
@@ -365,11 +375,12 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			managedEnv.Status.Conditions[0].Status = metav1.ConditionFalse
 			err = k8sClient.Update(ctx, &managedEnv)
 			Expect(err).ToNot(HaveOccurred())
-			src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 
 			By("ensuring the status condition is recreated")
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(src.ManagedEnv).To(Not(BeNil()))
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
 			Expect(err).ToNot(HaveOccurred())
@@ -404,11 +415,12 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 				realFakeClient: k8sClient,
 			}
 
-			By("calling reconcile to create  new managed env")
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			By("calling reconcile to create new managed env")
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(src.ManagedEnv).To(BeNil())
 			Expect(err).To(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(mockFactory.count).To(Equal(1))
 
 			By("ensuring the .status.condition is set to False")
@@ -433,9 +445,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).ToNot(HaveOccurred())
 
 			By("first calling reconcile to create database entries for new managed env")
-			firstSrc, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			firstSrc, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(firstSrc.ManagedEnv).ToNot(BeNil())
 
 			By("next simulating a complete failure to connect to the target cluster")
@@ -451,10 +464,11 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 				failingClient:  mockClient,
 				realFakeClient: k8sClient,
 			}
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(src.ManagedEnv).To(BeNil())
 			Expect(err).To(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(mockFactory.count).To(Equal(2))
 
 			By("ensuring the .status.condition is set to False")
@@ -479,9 +493,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).ToNot(HaveOccurred())
 
 			By("first calling reconcile to create database entries for new managed env")
-			firstSrc, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			firstSrc, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(firstSrc.ManagedEnv).ToNot(BeNil())
 
 			By("next simulating a 'forbidden' error when attempting to list all namespaces")
@@ -498,10 +513,11 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 				failingClient:  mockClient,
 				realFakeClient: k8sClient,
 			}
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(src.ManagedEnv).To(BeNil())
 			Expect(err).To(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(mockFactory.count).To(Equal(3))
 
 			By("ensuring the .status.condition is set appropriately")
@@ -527,9 +543,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).ToNot(HaveOccurred())
 
 			By("first calling reconcile to create database entries for new managed env")
-			firstSrc, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			firstSrc, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(firstSrc.ManagedEnv).ToNot(BeNil())
 
 			By("next simulating a 'cert signed by unknown authority' error when attempting to list all namespaces")
@@ -546,10 +563,11 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 				failingClient:  mockClient,
 				realFakeClient: k8sClient,
 			}
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(src.ManagedEnv).To(BeNil())
 			Expect(err).To(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(mockFactory.count).To(Equal(3))
 
 			By("ensuring the .status.condition is set appropriately")
@@ -576,9 +594,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).ToNot(HaveOccurred())
 
 			By("first calling reconcile to create database entries for new managed env")
-			firstSrc, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			firstSrc, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(firstSrc.ManagedEnv).ToNot(BeNil())
 
 			By("next simulating a 'forbidden' error when attempting to get the specific namespace")
@@ -595,10 +614,11 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 				failingClient:  mockClient,
 				realFakeClient: k8sClient,
 			}
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(src.ManagedEnv).To(BeNil())
 			Expect(err).To(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(mockFactory.count).To(Equal(3))
 
 			By("ensuring the .status.condition is set appropriately")
@@ -624,9 +644,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).ToNot(HaveOccurred())
 
 			By("first calling reconcile to create database entries for new managed env")
-			firstSrc, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			firstSrc, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(firstSrc.ManagedEnv).ToNot(BeNil())
 
 			oldClusterCredentials := firstSrc.ManagedEnv.Clustercredentials_id
@@ -643,9 +664,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 				failingClient:  mockClient,
 				realFakeClient: k8sClient,
 			}
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(src.ManagedEnv).ToNot(BeNil())
 			Expect(mockFactory.count).To(Equal(1))
 			Expect(firstSrc.ManagedEnv.Managedenvironment_id).To(Equal(src.ManagedEnv.Managedenvironment_id))
@@ -691,9 +713,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).ToNot(HaveOccurred())
 
 			By("first calling reconcile to create database entries for new managed env")
-			createRC, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			createRC, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(createRC.ManagedEnv).ToNot(BeNil())
 
 			applicationRow := &db.Application{
@@ -727,9 +750,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 				"There should be no operations for this ManagedEnvironment in the database before Reconcile is called.")
 
 			By("calling reconcile, after deleting the CR, to ensure the database entries are reconciled")
-			deleteRC, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			deleteRC, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(deleteRC.ManagedEnv).To(BeNil())
 
 			clusterAccesses := []db.ClusterAccess{}
@@ -775,8 +799,9 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).ToNot(HaveOccurred())
 
 			By("calling reconcile on the managed env, which is missing a secret")
-			createRC, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			createRC, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
+			Expect(isUserErr).To(BeTrue())
 			Expect(err).To(HaveOccurred())
 			Expect(createRC.ManagedEnv).To(BeNil())
 
@@ -799,18 +824,20 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).ToNot(HaveOccurred())
 
 			By("first calling reconcile to create database entries for new managed env")
-			createRC, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			createRC, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(createRC.ManagedEnv).ToNot(BeNil())
 
 			err = k8sClient.Delete(ctx, &secret)
 			Expect(err).ToNot(HaveOccurred())
 
 			By("call reconcile again, but without the cluster secret existing")
-			createRC, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			createRC, isUserErr, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).To(HaveOccurred())
+			Expect(isUserErr).To(BeTrue())
 			Expect(createRC.ManagedEnv).To(BeNil())
 
 		})
@@ -833,9 +860,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).ToNot(HaveOccurred())
 
 			By("calling reconcile to create database entries for new managed env")
-			createRC, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			createRC, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(createRC.ManagedEnv).ToNot(BeNil())
 
 			By("ensuring cluster credentials should have expected values")
@@ -860,9 +888,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).ToNot(HaveOccurred())
 
 			By("call the reconcile function again")
-			createRC, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			createRC, isUserErr, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(createRC.ManagedEnv).ToNot(BeNil())
 
 			By("ensuring cluster credentials should have new expected values")
@@ -915,10 +944,12 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 
 			By("calling reconcileSharedManagedEnv, which should produce the error")
 
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(src.ManagedEnv).To(BeNil())
 			Expect(err).To(HaveOccurred())
+			Expect(isUserErr).To(BeTrue())
+
 			// Find the root error
 			for tmp := err; tmp != nil; tmp = errors.Unwrap(tmp) {
 				err = tmp
@@ -963,10 +994,11 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 
 			By("calling reconcileSharedManagedEnv, which should produce the error")
 
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(src.ManagedEnv).To(BeNil())
 			Expect(err).To(HaveOccurred())
+			Expect(isUserErr).To(BeTrue())
 			Expect(err.Error()).To(ContainSubstring("no secret specified by managed environment 'test-my-managed-env' in 'gitops-service-argocd'"))
 		})
 
@@ -1007,10 +1039,11 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 
 			By("calling reconcileSharedManagedEnv, which should produce the error")
 
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(src.ManagedEnv).To(BeNil())
 			Expect(err).To(HaveOccurred())
+			Expect(isUserErr).To(BeTrue())
 			Expect(err.Error()).To(ContainSubstring("invalid secret type: wrong"))
 		})
 
@@ -1048,10 +1081,11 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 
 			By("calling reconcileSharedManagedEnv, which should produce the error")
 
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(src.ManagedEnv).To(BeNil())
 			Expect(err).To(HaveOccurred())
+			Expect(isUserErr).To(BeTrue())
 			Expect(err.Error()).To(ContainSubstring("missing kubeconfig field in Secret"))
 		})
 
@@ -1091,10 +1125,11 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 
 			By("calling reconcileSharedManagedEnv, which should produce the error")
 
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(src.ManagedEnv).To(BeNil())
 			Expect(err).To(HaveOccurred())
+			Expect(isUserErr).To(BeTrue())
 			Expect(err.Error()).To(ContainSubstring("unable to parse kubeconfig data: "))
 		})
 
@@ -1136,8 +1171,9 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 
 			By("calling reconcileSharedManagedEnv, which should produce the error")
 
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
+			Expect(isUserErr).To(BeTrue())
 			Expect(src.ManagedEnv).To(BeNil())
 			Expect(err).To(HaveOccurred())
 			// Find the root error
@@ -1185,10 +1221,12 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 
 			By("calling reconcileSharedManagedEnv, which should produce the error")
 
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(src.ManagedEnv).To(BeNil())
 			Expect(err).To(HaveOccurred())
+			Expect(isUserErr).To(BeTrue())
+
 			// Find the root error
 			for tmp := err; tmp != nil; tmp = errors.Unwrap(tmp) {
 				err = tmp
@@ -1234,10 +1272,11 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).ToNot(HaveOccurred())
 
 			By("calling reconcileSharedManagedEnv, which should produce the error")
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(src.ManagedEnv).To(BeNil())
 			Expect(err).To(HaveOccurred())
+			Expect(isUserErr).To(BeTrue())
 			Expect(err.Error()).To(HavePrefix("unable to create managed environment for test-"))
 			Expect(err.Error()).To(ContainSubstring("user specified an invalid namespace: ManagedEnvironment contains an invalid namespace in namespaces list: BAD"))
 		})
@@ -1279,8 +1318,9 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring the managed environment already exists before updating it with an invalid namespace")
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
+			Expect(isUserErr).To(BeFalse())
 			Expect(err).ToNot(HaveOccurred())
 			Expect(src.ManagedEnv).ToNot(BeNil())
 
@@ -1292,10 +1332,11 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).ToNot(HaveOccurred())
 
 			By("calling reconcileSharedManagedEnv, which should produce the error")
-			src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(src.ManagedEnv).To(BeNil())
 			Expect(err).To(HaveOccurred())
+			Expect(isUserErr).To(BeTrue())
 			Expect(err.Error()).To(Equal("user specified an invalid namespace: ManagedEnvironment contains an invalid namespace in namespaces list: BAD"))
 		})
 
@@ -1343,10 +1384,11 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).ToNot(HaveOccurred())
 
 			By("calling reconcileSharedManagedEnv, which should produce the error")
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(src.ManagedEnv).To(BeNil())
 			Expect(err).To(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(err.Error()).To(ContainSubstring("unable to create cluster credentials for host 'https://api.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443'"))
 			Expect(err.Error()).To(ContainSubstring("Namespaces value exceeds maximum size: max: 4096, actual: 4223"))
 		})
@@ -1389,9 +1431,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 
 			By("calling reconcileSharedManagedEnv, which should produce the error")
 
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(src.ManagedEnv).To(BeNil())
+			Expect(isUserErr).To(BeTrue())
 			Expect(err).To(HaveOccurred())
 			// Find the root error
 			for tmp := err; tmp != nil; tmp = errors.Unwrap(tmp) {
@@ -1438,10 +1481,11 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 
 			By("calling reconcileSharedManagedEnv, which should produce the error")
 
-			src, condition, err := internalProcessMessage_internalReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, condition, isUserErr, err := internalProcessMessage_internalReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(src.ManagedEnv).To(BeNil())
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeTrue())
 			Expect(condition.message).To(Equal("the API URL must not have ? or & values"))
 			Expect(condition.reason).To(Equal(managedgitopsv1alpha1.ConditionReasonUnsupportedAPIURL))
 		})
@@ -1460,9 +1504,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			err = k8sClient.Create(ctx, &secret)
 			Expect(err).ToNot(HaveOccurred())
 
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(src.ManagedEnv).ToNot(BeNil())
 
 			By("Create DB entry for ClusterCredentials")
@@ -1508,9 +1553,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			err = k8sClient.Delete(ctx, &managedEnv)
 			Expect(err).ToNot(HaveOccurred())
 
-			src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(src.ManagedEnv).To(BeNil())
 
 			err = dbQueries.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &getAppProjectManagedEnvDB)
@@ -1538,9 +1584,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).ToNot(HaveOccurred())
 
 			By("calling ReconcileSharedManagedEnvironment")
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(src.ManagedEnv).ToNot(BeNil())
 
 			err = dbQueries.GetManagedEnvironmentById(ctx, src.ManagedEnv)
@@ -1577,9 +1624,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).ToNot(HaveOccurred())
 
 			By("calling ReconcileSharedManagedEnv")
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 			Expect(src.ManagedEnv).ToNot(BeNil())
 
 			By("verifying the AppProjectManagedEnvironment exists")
@@ -1604,9 +1652,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).ToNot(HaveOccurred())
 
 			By("calling ReconcileSharedManagedEnv and verifying that the ManagedEnvironment row was created")
-			src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+			src, isUserErr, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isUserErr).To(BeFalse())
 
 			err = dbQueries.GetManagedEnvironmentById(ctx, src.ManagedEnv)
 			Expect(err).ToNot(HaveOccurred())
@@ -1637,9 +1686,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 				Expect(err).ToNot(HaveOccurred())
 
 				By("first calling reconcile to create database entries for new managed env")
-				reconcileRes, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				reconcileRes, isUserErr, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 					false, *namespace, mockFactory, dbQueries, log)
 				Expect(err).ToNot(HaveOccurred())
+				Expect(isUserErr).To(BeFalse())
 				Expect(reconcileRes.ManagedEnv).ToNot(BeNil())
 
 				clusterCreds := &db.ClusterCredentials{Clustercredentials_cred_id: reconcileRes.ManagedEnv.Clustercredentials_id}
@@ -1658,9 +1708,10 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 				Expect(err).ToNot(HaveOccurred())
 
 				By("calling reconcile again to ensure the managed environment db entry is updated with the new value")
-				reconcileRes, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				reconcileRes, isUserErr, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 					false, *namespace, mockFactory, dbQueries, log)
 				Expect(err).ToNot(HaveOccurred())
+				Expect(isUserErr).To(BeFalse())
 				Expect(reconcileRes.ManagedEnv).ToNot(BeNil())
 
 				clusterCreds = &db.ClusterCredentials{Clustercredentials_cred_id: reconcileRes.ManagedEnv.Clustercredentials_id}

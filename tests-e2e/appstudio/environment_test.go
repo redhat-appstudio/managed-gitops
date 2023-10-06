@@ -12,6 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	appstudiosharedv1beta1 "github.com/redhat-appstudio/application-api/api/v1beta1"
 	app "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
@@ -59,16 +60,18 @@ var _ = Describe("Environment Status.Conditions tests", func() {
 		It("ensures that errors are set properly in Environment .Status.Conditions field if DeploymentTargetClaim is not found", func() {
 
 			By("create Environment with non-existing DeploymentTargetClaim")
-			env := appstudioshared.Environment{
+			env := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-env-1",
 					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
-				Spec: appstudioshared.EnvironmentSpec{
-					Configuration: appstudioshared.EnvironmentConfiguration{
-						Env: []appstudioshared.EnvVarPair{},
-						Target: appstudioshared.EnvironmentTarget{
-							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
+					Configuration: appstudiosharedv1beta1.EnvironmentConfiguration{
+						Env: []appstudiosharedv1beta1.EnvVarPair{},
+					},
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						Claim: appstudiosharedv1beta1.TargetClaim{
+							DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
 								ClaimName: "test",
 							},
 						},
@@ -101,25 +104,25 @@ var _ = Describe("Environment Status.Conditions tests", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("create an environment with both cluster credentials and DTC specified")
-			environment := appstudioshared.Environment{
+			environment := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-env",
 					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
-				Spec: appstudioshared.EnvironmentSpec{
-					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
-						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						KubernetesClusterCredentials: appstudiosharedv1beta1.KubernetesClusterCredentials{
 							APIURL:                   "https://abc",
 							ClusterCredentialsSecret: "test",
 						},
-					},
-					Configuration: appstudioshared.EnvironmentConfiguration{
-						Env: []appstudioshared.EnvVarPair{},
-						Target: appstudioshared.EnvironmentTarget{
-							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+						Claim: appstudiosharedv1beta1.TargetClaim{
+							DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
 								ClaimName: "testdtc",
 							},
 						},
+					},
+					Configuration: appstudiosharedv1beta1.EnvironmentConfiguration{
+						Env: []appstudiosharedv1beta1.EnvVarPair{},
 					},
 				},
 			}
@@ -184,21 +187,21 @@ var _ = Describe("Environment E2E tests", func() {
 
 		It("should ensure that AllowInsecureSkipTLSVerify field of Environment API is equal to AllowInsecureSkipTLSVerify field of GitOpsDeploymentManagedEnvironment", func() {
 			By("creating the new 'staging' Environment")
-			environment := appstudioshared.Environment{
+			environment := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "staging",
 					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
-				Spec: appstudioshared.EnvironmentSpec{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
 					DisplayName:        "my-environment",
-					DeploymentStrategy: appstudioshared.DeploymentStrategy_AppStudioAutomated,
+					DeploymentStrategy: appstudiosharedv1beta1.DeploymentStrategy_AppStudioAutomated,
 					ParentEnvironment:  "",
 					Tags:               []string{},
-					Configuration: appstudioshared.EnvironmentConfiguration{
-						Env: []appstudioshared.EnvVarPair{},
+					Configuration: appstudiosharedv1beta1.EnvironmentConfiguration{
+						Env: []appstudiosharedv1beta1.EnvVarPair{},
 					},
-					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
-						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						KubernetesClusterCredentials: appstudiosharedv1beta1.KubernetesClusterCredentials{
 							TargetNamespace:            fixture.GitOpsServiceE2ENamespace,
 							APIURL:                     apiServerURL,
 							ClusterCredentialsSecret:   secret.Name,
@@ -224,7 +227,7 @@ var _ = Describe("Environment E2E tests", func() {
 
 			Eventually(managedEnvCR, "2m", "1s").Should(
 				SatisfyAll(
-					managedenvironment.HaveAllowInsecureSkipTLSVerify(environment.Spec.UnstableConfigurationFields.AllowInsecureSkipTLSVerify),
+					managedenvironment.HaveAllowInsecureSkipTLSVerify(environment.Spec.Target.AllowInsecureSkipTLSVerify),
 				),
 			)
 
@@ -232,8 +235,8 @@ var _ = Describe("Environment E2E tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("update AllowInsecureSkipTLSVerify field of Environment to false and verify whether it updates the AllowInsecureSkipTLSVerify field of GitOpsDeploymentManagedEnvironment")
-			environment.Spec.UnstableConfigurationFields = &appstudioshared.UnstableEnvironmentConfiguration{
-				KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+			environment.Spec.Target = &appstudiosharedv1beta1.TargetConfiguration{
+				KubernetesClusterCredentials: appstudiosharedv1beta1.KubernetesClusterCredentials{
 					TargetNamespace:            fixture.GitOpsServiceE2ENamespace,
 					APIURL:                     apiServerURL,
 					ClusterCredentialsSecret:   secret.Name,
@@ -249,7 +252,7 @@ var _ = Describe("Environment E2E tests", func() {
 
 			Eventually(managedEnvCR, "2m", "1s").Should(
 				SatisfyAll(
-					managedenvironment.HaveAllowInsecureSkipTLSVerify(environment.Spec.UnstableConfigurationFields.AllowInsecureSkipTLSVerify),
+					managedenvironment.HaveAllowInsecureSkipTLSVerify(environment.Spec.Target.AllowInsecureSkipTLSVerify),
 				),
 			)
 
@@ -257,21 +260,21 @@ var _ = Describe("Environment E2E tests", func() {
 
 		It("should ensure the namespace and clusterResources fields of the GitOpsDeploymentManagedEnvironment copied from the same fields in the Environment API", func() {
 			By("creating a new Environment")
-			environment := appstudioshared.Environment{
+			environment := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "staging",
 					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
-				Spec: appstudioshared.EnvironmentSpec{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
 					DisplayName:        "my-environment",
-					DeploymentStrategy: appstudioshared.DeploymentStrategy_AppStudioAutomated,
+					DeploymentStrategy: appstudiosharedv1beta1.DeploymentStrategy_AppStudioAutomated,
 					ParentEnvironment:  "",
 					Tags:               []string{},
-					Configuration: appstudioshared.EnvironmentConfiguration{
-						Env: []appstudioshared.EnvVarPair{},
+					Configuration: appstudiosharedv1beta1.EnvironmentConfiguration{
+						Env: []appstudiosharedv1beta1.EnvVarPair{},
 					},
-					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
-						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						KubernetesClusterCredentials: appstudiosharedv1beta1.KubernetesClusterCredentials{
 							TargetNamespace:            fixture.GitOpsServiceE2ENamespace,
 							APIURL:                     apiServerURL,
 							ClusterCredentialsSecret:   secret.Name,
@@ -299,8 +302,8 @@ var _ = Describe("Environment E2E tests", func() {
 
 			Eventually(managedEnvCR, "2m", "1s").Should(
 				SatisfyAll(
-					managedenvironment.HaveClusterResources(environment.Spec.UnstableConfigurationFields.ClusterResources),
-					managedenvironment.HaveNamespaces(environment.Spec.UnstableConfigurationFields.Namespaces),
+					managedenvironment.HaveClusterResources(environment.Spec.Target.ClusterResources),
+					managedenvironment.HaveNamespaces(environment.Spec.Target.Namespaces),
 				),
 			)
 
@@ -308,8 +311,8 @@ var _ = Describe("Environment E2E tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("update the namespaces and clusterResources fields of Environment and verify that it updates the corresponding fields of GitOpsDeploymentManagedEnvironment")
-			environment.Spec.UnstableConfigurationFields = &appstudioshared.UnstableEnvironmentConfiguration{
-				KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+			environment.Spec.Target = &appstudiosharedv1beta1.TargetConfiguration{
+				KubernetesClusterCredentials: appstudiosharedv1beta1.KubernetesClusterCredentials{
 					TargetNamespace:            fixture.GitOpsServiceE2ENamespace,
 					APIURL:                     apiServerURL,
 					ClusterCredentialsSecret:   secret.Name,
@@ -328,14 +331,14 @@ var _ = Describe("Environment E2E tests", func() {
 
 			Eventually(managedEnvCR, "2m", "1s").Should(
 				SatisfyAll(
-					managedenvironment.HaveClusterResources(environment.Spec.UnstableConfigurationFields.ClusterResources),
-					managedenvironment.HaveNamespaces(environment.Spec.UnstableConfigurationFields.Namespaces),
+					managedenvironment.HaveClusterResources(environment.Spec.Target.ClusterResources),
+					managedenvironment.HaveNamespaces(environment.Spec.Target.Namespaces),
 				),
 			)
 
 			By("remove the namespaces field from Environment and set clusterResources to false and verify that it updates the corresponding fields of GitOpsDeploymentManagedEnvironment")
-			environment.Spec.UnstableConfigurationFields = &appstudioshared.UnstableEnvironmentConfiguration{
-				KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+			environment.Spec.Target = &appstudiosharedv1beta1.TargetConfiguration{
+				KubernetesClusterCredentials: appstudiosharedv1beta1.KubernetesClusterCredentials{
 					TargetNamespace:            fixture.GitOpsServiceE2ENamespace,
 					APIURL:                     apiServerURL,
 					ClusterCredentialsSecret:   secret.Name,
@@ -350,8 +353,8 @@ var _ = Describe("Environment E2E tests", func() {
 
 			Eventually(managedEnvCR, "2m", "1s").Should(
 				SatisfyAll(
-					managedenvironment.HaveClusterResources(environment.Spec.UnstableConfigurationFields.ClusterResources),
-					managedenvironment.HaveNamespaces(environment.Spec.UnstableConfigurationFields.Namespaces),
+					managedenvironment.HaveClusterResources(environment.Spec.Target.ClusterResources),
+					managedenvironment.HaveNamespaces(environment.Spec.Target.Namespaces),
 				),
 			)
 
@@ -377,20 +380,22 @@ var _ = Describe("Environment E2E tests", func() {
 				dtfixture.HasStatusPhase(appstudioshared.DeploymentTargetPhase_Bound))
 
 			By("creating a new Environment refering the above DTC")
-			environment := appstudioshared.Environment{
+			environment := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-env",
 					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
-				Spec: appstudioshared.EnvironmentSpec{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
 					DisplayName:        "my-environment",
-					DeploymentStrategy: appstudioshared.DeploymentStrategy_AppStudioAutomated,
+					DeploymentStrategy: appstudiosharedv1beta1.DeploymentStrategy_AppStudioAutomated,
 					ParentEnvironment:  "",
 					Tags:               []string{},
-					Configuration: appstudioshared.EnvironmentConfiguration{
-						Env: []appstudioshared.EnvVarPair{},
-						Target: appstudioshared.EnvironmentTarget{
-							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+					Configuration: appstudiosharedv1beta1.EnvironmentConfiguration{
+						Env: []appstudiosharedv1beta1.EnvVarPair{},
+					},
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						Claim: appstudiosharedv1beta1.TargetClaim{
+							DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
 								ClaimName: dtc.Name,
 							},
 						},
@@ -461,20 +466,22 @@ var _ = Describe("Environment E2E tests", func() {
 				dtfixture.HasStatusPhase(appstudioshared.DeploymentTargetPhase_Bound))
 
 			By("creating a new Environment refering the above DTC")
-			environment := appstudioshared.Environment{
+			environment := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-env",
 					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
-				Spec: appstudioshared.EnvironmentSpec{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
 					DisplayName:        "my-environment",
-					DeploymentStrategy: appstudioshared.DeploymentStrategy_AppStudioAutomated,
+					DeploymentStrategy: appstudiosharedv1beta1.DeploymentStrategy_AppStudioAutomated,
 					ParentEnvironment:  "",
 					Tags:               []string{},
-					Configuration: appstudioshared.EnvironmentConfiguration{
-						Env: []appstudioshared.EnvVarPair{},
-						Target: appstudioshared.EnvironmentTarget{
-							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+					Configuration: appstudiosharedv1beta1.EnvironmentConfiguration{
+						Env: []appstudiosharedv1beta1.EnvVarPair{},
+					},
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						Claim: appstudiosharedv1beta1.TargetClaim{
+							DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
 								ClaimName: dtc.Name,
 							},
 						},
@@ -555,20 +562,22 @@ var _ = Describe("Environment E2E tests", func() {
 				dtfixture.HasStatusPhase(appstudioshared.DeploymentTargetPhase_Bound))
 
 			By("creating a new Environment refering the above DTC")
-			environment := appstudioshared.Environment{
+			environment := appstudiosharedv1beta1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-env",
 					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
-				Spec: appstudioshared.EnvironmentSpec{
+				Spec: appstudiosharedv1beta1.EnvironmentSpec{
 					DisplayName:        "my-environment",
-					DeploymentStrategy: appstudioshared.DeploymentStrategy_AppStudioAutomated,
+					DeploymentStrategy: appstudiosharedv1beta1.DeploymentStrategy_AppStudioAutomated,
 					ParentEnvironment:  "",
 					Tags:               []string{},
-					Configuration: appstudioshared.EnvironmentConfiguration{
-						Env: []appstudioshared.EnvVarPair{},
-						Target: appstudioshared.EnvironmentTarget{
-							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+					Configuration: appstudiosharedv1beta1.EnvironmentConfiguration{
+						Env: []appstudiosharedv1beta1.EnvVarPair{},
+					},
+					Target: &appstudiosharedv1beta1.TargetConfiguration{
+						Claim: appstudiosharedv1beta1.TargetClaim{
+							DeploymentTargetClaim: appstudiosharedv1beta1.DeploymentTargetClaimConfig{
 								ClaimName: dtc.Name,
 							},
 						},

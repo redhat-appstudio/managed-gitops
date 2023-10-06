@@ -5,7 +5,7 @@
 #
 # Note: Make sure you use '.dockerignore' to avoid local copy of binaries (e.g. controller-gen)
 ################################################################################################
-FROM golang:1.21 as builder
+FROM golang:1.18 as builder
 
 ARG OS=linux
 ARG ARCH=amd64

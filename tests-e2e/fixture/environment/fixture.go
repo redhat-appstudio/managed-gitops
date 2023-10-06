@@ -11,14 +11,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	matcher "github.com/onsi/gomega/types"
-	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	appstudiosharedv1beta1 "github.com/redhat-appstudio/application-api/api/v1beta1"
 	k8sFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 )
 
 // This is intentionally NOT exported, for now. Create another function in this file/package that calls this function, and export that.
-func expectedCondition(f func(env appstudiosharedv1.Environment) bool) matcher.GomegaMatcher {
+func expectedCondition(f func(env appstudiosharedv1beta1.Environment) bool) matcher.GomegaMatcher {
 
-	return WithTransform(func(env appstudiosharedv1.Environment) bool {
+	return WithTransform(func(env appstudiosharedv1beta1.Environment) bool {
 
 		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
 		Expect(err).ToNot(HaveOccurred())
@@ -43,7 +43,7 @@ func expectedCondition(f func(env appstudiosharedv1.Environment) bool) matcher.G
 
 func HaveEmptyEnvironmentConditions() matcher.GomegaMatcher {
 
-	return expectedCondition(func(env appstudiosharedv1.Environment) bool {
+	return expectedCondition(func(env appstudiosharedv1beta1.Environment) bool {
 
 		fmt.Println("EmptyEnvironmentConditions, env.Status.Conditions is:", env.Status.Conditions)
 
@@ -65,7 +65,7 @@ func HaveEnvironmentCondition(expected metav1.Condition) matcher.GomegaMatcher {
 
 	}
 
-	return expectedCondition(func(env appstudiosharedv1.Environment) bool {
+	return expectedCondition(func(env appstudiosharedv1beta1.Environment) bool {
 		if len(env.Status.Conditions) == 0 {
 			GinkgoWriter.Println("HaveEnvironmentCondition: Conditions is nil")
 			return false

@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	appstudiosharedv1beta1 "github.com/redhat-appstudio/application-api/api/v1beta1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
@@ -223,7 +224,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			environment := buildEnvironmentResource(strings.Repeat("abcde", 13), "my-environment", "", "")
 			err = k8s.Create(&environment, k8sClient)
 			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("invalid environment name: %s", environment.Name))).To(BeTrue())
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("invalid environment name: \"%s\"", environment.Name))).To(BeTrue())
 
 		})
 
@@ -253,9 +254,9 @@ var _ = Describe("Webhook E2E tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("create environment with invalid kubernetesClusterCredentials API URL.")
-			environment := buildEnvironmentResource("staging", "my-environment", "", appstudiosharedv1.EnvironmentType_POC)
-			environment.Spec.UnstableConfigurationFields = &appstudiosharedv1.UnstableEnvironmentConfiguration{
-				KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
+			environment := buildEnvironmentResource("staging", "my-environment", "", appstudiosharedv1beta1.EnvironmentType_POC)
+			environment.Spec.Target = &appstudiosharedv1beta1.TargetConfiguration{
+				KubernetesClusterCredentials: appstudiosharedv1beta1.KubernetesClusterCredentials{
 					TargetNamespace:            fixture.GitOpsServiceE2ENamespace,
 					APIURL:                     "api/test-url.com:6443",
 					ClusterCredentialsSecret:   secret.Name,
@@ -267,8 +268,8 @@ var _ = Describe("Webhook E2E tests", func() {
 			Expect(strings.Contains(err.Error(), "API URL must be an absolute URL starting with an 'https' scheme")).To(BeTrue())
 
 			By("create environment with valid kubernetesClusterCredentials API URL.")
-			environment.Spec.UnstableConfigurationFields = &appstudiosharedv1.UnstableEnvironmentConfiguration{
-				KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
+			environment.Spec.Target = &appstudiosharedv1beta1.TargetConfiguration{
+				KubernetesClusterCredentials: appstudiosharedv1beta1.KubernetesClusterCredentials{
 					TargetNamespace:            fixture.GitOpsServiceE2ENamespace,
 					APIURL:                     apiServerURL,
 					ClusterCredentialsSecret:   secret.Name,
@@ -287,8 +288,8 @@ var _ = Describe("Webhook E2E tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("update environment with invalid kubernetesClusterCredentials API URL.")
-			environment.Spec.UnstableConfigurationFields = &appstudiosharedv1.UnstableEnvironmentConfiguration{
-				KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
+			environment.Spec.Target = &appstudiosharedv1beta1.TargetConfiguration{
+				KubernetesClusterCredentials: appstudiosharedv1beta1.KubernetesClusterCredentials{
 					TargetNamespace:            fixture.GitOpsServiceE2ENamespace,
 					APIURL:                     "api/test-url.com:6443",
 					ClusterCredentialsSecret:   secret.Name,

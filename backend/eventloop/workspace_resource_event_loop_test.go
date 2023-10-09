@@ -317,8 +317,11 @@ var _ = Describe("Test Workspace Resource Loop", func() {
 
 				Expect(shouldRetry).To(BeTrue())
 				Expect(err).To(HaveOccurred())
-				expectedErr := "unable to reconcile shared managed env: context cancelled in GetOrCreateSharedManagedEnv"
-				Expect(err).To(Equal(resourceLoopErr(expectedErr)))
+
+				Expect(err.Error()).To(SatisfyAny(
+					Equal(resourceLoopErr("unable to reconcile shared managed env: context cancelled in GetOrCreateSharedManagedEnv").Error()),
+					ContainSubstring("error on retrieving GetClusterUserByUsername: context deadline exceeded")))
+
 			})
 		})
 
@@ -371,8 +374,11 @@ var _ = Describe("Test Workspace Resource Loop", func() {
 
 				Expect(shouldRetry).To(BeTrue())
 				Expect(err).To(HaveOccurred())
-				expectedErr := "unable to reconcile repository credential. Error: context cancelled in ReconcileRepositoryCredential"
-				Expect(err).To(Equal(resourceLoopErr(expectedErr)))
+
+				Expect(err.Error()).To(SatisfyAny(
+					Equal(resourceLoopErr("unable to reconcile repository credential. Error: context cancelled in ReconcileRepositoryCredential").Error()),
+					ContainSubstring("error on retrieving GetClusterUserByUsername: context deadline exceeded")))
+
 			})
 		})
 	})

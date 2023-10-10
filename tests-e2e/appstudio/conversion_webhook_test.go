@@ -91,10 +91,10 @@ var _ = Describe("Webhook E2E tests", func() {
 
 			// Fetch v1beta1 version CR
 			err = k8s.Get(&environmentV2, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Check API version is vebeta1
-			Expect(reflect.TypeOf(environmentV2) == reflect.TypeOf(appstudiosharedv1beta1.Environment{})).To(BeTrue())
+			Expect(reflect.TypeOf(environmentV2)).To(BeIdenticalTo(reflect.TypeOf(appstudiosharedv1beta1.Environment{})))
 
 			// Check spec field is having same values as v1alpha1
 			Expect(environmentV2.Spec).To(Equal(
@@ -164,10 +164,10 @@ var _ = Describe("Webhook E2E tests", func() {
 
 			// Fetch v1beta1 version CR
 			err = k8s.Get(&environmentV2, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Check API version is vebeta1
-			Expect(reflect.TypeOf(environmentV2) == reflect.TypeOf(appstudiosharedv1beta1.Environment{})).To(BeTrue())
+			Expect(reflect.TypeOf(environmentV2)).To(BeIdenticalTo(reflect.TypeOf(appstudiosharedv1beta1.Environment{})))
 
 			// Check spec field is having same values as v1alpha1
 			Expect(environmentV2.Spec).To(Equal(
@@ -223,10 +223,10 @@ var _ = Describe("Webhook E2E tests", func() {
 
 			// Fetch v1beta1 version CR
 			err = k8s.Get(&environmentV2, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Check API version is vebeta1
-			Expect(reflect.TypeOf(environmentV2) == reflect.TypeOf(appstudiosharedv1beta1.Environment{})).To(BeTrue())
+			Expect(reflect.TypeOf(environmentV2)).To(BeIdenticalTo(reflect.TypeOf(appstudiosharedv1beta1.Environment{})))
 
 			// Check spec field is having same values as v1alpha1
 			Expect(environmentV2.Spec).To(Equal(

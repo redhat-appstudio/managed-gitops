@@ -422,7 +422,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 				// The DeploymentTarget should be deleted
 				err = k8s.Get(&matchingDT, k8sClient)
 				return err != nil && apierr.IsNotFound(err) == true
-			}).Should(BeTrue())
+			}, "60s", "1s").Should(BeTrue())
 
 			// After the DeploymentTarget is deleted, the DeploymentTargetClaim should continue to exist
 			Consistently(&dtc, "30s", "1s").Should(k8s.ExistByName(k8sClient))

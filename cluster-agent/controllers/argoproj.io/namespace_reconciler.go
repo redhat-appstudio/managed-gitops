@@ -71,7 +71,7 @@ func (r *ApplicationReconciler) startTimerForNextCycle(ctx context.Context, name
 			// Clean orphaned and purposeless Operation CRs from Cluster.
 			cleanOrphanedCRsfromCluster_Operation(ctx, r.DB, r.Client, log)
 
-			// Recreate Secrets that are required by Applications, but missing from cluster.
+			// Recreate Secrets that are required by Applications and RepositoryCredentials, but missing from cluster.
 			recreateClusterSecrets(ctx, r.DB, r.Client, log)
 
 			log.Info(fmt.Sprintf("Namespace Reconciler finished an iteration at %s. "+
@@ -499,15 +499,16 @@ func cleanOrphanedCRsfromCluster_Operation(ctx context.Context, dbQueries db.Dat
 	}
 }
 
-// recreateClusterSecrets goes through list of ManagedEnvironments created in cluster and recreates Secrets that are missing from cluster.
+// recreateClusterSecrets goes through list of ManagedEnvironments & RepositoryCredentials created in cluster and recreates Secrets that are missing from cluster.
 func recreateClusterSecrets(ctx context.Context, dbQueries db.DatabaseQueries, k8sClient client.Client, logger logr.Logger) {
 
 	log := logger.WithValues(sharedutil.Log_JobKey, sharedutil.Log_JobKeyValue).
 		WithValues(sharedutil.Log_JobTypeKey, "CR_Secret_recreate")
 
-	// First get list of ClusterAccess and Application entries from DB.
+	// First get list of ClusterAccess, Application and RepositoryCredentials entries from DB.
 	listOfClusterAccessFromDB := getListOfClusterAccessFromTable(ctx, dbQueries, false, log)
 	listOfApplicationFromDB := getListOfApplicationsFromTable(ctx, dbQueries, false, log)
+	listOfRepoCredFromDB := getListOfRepositoryCredentialsFromTable(ctx, dbQueries, false, log)
 
 	// Now get list of GitopsEngineInstances from DB for the cluster service is running on.
 	listOfGitopsEngineInstanceFromCluster, err := getListOfGitopsEngineInstancesForCurrentCluster(ctx, dbQueries, k8sClient, log)
@@ -534,83 +535,150 @@ func recreateClusterSecrets(ctx context.Context, dbQueries db.DatabaseQueries, k
 		}
 		namespacesProcessed[instance.Namespace_uid] = nil
 
-		// Iterate through list of ClusterAccess entries from DB and find entry using current GitOpsEngineInstance.
-		for clusterAccessIndex := range listOfClusterAccessFromDB {
+		recreateClusterSecrets_ManagedEnvironments(ctx, dbQueries, k8sClient, listOfClusterAccessFromDB, listOfApplicationFromDB, instance, log)
+		recreateClusterSecrets_RepositoryCredentials(ctx, dbQueries, k8sClient, listOfRepoCredFromDB, instance, log)
+	}
+}
 
-			clusterAccess := listOfClusterAccessFromDB[clusterAccessIndex] // To avoid "Implicit memory aliasing in for loop." error.
+// recreateClusterSecrets_ManagedEnvironments goes through list of ManagedEnvironments created in cluster and recreates Secrets that are missing from cluster.
+func recreateClusterSecrets_ManagedEnvironments(ctx context.Context, dbQueries db.DatabaseQueries, k8sClient client.Client, listOfClusterAccessFromDB []db.ClusterAccess, listOfApplicationFromDB []db.Application, instance db.GitopsEngineInstance, logger logr.Logger) {
 
-			if clusterAccess.Clusteraccess_gitops_engine_instance_id == instance.Gitopsengineinstance_id {
+	log := logger.WithValues(sharedutil.Log_JobKey, sharedutil.Log_JobKeyValue).
+		WithValues(sharedutil.Log_JobTypeKey, "CR_Secret_recreate_managedEnv")
 
-				// This ClusterAccess is using current GitOpsEngineInstance,
-				// now find the ManagedEnvironment using this ClusterAccess.
-				managedEnvironment := db.ManagedEnvironment{
-					Managedenvironment_id: clusterAccess.Clusteraccess_managed_environment_id,
-				}
+	// Iterate through list of ClusterAccess entries from DB and find entry using current GitOpsEngineInstance.
+	for clusterAccessIndex := range listOfClusterAccessFromDB {
 
-				if err := dbQueries.GetManagedEnvironmentById(ctx, &managedEnvironment); err != nil {
-					log.Error(err, "Error occurred in recreateClusterSecrets while fetching ManagedEnvironment from DB.:"+managedEnvironment.Managedenvironment_id)
-					continue
-				}
+		clusterAccess := listOfClusterAccessFromDB[clusterAccessIndex] // To avoid "Implicit memory aliasing in for loop." error.
 
-				// Skip if ManagedEnvironment is created recently
-				if time.Since(managedEnvironment.Created_on) < 30*time.Minute {
-					continue
-				}
+		if clusterAccess.Clusteraccess_gitops_engine_instance_id == instance.Gitopsengineinstance_id {
 
-				clusterCreds := db.ClusterCredentials{
-					Clustercredentials_cred_id: managedEnvironment.Clustercredentials_id,
-				}
-				if err := dbQueries.GetClusterCredentialsById(ctx, &clusterCreds); err != nil {
-					log.Error(err, "Error occurred in recreateClusterSecrets while retrieving ClusterCredentials:"+managedEnvironment.Clustercredentials_id)
-					continue
-				}
+			// This ClusterAccess is using current GitOpsEngineInstance,
+			// now find the ManagedEnvironment using this ClusterAccess.
+			managedEnvironment := db.ManagedEnvironment{
+				Managedenvironment_id: clusterAccess.Clusteraccess_managed_environment_id,
+			}
 
-				// Skip if the cluster credentials do not have a token
-				// - this usually indicates that the ManagedEnvironment is on the local cluster, and thus does not require an Argo CD Cluster Secret in order to deploy
-				if clusterCreds.Serviceaccount_bearer_token == db.DefaultServiceaccount_bearer_token {
-					continue
-				}
+			if err := dbQueries.GetManagedEnvironmentById(ctx, &managedEnvironment); err != nil {
+				log.Error(err, "Error occurred in recreateClusterSecrets_ManagedEnvironments while fetching ManagedEnvironment from DB.:"+managedEnvironment.Managedenvironment_id)
+				continue
+			}
 
-				// Check if Secret used for this ManagedEnvironment is present in GitOpsEngineInstance namespace.
-				secretName := argosharedutil.GenerateArgoCDClusterSecretName(managedEnvironment)
+			// Skip if ManagedEnvironment is created recently
+			if time.Since(managedEnvironment.Created_on) < 30*time.Minute {
+				continue
+			}
 
-				argoSecret := corev1.Secret{}
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: secretName, Namespace: instance.Namespace_name}, &argoSecret); err != nil {
+			clusterCreds := db.ClusterCredentials{
+				Clustercredentials_cred_id: managedEnvironment.Clustercredentials_id,
+			}
+			if err := dbQueries.GetClusterCredentialsById(ctx, &clusterCreds); err != nil {
+				log.Error(err, "Error occurred in recreateClusterSecrets while retrieving ClusterCredentials:"+managedEnvironment.Clustercredentials_id)
+				continue
+			}
 
-					// If Secret is not present, then create Operation to recreate the Secret.
-					if apierr.IsNotFound(err) {
+			// Skip if the cluster credentials do not have a token
+			// - this usually indicates that the ManagedEnvironment is on the local cluster, and thus does not require an Argo CD Cluster Secret in order to deploy
+			if clusterCreds.Serviceaccount_bearer_token == db.DefaultServiceaccount_bearer_token {
+				continue
+			}
 
-						log.Info("Secret: " + secretName + " not found in Namespace:" + instance.Namespace_name + ", recreating it.")
+			// Check if Secret used for this ManagedEnvironment is present in GitOpsEngineInstance namespace.
+			secretName := argosharedutil.GenerateArgoCDClusterSecretName(managedEnvironment)
 
-						// Get Special user from DB because we need ClusterUser for creating Operation and we don't have one.
-						// Hence created a dummy Cluster User for internal purpose.
-						var specialClusterUser db.ClusterUser
-						if err := dbQueries.GetOrCreateSpecialClusterUser(ctx, &specialClusterUser); err != nil {
-							log.Error(err, "Error occurred in recreateClusterSecrets while fetching clusterUser.")
-							return
-						}
+			argoSecret := corev1.Secret{}
+			if err := k8sClient.Get(ctx, types.NamespacedName{Name: secretName, Namespace: instance.Namespace_name}, &argoSecret); err != nil {
 
-						// We need to create an Operation to recreate the Secret, which requires Application details running in current ManagedEnvironment
-						// hence we iterate through list of Application entries from DB to find that Application.
-						if ok, application := getApplicationRunningInManagedEnvironment(listOfApplicationFromDB, managedEnvironment.Managedenvironment_id); ok {
+				// If Secret is not present, then create Operation to recreate the Secret.
+				if apierr.IsNotFound(err) {
 
-							// We need to recreate Secret, to do that create Operation to inform Argo CD about it.
-							dbOperationInput := db.Operation{
-								Instance_id:   application.Engine_instance_inst_id,
-								Resource_id:   application.Application_id,
-								Resource_type: db.OperationResourceType_Application,
-							}
+					log.Info("Secret: " + secretName + " not found in Namespace:" + instance.Namespace_name + ", recreating it.")
 
-							if _, _, err := operations.CreateOperation(ctx, false, dbOperationInput, specialClusterUser.Clusteruser_id, instance.Namespace_name, dbQueries, k8sClient, log); err != nil {
-								log.Error(err, "Error occurred in recreateClusterSecrets while creating Operation.")
-								continue
-							}
-
-							log.Info("Operation " + dbOperationInput.Operation_id + " is created to create Secret: managed-env-" + managedEnvironment.Managedenvironment_id)
-						}
-					} else {
-						log.Error(err, "Error occurred in recreateClusterSecrets while fetching Secret:"+secretName+" from Namespace: "+instance.Namespace_name)
+					// Get Special user from DB because we need ClusterUser for creating Operation and we don't have one.
+					// Hence created a dummy Cluster User for internal purpose.
+					var specialClusterUser db.ClusterUser
+					if err := dbQueries.GetOrCreateSpecialClusterUser(ctx, &specialClusterUser); err != nil {
+						log.Error(err, "Error occurred in recreateClusterSecrets_ManagedEnvironments while fetching clusterUser.")
+						return
 					}
+
+					// We need to create an Operation to recreate the Secret, which requires Application details running in current ManagedEnvironment
+					// hence we iterate through list of Application entries from DB to find that Application.
+					if ok, application := getApplicationRunningInManagedEnvironment(listOfApplicationFromDB, managedEnvironment.Managedenvironment_id); ok {
+
+						// We need to recreate Secret, to do that create Operation to inform Argo CD about it.
+						dbOperationInput := db.Operation{
+							Instance_id:   application.Engine_instance_inst_id,
+							Resource_id:   application.Application_id,
+							Resource_type: db.OperationResourceType_Application,
+						}
+
+						if _, _, err := operations.CreateOperation(ctx, false, dbOperationInput, specialClusterUser.Clusteruser_id, instance.Namespace_name, dbQueries, k8sClient, log); err != nil {
+							log.Error(err, "Error occurred in recreateClusterSecrets_ManagedEnvironments while creating Operation.")
+							continue
+						}
+
+						log.Info("Operation " + dbOperationInput.Operation_id + " is created to create Secret: managed-env-" + managedEnvironment.Managedenvironment_id)
+					}
+				} else {
+					log.Error(err, "Error occurred in recreateClusterSecrets_ManagedEnvironments while fetching Secret:"+secretName+" from Namespace: "+instance.Namespace_name)
+				}
+			}
+		}
+	}
+
+}
+
+// recreateClusterSecrets_RepositoryCredentials goes through list of RepositoryCredentials created in cluster and recreates Secrets that are missing from cluster.
+func recreateClusterSecrets_RepositoryCredentials(ctx context.Context, dbQueries db.DatabaseQueries, k8sClient client.Client, listOfRepoCredFromDB []db.RepositoryCredentials, instance db.GitopsEngineInstance, logger logr.Logger) {
+
+	log := logger.WithValues(sharedutil.Log_JobKey, sharedutil.Log_JobKeyValue).
+		WithValues(sharedutil.Log_JobTypeKey, "CR_Secret_recreate_repoCred")
+
+	// Iterate through list of RepositoryCredentials entries from DB and find entry using current GitOpsEngineInstance.
+	for repositoryCredentialsIndex := range listOfRepoCredFromDB {
+
+		repositoryCredentials := listOfRepoCredFromDB[repositoryCredentialsIndex] // To avoid "Implicit memory aliasing in for loop." error.
+
+		if repositoryCredentials.EngineClusterID == instance.Gitopsengineinstance_id {
+			// Skip if RepositoryCredentials is created recently
+			if time.Since(repositoryCredentials.Created_on) < 30*time.Minute {
+				continue
+			}
+
+			// Check if Secret used for this RepositoryCredentials is present in GitOpsEngineInstance namespace.
+			argoSecret := corev1.Secret{}
+
+			if err := k8sClient.Get(ctx, types.NamespacedName{Name: argosharedutil.GenerateArgoCDRepoCredSecretName(repositoryCredentials), Namespace: instance.Namespace_name}, &argoSecret); err != nil {
+
+				// If Secret is not present, then create Operation to recreate the Secret.
+				if apierr.IsNotFound(err) {
+
+					log.Info("Secret: " + repositoryCredentials.SecretObj + " not found in Namespace:" + instance.Namespace_name + ", recreating it.")
+
+					// Get Special user from DB because we need ClusterUser for creating Operation and we don't have one.
+					// Hence created a dummy Cluster User for internal purpose.
+					var specialClusterUser db.ClusterUser
+					if err := dbQueries.GetOrCreateSpecialClusterUser(ctx, &specialClusterUser); err != nil {
+						log.Error(err, "Error occurred in recreateClusterSecrets_RepositoryCredentials while fetching clusterUser.")
+						return
+					}
+
+					// We need to recreate Secret, to do that create Operation to inform Argo CD about it.
+					dbOperationInput := db.Operation{
+						Instance_id:   instance.Gitopsengineinstance_id,
+						Resource_id:   repositoryCredentials.RepositoryCredentialsID,
+						Resource_type: db.OperationResourceType_RepositoryCredentials,
+					}
+
+					if _, _, err := operations.CreateOperation(ctx, false, dbOperationInput, specialClusterUser.Clusteruser_id, instance.Namespace_name, dbQueries, k8sClient, log); err != nil {
+						log.Error(err, "Error occurred in recreateClusterSecrets_RepositoryCredentials while creating Operation.")
+						continue
+					}
+
+					log.Info("Operation " + dbOperationInput.Operation_id + " is created to create Secret: " + repositoryCredentials.SecretObj)
+				} else {
+					log.Error(err, "Error occurred in recreateClusterSecrets_RepositoryCredentials while fetching Secret:"+repositoryCredentials.SecretObj+" from Namespace: "+instance.Namespace_name)
 				}
 			}
 		}
@@ -727,4 +795,39 @@ func getApplicationRunningInManagedEnvironment(applicationList []db.Application,
 	}
 
 	return false, db.Application{}
+}
+
+// getListOfRepositoryCredentialsFromTable loops through RepositoryCredentials in database and returns list of user IDs.
+func getListOfRepositoryCredentialsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, skipDelay bool, log logr.Logger) []db.RepositoryCredentials {
+
+	offSet := 0
+	var listOfRepositoryCredentialsFromDB []db.RepositoryCredentials
+
+	// Continuously iterate and fetch batches until all entries of table processed.
+	for {
+		if offSet != 0 && !skipDelay {
+			time.Sleep(sleepIntervalsOfBatches)
+		}
+
+		var tempList []db.RepositoryCredentials
+
+		// Fetch ClusterAccess table entries in batch size as configured above.​
+		if err := dbQueries.GetRepositoryCredentialsBatch(ctx, &tempList, appRowBatchSize, offSet); err != nil {
+			log.Error(err, fmt.Sprintf("Error occurred in cleanOrphanedEntriesfromTable_ClusterUser while fetching batch from Offset: %d to %d: ",
+				offSet, offSet+appRowBatchSize))
+			break
+		}
+
+		// Break the loop if no entries are left in table to be processed.
+		if len(tempList) == 0 {
+			break
+		}
+
+		listOfRepositoryCredentialsFromDB = append(listOfRepositoryCredentialsFromDB, tempList...)
+
+		// Skip processed entries in next iteration
+		offSet += appRowBatchSize
+	}
+
+	return listOfRepositoryCredentialsFromDB
 }

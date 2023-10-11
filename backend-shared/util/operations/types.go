@@ -107,7 +107,7 @@ func createOperationInternal(ctx context.Context, waitForOperation bool, dbOpera
 	}
 
 	if operationNamespace == "" {
-		l.Error(err, "Invalid: Operation namespace is empty")
+		l.Error(err, "Invalid: Operation namespace is empty, OperationID: %s", dbOperationParam.Operation_id)
 		return nil, nil, fmt.Errorf("invalid Operation namespace")
 
 	}

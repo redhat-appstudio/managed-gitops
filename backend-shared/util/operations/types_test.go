@@ -2,7 +2,6 @@ package operations
 
 import (
 	"context"
-	"time"
 
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
@@ -17,8 +16,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var _ = Describe("Testing CreateOperation function.", func() {
-	Context("Testing CreateOperation function.", func() {
+var _ = Describe("Testing CreateOperation function", func() {
+	Context("Testing CreateOperation function", func() {
 		var ctx context.Context
 		var dbq db.AllDatabaseQueries
 		var dbOperationFirst *db.Operation
@@ -57,7 +56,7 @@ var _ = Describe("Testing CreateOperation function.", func() {
 				InnerClient: k8sClientOuter,
 			}
 
-			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+			dbq, err = db.NewUnsafePostgresDBQueries(false, true)
 			Expect(err).ToNot(HaveOccurred())
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
@@ -110,12 +109,9 @@ var _ = Describe("Testing CreateOperation function.", func() {
 		var k8sClient client.Client
 		var logger logr.Logger
 
-		delayUpdateOfState := func(operation *db.Operation, k8sClient client.Client, gitopsEngineInstance db.GitopsEngineInstance) {
+		simulateClusterAgent := func(operation *db.Operation, k8sClient client.Client, gitopsEngineInstance db.GitopsEngineInstance) {
 			defer GinkgoRecover()
-			// Allow waitForOperationToComplete to iterate/wait a few times before we set the operation state to Completed
-			currentTime := time.Now()
-			for time.Now().Before(currentTime.Add(2 * time.Second)) {
-			}
+
 			Eventually(func() bool {
 				operationget := db.Operation{
 					Operation_id: operation.Operation_id,
@@ -170,7 +166,7 @@ var _ = Describe("Testing CreateOperation function.", func() {
 				WithObjects(workspace, argocdNamespace, kubesystemNamespace).
 				Build()
 
-			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+			dbq, err = db.NewUnsafePostgresDBQueries(false, true)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -196,7 +192,7 @@ var _ = Describe("Testing CreateOperation function.", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			go func() {
-				delayUpdateOfState(sampleOperation, k8sClient, *gitopsEngineInstance)
+				simulateClusterAgent(sampleOperation, k8sClient, *gitopsEngineInstance)
 			}()
 
 			// Now directly call waitForOperationToComplete which calls isOperationComplete to test these functions
@@ -262,7 +258,7 @@ var _ = Describe("Testing CreateOperation function.", func() {
 			}
 
 			go func() {
-				delayUpdateOfState(sampleApplicationTypeOperation, k8sClient, *gitopsEngineInstance)
+				simulateClusterAgent(sampleApplicationTypeOperation, k8sClient, *gitopsEngineInstance)
 			}()
 
 			// Directly call CreateOperation with waitForOperation set to true, to create the new Operation
@@ -272,7 +268,7 @@ var _ = Describe("Testing CreateOperation function.", func() {
 			Expect(dbOperationFirst).NotTo(BeNil())
 
 			go func() {
-				delayUpdateOfState(sampleGitopsEngineTypeOperation, k8sClient, *gitopsEngineInstance)
+				simulateClusterAgent(sampleGitopsEngineTypeOperation, k8sClient, *gitopsEngineInstance)
 			}()
 
 			k8sOperationSecond, dbOperationSecond, err := doCreateOperation(ctx, true, *sampleGitopsEngineTypeOperation, "test-user", gitopsEngineInstance.Namespace_name, dbq, k8sClient, logger, "test-engine-operation")

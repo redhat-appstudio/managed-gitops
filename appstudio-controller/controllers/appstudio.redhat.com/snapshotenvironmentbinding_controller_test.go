@@ -962,6 +962,67 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}))
 		})
 
+		When("the SnapshotEnvironmentBinding contains components out of lexical order", func() {
+			It("should sort the .status.gitOpsDeployments field into proper lexical order", func() {
+
+				binding.Spec.Components = []appstudiosharedv1.BindingComponent{
+					{
+						Name: "component-b",
+						Configuration: appstudiosharedv1.BindingComponentConfiguration{
+							Env: []appstudiosharedv1.EnvVarPair{
+								{Name: "My_STG_ENV", Value: "1000"},
+							},
+							Replicas: &threeReplicas,
+						},
+					},
+					{
+						Name: "component-a",
+						Configuration: appstudiosharedv1.BindingComponentConfiguration{
+							Env: []appstudiosharedv1.EnvVarPair{
+								{Name: "My_STG_ENV", Value: "1000"},
+							},
+							Replicas: &threeReplicas,
+						},
+					},
+				}
+
+				binding.Status = appstudiosharedv1.SnapshotEnvironmentBindingStatus{
+					Components: []appstudiosharedv1.BindingComponentStatus{
+						{
+							Name: "component-b",
+							GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{
+								URL:    "https://github.com/redhat-appstudio/managed-gitops",
+								Branch: "main",
+								Path:   "resources/test-data/sample-gitops-repository/components/componentB/overlays/staging",
+							},
+						},
+						{
+							Name: "component-a",
+							GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{
+								URL:    "https://github.com/redhat-appstudio/managed-gitops",
+								Branch: "main",
+								Path:   "resources/test-data/sample-gitops-repository/components/componentA/overlays/staging",
+							},
+						},
+					},
+				}
+
+				By("creating a SnapshotEnvironmentBinding with components out of lexical order")
+				Expect(bindingReconciler.Create(ctx, binding)).To(Succeed())
+
+				By("triggering Reconciler on that SEB")
+				Expect(bindingReconciler.Reconcile(ctx, request)).Error().To(Succeed())
+
+				By("verifying the .status.GitopsDeployments is in lexical order")
+				Expect(bindingReconciler.Get(ctx, client.ObjectKeyFromObject(binding), binding)).To(Succeed())
+
+				Expect(binding.Status.GitOpsDeployments).To(HaveLen(2))
+				Expect(binding.Status.GitOpsDeployments[0].ComponentName).To(Equal("component-a"))
+				Expect(binding.Status.GitOpsDeployments[1].ComponentName).To(Equal("component-b"))
+
+			})
+		})
+
 	})
 
 	Context("Test SnapshotEnvironmentBinding's findObjectsForDeploymentTarget function", func() {

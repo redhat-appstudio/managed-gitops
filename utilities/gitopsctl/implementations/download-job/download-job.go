@@ -207,6 +207,7 @@ func extractAllFileURLsFromArtifactsPage(url string, depth int) ([]string, error
 			continue
 		}
 
+		// Skip the link to gsutil that can be found on the artifacts page (our tool does not use this tool)
 		if strings.Contains(link, "gsutil") {
 			continue
 		}

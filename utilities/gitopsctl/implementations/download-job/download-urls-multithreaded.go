@@ -2,6 +2,11 @@ package downloadjob
 
 import "fmt"
 
+const (
+	// set 'workerDebug' to true if debugging the worker logic
+	workerDebug = false
+)
+
 type downloadURLWorkerEntry struct {
 	url  string
 	path string
@@ -9,7 +14,10 @@ type downloadURLWorkerEntry struct {
 
 func worker(id int, jobs <-chan downloadURLWorkerEntry, results chan<- string) {
 	for jobEntry := range jobs {
-		// fmt.Println("worker", id, "started  job", jobEntry)
+
+		if workerDebug {
+			fmt.Println("worker", id, "started  job", jobEntry)
+		}
 
 		err := downloadAsFile(jobEntry.url, jobEntry.path)
 
@@ -18,7 +26,10 @@ func worker(id int, jobs <-chan downloadURLWorkerEntry, results chan<- string) {
 			errStr = err.Error()
 		}
 
-		// fmt.Println("worker", id, "finished job", jobEntry)
+		if workerDebug {
+			fmt.Println("worker", id, "finished job", jobEntry)
+		}
+
 		results <- errStr
 	}
 }

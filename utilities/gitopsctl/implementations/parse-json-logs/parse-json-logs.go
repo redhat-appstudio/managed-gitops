@@ -239,7 +239,7 @@ func parseJSONMapFromLine(structuredJsonMap map[string]any, splunkJsonMap map[st
 	}
 	res += fmt.Sprintf("%s ", msg)
 
-	// Build the second section: strucutured fields that are recognized as important for our code
+	// Build the second section: structured fields that are recognized as important for our code
 	{
 		section2 := ""
 

@@ -30,6 +30,8 @@ ignore:
   - "cluster-agent/utils/mocks/SettingsServiceClient.go"
   - "cluster-agent/utils/mocks/VersionServiceClient.go"
 
+  - "utilities/gitopsctl/.*"
+
 github_checks:
   annotations: false
 

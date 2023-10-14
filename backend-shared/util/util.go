@@ -23,11 +23,13 @@ const (
 	SelfHealIntervalEnVar = "SELF_HEAL_INTERVAL" // Interval in minutes between self-healing runs
 )
 
-// #nosec G101
 const (
-	ArgoCDSecretTypeIdentifierKey = "argocd.argoproj.io/secret-type" //Secret label key to define secret type.
-	ArgoCDSecretClusterTypeValue  = "cluster"                        // Secret type for Cluster Secret
-	ArgoCDSecretRepoTypeValue     = "repository"                     // Secret type for Repository Secret
+	//Secret label key to define secret type.
+	ArgoCDSecretTypeIdentifierKey = "argocd.argoproj.io/secret-type" // #nosec G101
+	// Secret type for Cluster Secret
+	ArgoCDSecretClusterTypeValue = "cluster" // #nosec G101
+	// Secret type for Repository Secret
+	ArgoCDSecretRepoTypeValue = "repository" // #nosec G101
 
 	ManagedEnvironmentSecretType = "managed-gitops.redhat.com/managed-environment"
 
@@ -56,7 +58,6 @@ func (e *ExponentialBackoff) IncreaseAndReturnNewDuration() time.Duration {
 	return *e.curr
 }
 
-/* #nosec */
 func (e *ExponentialBackoff) increaseDueToFail() {
 	if e.curr == nil {
 		e.curr = &e.Min
@@ -65,7 +66,7 @@ func (e *ExponentialBackoff) increaseDueToFail() {
 
 		if e.Jitter {
 			// Randomly increase the result by up to 10%, to introduce a small amount of jitter
-			newDurationVal = time.Duration(float64(newDurationVal) * (1 + (rand.Float64() * float64(0.10))))
+			newDurationVal = time.Duration(float64(newDurationVal) * (1 + (rand.Float64() * float64(0.10)))) // #nosec G404
 		}
 
 		e.curr = &newDurationVal

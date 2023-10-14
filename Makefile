@@ -233,6 +233,7 @@ tidy: ## Tidy all components
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && go mod tidy
 	cd $(MAKEFILE_ROOT)/utilities/init-container && go mod tidy
 	cd $(MAKEFILE_ROOT)/utilities/load-test && go mod tidy
+	cd $(MAKEFILE_ROOT)/utilities/gitopsctl && go mod tidy		
 	 
 fmt: ## Run 'go fmt' on all components
 	cd $(MAKEFILE_ROOT)/backend-shared && make fmt
@@ -241,6 +242,7 @@ fmt: ## Run 'go fmt' on all components
 	cd $(MAKEFILE_ROOT)/appstudio-controller && make fmt
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && make fmt
 	cd $(MAKEFILE_ROOT)/utilities/init-container && make fmt
+	cd $(MAKEFILE_ROOT)/utilities/gitopsctl && make fmt	
 
 lint: ## Run lint checks for all components
 	cd $(MAKEFILE_ROOT)/backend-shared && make lint
@@ -250,6 +252,7 @@ lint: ## Run lint checks for all components
 	cd $(MAKEFILE_ROOT)/tests-e2e && make lint
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && make lint
 	cd $(MAKEFILE_ROOT)/utilities/init-container && make lint
+	cd $(MAKEFILE_ROOT)/utilities/gitopsctl && make lint
 
 gosec: ## Run gosec checks for all components
 	cd $(MAKEFILE_ROOT)/backend-shared && make gosec
@@ -259,6 +262,7 @@ gosec: ## Run gosec checks for all components
 	cd $(MAKEFILE_ROOT)/tests-e2e && make gosec
 #	cd $(MAKEFILE_ROOT)/utilities/db-migration && make gosec
 #	cd $(MAKEFILE_ROOT)/utilities/init-container && make gossec
+#	cd $(MAKEFILE_ROOT)/utilities/gitopsctl && make gossec
 
 
 generate-manifests: ## Call the 'generate' and 'manifests' targets of every project

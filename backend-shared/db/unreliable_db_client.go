@@ -1103,9 +1103,10 @@ func shouldSimulateFailure(apiType string, obj ...interface{}) error {
 	// Convert it to a decimal point, e.g. 50% to 0.5
 	unreliableClientFailureRateValueDouble := (float64)(unreliableDBClientFailureRateValue) / (float64)(100)
 
+	randVal := rand.Float64() // #nosec G404 -- not used for cryptographic purposes
+
 	// return an error randomly x% of the time (using math/rand package)
-	// #nosec G404 -- not used for cryptographic purposes
-	if rand.Float64() < float64(unreliableClientFailureRateValueDouble) {
+	if randVal < float64(unreliableClientFailureRateValueDouble) {
 
 		parameters := ""
 		if len(obj) > 0 {

@@ -9,8 +9,7 @@ import (
 
 const (
 	managedEnvPrefix = "managed-env-"
-	// #nosec G101
-	repoCredPrefix = "repo-cred-"
+	repoCredPrefix   = "repo-cred-" // #nosec G101
 
 	// ArgoCDDefaultDestinationInCluster is 'in-cluster' which is the spec destination value that Argo CD recognizes
 	// as indicating that Argo CD should deploy to the local cluster (the cluster that Argo CD is installed on).

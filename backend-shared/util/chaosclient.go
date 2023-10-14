@@ -213,8 +213,10 @@ func shouldSimulateFailure(apiType string, obj client.Object) error {
 	unreliableClientFailureRateValueDouble := (float64)(unreliableClientFailureRateValue) / (float64)(100)
 
 	// return an error randomly x% of the time (using math/rand package)
-	// #nosec G404 -- not used for cryptographic purposes
-	if rand.Float64() < float64(unreliableClientFailureRateValueDouble) {
+
+	randVal := rand.Float64() // #nosec G404
+
+	if randVal < float64(unreliableClientFailureRateValueDouble) {
 		fmt.Println("chaosclient.go - Simulated error:", apiType, obj)
 		return fmt.Errorf("chaosclient.go - simulated K8s error: %s %v", apiType, obj)
 	}

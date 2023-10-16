@@ -557,6 +557,20 @@ func recreateClusterSecrets(ctx context.Context, dbQueries db.DatabaseQueries, k
 					continue
 				}
 
+				clusterCreds := db.ClusterCredentials{
+					Clustercredentials_cred_id: managedEnvironment.Clustercredentials_id,
+				}
+				if err := dbQueries.GetClusterCredentialsById(ctx, &clusterCreds); err != nil {
+					log.Error(err, "Error occurred in recreateClusterSecrets while retrieving ClusterCredentials:"+managedEnvironment.Clustercredentials_id)
+					continue
+				}
+
+				// Skip if the cluster credentials do not have a token
+				// - this usually indicates that the ManagedEnvironment is on the local cluster, and thus does not require an Argo CD Cluster Secret in order to deploy
+				if clusterCreds.Serviceaccount_bearer_token == db.DefaultServiceaccount_bearer_token {
+					continue
+				}
+
 				// Check if Secret used for this ManagedEnvironment is present in GitOpsEngineInstance namespace.
 				secretName := argosharedutil.GenerateArgoCDClusterSecretName(managedEnvironment)
 

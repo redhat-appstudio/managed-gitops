@@ -54,7 +54,7 @@ func generateSampleData() (ClusterCredentials, ManagedEnvironment, GitopsEngineC
 		Host:                        "host",
 		Kube_config:                 "kube-config",
 		Kube_config_context:         "kube-config-context",
-		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+		Serviceaccount_bearer_token: DefaultServiceaccount_bearer_token,
 		Serviceaccount_ns:           "Serviceaccount_ns",
 	}
 

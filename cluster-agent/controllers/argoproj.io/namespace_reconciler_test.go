@@ -83,7 +83,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			err = db.SetupForTestingDBGinkgo()
 			Expect(err).ToNot(HaveOccurred())
 
-			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
+			dbQueries, err = db.NewUnsafePostgresDBQueries(false, true)
 			Expect(err).ToNot(HaveOccurred())
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
@@ -230,7 +230,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			ctx = context.Background()
 			log = logger.FromContext(ctx)
-			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+			dbq, err = db.NewUnsafePostgresDBQueries(false, true)
 			Expect(err).ToNot(HaveOccurred())
 
 			scheme, _, _, _, err := tests.GenericTestSetup()
@@ -262,7 +262,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 				Host:                        "host",
 				Kube_config:                 "kube-config",
 				Kube_config_context:         "kube-config-context",
-				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+				Serviceaccount_bearer_token: db.DefaultServiceaccount_bearer_token,
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
@@ -493,7 +493,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			ctx = context.Background()
 			log = logger.FromContext(ctx)
-			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+			dbq, err = db.NewUnsafePostgresDBQueries(false, true)
 			Expect(err).ToNot(HaveOccurred())
 
 			scheme, _, _, _, err := tests.GenericTestSetup()
@@ -761,6 +761,8 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 		var kubeSystemNamepace corev1.Namespace
 		var managedEnvironment db.ManagedEnvironment
 
+		var clusterAccess db.ClusterAccess
+
 		BeforeEach(func() {
 			err := db.SetupForTestingDBGinkgo()
 			Expect(err).ToNot(HaveOccurred())
@@ -768,7 +770,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			ctx = context.Background()
 			log = logger.FromContext(ctx)
 
-			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+			dbq, err = db.NewUnsafePostgresDBQueries(false, true)
 			Expect(err).ToNot(HaveOccurred())
 
 			scheme, _, _, _, err := tests.GenericTestSetup()
@@ -806,7 +808,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 				Host:                        "host",
 				Kube_config:                 "kube-config",
 				Kube_config_context:         "kube-config-context",
-				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+				Serviceaccount_bearer_token: "fake service account bearer token",
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
@@ -847,7 +849,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Create ClusterAccess entry in DB.")
 
-			clusterAccess := db.ClusterAccess{
+			clusterAccess = db.ClusterAccess{
 				Clusteraccess_user_id:                   "test-user",
 				Clusteraccess_managed_environment_id:    managedEnvironment.Managedenvironment_id,
 				Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
@@ -929,15 +931,13 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			By("Set 'Created_on' field more than 30 Minutes.")
 
 			managedEnvironment.Created_on = time.Now().Add(time.Duration(-(31 * time.Minute)))
-			err := dbq.UpdateManagedEnvironment(ctx, &managedEnvironment)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(dbq.UpdateManagedEnvironment(ctx, &managedEnvironment)).To(Succeed())
 
 			By("Get list of Operations before calling function.")
 
 			var operation []db.Operation
 
-			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, application.Application_id, db.OperationResourceType_Application, &operation, db.SpecialClusterUserName)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, application.Application_id, db.OperationResourceType_Application, &operation, db.SpecialClusterUserName)).To(Succeed())
 			Expect(operation).To(BeEmpty())
 
 			By("Call function to recreate Secret if missing from cluster.")
@@ -946,9 +946,49 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Get list of Operations after calling function.")
 
-			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, application.Application_id, db.OperationResourceType_Application, &operation, db.SpecialClusterUserName)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, application.Application_id, db.OperationResourceType_Application, &operation, db.SpecialClusterUserName)).To(Succeed())
 			Expect(operation).To(HaveLen(1))
+		})
+
+		It("Should not create Operation to recreate Secret, if the ManagedEnvironment is deploying to the same cluster as Argo CD", func() {
+
+			rowsDeleted, err := dbq.DeleteClusterAccessById(ctx, clusterAccess.Clusteraccess_user_id, clusterAccess.Clusteraccess_managed_environment_id, clusterAccess.Clusteraccess_gitops_engine_instance_id)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(rowsDeleted).To(Equal(1))
+
+			By("Create new ClusterCredentials entry in DB, with default 'Serviceaccount_bearer_token' field")
+
+			clusterCredentials := db.ClusterCredentials{
+				Clustercredentials_cred_id:  "test-creds-" + string(uuid.NewUUID()),
+				Host:                        "host",
+				Kube_config:                 "kube-config",
+				Kube_config_context:         "kube-config-context",
+				Serviceaccount_bearer_token: db.DefaultServiceaccount_bearer_token,
+				Serviceaccount_ns:           "Serviceaccount_ns",
+			}
+			Expect(dbq.CreateClusterCredentials(ctx, &clusterCredentials)).To(Succeed())
+
+			By("Set 'Created_on' field more than 30 Minutes.")
+			By("updating the existing ManagedEnvironment to point to the new credentials")
+			managedEnvironment.Clustercredentials_id = clusterCredentials.Clustercredentials_cred_id
+			managedEnvironment.Created_on = time.Now().Add(time.Duration(-(31 * time.Minute)))
+			Expect(dbq.UpdateManagedEnvironment(ctx, &managedEnvironment)).To(Succeed())
+
+			By("Get list of Operations before calling function.")
+
+			var operation []db.Operation
+
+			Expect(dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, application.Application_id, db.OperationResourceType_Application, &operation, db.SpecialClusterUserName)).To(Succeed())
+			Expect(operation).To(BeEmpty())
+
+			By("Call function to recreate Secret if missing from cluster.")
+
+			recreateClusterSecrets(ctx, dbq, k8sClient, log)
+
+			By("Get list of Operations after calling function.")
+
+			Expect(dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, application.Application_id, db.OperationResourceType_Application, &operation, db.SpecialClusterUserName)).To(Succeed())
+			Expect(operation).To(BeEmpty(), "no operations should have been created, because the managed environment's cluster credential has a default value in the Serviceaccount_bearer_token field. In this case, an Argo CD Cluster Secret does not need to exist, because Argo CD always has the ability to deploy to the local cluster.")
 		})
 	})
 })

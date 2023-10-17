@@ -1412,7 +1412,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			It("verifies the event is processed", func() {
 
-				By("creating a generic GitOpsDeployment of type manual sy=nc")
+				By("creating a generic GitOpsDeployment of type manual sync")
 
 				gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1461,7 +1461,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 						applId := findDBApplicationIDforGitOpsDeployment(ctx, gitopsDeploymentName, gitopsDeploymentNamespace, *namespace)
 						if applId == "" {
-							fmt.Println("waitin for application for gitopsdepl")
+							fmt.Println("waiting for application for gitopsdepl")
 							time.Sleep(500 * time.Millisecond)
 							continue
 						}
@@ -1687,7 +1687,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 						// wait for Applicaton row to exist for GitopsDeployment
 						applId := findDBApplicationIDforGitOpsDeployment(ctx, gitopsDeploymentName, gitopsDeploymentNamespace, *namespace)
 						if applId == "" {
-							fmt.Println("waitin for application for gitopsdepl")
+							fmt.Println("waiting for application for gitopsdepl")
 							time.Sleep(250 * time.Millisecond)
 							continue
 						}
@@ -1839,7 +1839,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 						applId := findDBApplicationIDforGitOpsDeployment(ctx, gitopsDeploymentName, gitopsDeploymentNamespace, *namespace)
 						if applId == "" {
-							fmt.Println("waitin for application for gitopsdepl")
+							fmt.Println("waiting for application for gitopsdepl")
 							time.Sleep(500 * time.Millisecond)
 							continue
 						}

@@ -110,7 +110,7 @@ func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, namespace 
 		Host:                        "host",
 		Kube_config:                 "kube_config",
 		Kube_config_context:         "kube_config_context",
-		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+		Serviceaccount_bearer_token: db.DefaultServiceaccount_bearer_token,
 		Serviceaccount_ns:           "serviceaccount_ns",
 	}
 
@@ -395,7 +395,7 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 		Host:                        "host",
 		Kube_config:                 "kube_config",
 		Kube_config_context:         "kube_config_context",
-		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+		Serviceaccount_bearer_token: db.DefaultServiceaccount_bearer_token,
 		Serviceaccount_ns:           "serviceaccount_ns",
 	}
 	if err := dbq.CreateClusterCredentials(ctx, &clusterCreds); err != nil {

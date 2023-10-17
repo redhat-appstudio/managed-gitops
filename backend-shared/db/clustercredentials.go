@@ -5,6 +5,10 @@ import (
 	"fmt"
 )
 
+const (
+	DefaultServiceaccount_bearer_token = "serviceaccount_bearer_token"
+)
+
 func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterCredentials(ctx context.Context, clusterCredentials *[]ClusterCredentials) error {
 	if dbq.dbConnection == nil {
 		return fmt.Errorf("database connection is nil")

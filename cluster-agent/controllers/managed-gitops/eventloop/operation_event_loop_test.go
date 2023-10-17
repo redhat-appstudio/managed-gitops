@@ -107,7 +107,7 @@ var _ = Describe("Operation Controller", func() {
 				Host:                        "https://my-cluster-url.com",
 				Kube_config:                 "kube-config",
 				Kube_config_context:         "kube-config-context",
-				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+				Serviceaccount_bearer_token: db.DefaultServiceaccount_bearer_token,
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 			err := dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
@@ -153,7 +153,7 @@ var _ = Describe("Operation Controller", func() {
 				Host:                        "https://my-cluster-url.com?queryParameter=hello",
 				Kube_config:                 "kube-config",
 				Kube_config_context:         "kube-config-context",
-				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+				Serviceaccount_bearer_token: db.DefaultServiceaccount_bearer_token,
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 			err := dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
@@ -210,7 +210,7 @@ var _ = Describe("Operation Controller", func() {
 				Host:                        "https://my-cluster-url.com",
 				Kube_config:                 "kube-config",
 				Kube_config_context:         "kube-config-context",
-				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+				Serviceaccount_bearer_token: db.DefaultServiceaccount_bearer_token,
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 			err := dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
@@ -262,7 +262,7 @@ var _ = Describe("Operation Controller", func() {
 				Host:                        "https://my-cluster-url.com",
 				Kube_config:                 "kube-config",
 				Kube_config_context:         "kube-config-context",
-				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+				Serviceaccount_bearer_token: db.DefaultServiceaccount_bearer_token,
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 			err := dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
@@ -2878,7 +2878,7 @@ var _ = Describe("Operation Controller", func() {
 					Host:                        "host",
 					Kube_config:                 "kube_config",
 					Kube_config_context:         "kube_config_context",
-					Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+					Serviceaccount_bearer_token: db.DefaultServiceaccount_bearer_token,
 					Serviceaccount_ns:           "serviceaccount_ns",
 				}
 

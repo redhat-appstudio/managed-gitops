@@ -245,7 +245,7 @@ var _ = Describe("Test utility functions.", func() {
 				Host:                        "host",
 				Kube_config:                 "kube-config",
 				Kube_config_context:         "kube-config-context",
-				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+				Serviceaccount_bearer_token: db.DefaultServiceaccount_bearer_token,
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 			err = dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
@@ -921,7 +921,7 @@ var _ = Describe("Test utility functions.", func() {
 				Host:                        "host",
 				Kube_config:                 "kube-config",
 				Kube_config_context:         "kube-config-context",
-				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+				Serviceaccount_bearer_token: db.DefaultServiceaccount_bearer_token,
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 

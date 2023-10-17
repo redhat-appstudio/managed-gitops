@@ -18,8 +18,6 @@ package main
 
 import (
 	"flag"
-	"log"
-	"net/http"
 	"os"
 	"strings"
 
@@ -45,7 +43,6 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
-	"github.com/redhat-appstudio/managed-gitops/backend/routes"
 	crzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	//+kubebuilder:scaffold:imports
 )
@@ -277,16 +274,4 @@ func startClusterReconciler(mgr ctrl.Manager) {
 	reconciler := eventloop.NewClusterReconciler(mgr.GetClient(), discoveryClient)
 
 	reconciler.Start()
-}
-
-// nolint:unused
-func initializeRoutes() {
-
-	// Intializing the server for routing endpoints
-	router := routes.RouteInit()
-	err := router.ListenAndServe()
-	if err != http.ErrServerClosed {
-		log.Println("Error on ListenAndServe:", err)
-	}
-
 }

@@ -21,6 +21,7 @@ var _ = Describe("GitOpsDeployment Condition Tests", func() {
 			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("managed-environment-gitops-depl",
 				fixture.RepoURL, fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+
 			gitOpsDeploymentResource.Spec.Destination = managedgitopsv1alpha1.ApplicationDestination{
 				Environment: "does-not-exist", // This is the invalid value, which should return a condition error
 				Namespace:   "",
@@ -29,13 +30,12 @@ var _ = Describe("GitOpsDeployment Condition Tests", func() {
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
-			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
-			Expect(err).To(Succeed())
+			Expect(k8s.Create(&gitOpsDeploymentResource, k8sClient)).To(Succeed())
 
 			expectedConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{
 				{
 					Type:    managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred,
-					Message: "an unknown error occurred",
+					Message: "Unable to reconcile the ManagedEnvironment. Verify that the ManagedEnvironment and Secret are correctly defined, and have valid credentials",
 					Status:  managedgitopsv1alpha1.GitOpsConditionStatusTrue,
 					Reason:  managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred,
 				},
@@ -48,8 +48,7 @@ var _ = Describe("GitOpsDeployment Condition Tests", func() {
 			)
 
 			By("delete the GitOpsDeployment resource")
-			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
-			Expect(err).To(Succeed())
+			Expect(k8s.Delete(&gitOpsDeploymentResource, k8sClient)).To(Succeed())
 		})
 	})
 })

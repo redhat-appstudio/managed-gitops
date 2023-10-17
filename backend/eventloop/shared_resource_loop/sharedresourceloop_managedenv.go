@@ -254,8 +254,12 @@ func internalProcessMessage_internalReconcileSharedManagedEnv(ctx context.Contex
 func getManagedEnvironmentCRs(ctx context.Context,
 	managedEnvironmentCRName string,
 	managedEnvironmentCRNamespace string,
-	workspaceClient client.Client, workspaceNamespace corev1.Namespace, k8sClientFactory SRLK8sClientFactory, dbQueries db.DatabaseQueries,
-	clusterUser db.ClusterUser, log logr.Logger) (managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, corev1.Secret, bool, error) {
+	workspaceClient client.Client,
+	workspaceNamespace corev1.Namespace,
+	k8sClientFactory SRLK8sClientFactory,
+	dbQueries db.DatabaseQueries,
+	clusterUser db.ClusterUser,
+	log logr.Logger) (managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, corev1.Secret, bool, error) {
 
 	const (
 		resourceDoesNotExist = true

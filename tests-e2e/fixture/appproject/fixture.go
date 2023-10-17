@@ -36,9 +36,9 @@ func HaveAppProjectSourceRepos(appProjectSpec appv1alpha1.AppProjectSpec) matche
 			return false
 		}
 
-		res := compareStringArrays(appProject.Spec.SourceRepos, appProjectSpec.SourceRepos)
+		res := compareStringArraysInAnyOrder(appProject.Spec.SourceRepos, appProjectSpec.SourceRepos)
 
-		fmt.Println("HaveAppProjectSourceRepos:", res, "/ Expected:", appProjectSpec, "/ Actual:", appProject.Spec.SourceRepos)
+		fmt.Println("HaveAppProjectSourceRepos:", res, "/ Expected:", appProjectSpec.SourceRepos, "/ Actual:", appProject.Spec.SourceRepos)
 
 		return res
 	}, BeTrue())
@@ -68,13 +68,24 @@ func HaveAppProjectDestinations(appProjectDestinations []appv1alpha1.Application
 	}, BeTrue())
 }
 
-func compareStringArrays(arr1, arr2 []string) bool {
+func compareStringArraysInAnyOrder(arr1, arr2 []string) bool {
 	if len(arr1) != len(arr2) {
 		return false
 	}
 
 	for i := 0; i < len(arr1); i++ {
-		if arr1[i] != arr2[i] {
+
+		match := false
+
+		for j := 0; j < len(arr2); j++ {
+
+			if arr1[i] == arr2[j] {
+				match = true
+				break
+			}
+		}
+
+		if !match {
 			return false
 		}
 	}

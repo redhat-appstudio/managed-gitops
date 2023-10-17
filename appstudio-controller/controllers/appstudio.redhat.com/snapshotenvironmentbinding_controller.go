@@ -126,12 +126,14 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 		},
 	}
 	if err := rClient.Get(ctx, client.ObjectKeyFromObject(&application), &application); apierr.IsNotFound(err) {
-		err = rClient.Delete(ctx, binding)
-		if err != nil {
+
+		if err := rClient.Delete(ctx, &binding); err != nil {
 			return ctrl.Result{}, fmt.Errorf("unable to delete Binding %s in Namespace %s: %w", binding.Name, binding.Namespace, err)
 		}
+		log.Info("deleting SnapshotEnvironmentBinding because referenced Application no longer exists", "applicationName", application.Name)
 		logutil.LogAPIResourceChangeEvent(binding.Namespace, binding.Name, binding, logutil.ResourceDeleted, log)
 		return ctrl.Result{}, nil
+
 	} else if err != nil {
 		return ctrl.Result{}, fmt.Errorf("error getting Application %s associated with Binding %s in Namespace %s: %w", binding.Spec.Application, binding.Name, binding.Namespace, err)
 	}

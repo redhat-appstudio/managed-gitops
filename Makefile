@@ -309,6 +309,8 @@ ensure-workload-gitops-ns-exists:
 
 mocks:
 	cd $(MAKEFILE_ROOT)/backend-shared && make mocks
+	cd $(MAKEFILE_ROOT)/backend && make mocks
+	cd $(MAKEFILE_ROOT)/cluster-agent && make mocks
 
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.

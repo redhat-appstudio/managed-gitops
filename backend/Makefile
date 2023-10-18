@@ -204,3 +204,6 @@ clean:
 .PHONY: clean-exec
 clean-exec:
 	rm main
+
+mocks: ##  generate mocks
+	cd $(shell pwd)/condition/mocks && mockgen -build_flags=--mod=mod -destination=conditions.go -package=mocks github.com/redhat-appstudio/managed-gitops/backend/condition Conditions

@@ -105,6 +105,13 @@ spec:
             requests:
               cpu: 250m
               memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
           env:
             - name: POSTGRESQL_DATABASE
               value: postgres
@@ -140,13 +147,21 @@ spec:
             failureThreshold: 6
           volumeMounts:
             - name: data
-              mountPath: /var/lib/pgsql/data
+              mountPath: /var/lib/pgsql
             - name: dshm
               mountPath: /dev/shm
+            - name: tmp
+              mountPath: /tmp
+            - name: runpostgresql
+              mountPath: /run/postgresql
       volumes:
         - name: dshm
           emptyDir:
             medium: Memory
+        - name: tmp
+          emptyDir: {}
+        - name: runpostgresql
+          emptyDir: {}
   volumeClaimTemplates:
     - metadata:
         name: data

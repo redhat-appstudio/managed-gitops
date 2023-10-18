@@ -55,11 +55,13 @@ func ConnectToDatabaseWithPort(verbose bool, port int) (*pg.DB, error) {
 	}
 
 	if value, isSet := os.LookupEnv("DEV_ONLY_ALLOW_NON_TLS_CONNECTION_TO_POSTGRESQL"); !isSet || strings.ToLower(value) != "true" {
+
 		opts.TLSConfig = &tls.Config{
-			MinVersion:         tls.VersionTLS12,
-			ServerName:         addr,
-			InsecureSkipVerify: true,
+			MinVersion: tls.VersionTLS12,
+			ServerName: addr,
 		}
+
+		opts.TLSConfig.InsecureSkipVerify = true /* #nosec G402 */
 	}
 
 	db := pg.Connect(opts)

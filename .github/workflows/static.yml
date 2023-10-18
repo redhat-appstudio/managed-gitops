@@ -287,10 +287,11 @@ jobs:
         uses: actions/setup-go@v4.1.0
         with:
           go-version-file: './backend/go.mod'
-      - name: "Install mockgen for generating mocks"
+      - name: "Install mockgen and mockery for generating mocks"
         run: |
           cd $GITHUB_WORKSPACE
           go install github.com/golang/mock/mockgen@latest
+          go install github.com/vektra/mockery/v2@v2.36.0
       - name: "Generate mocks"
         run: |
           cd $GITHUB_WORKSPACE

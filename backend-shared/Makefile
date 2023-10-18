@@ -70,7 +70,7 @@ test: fmt vet envtest ## Run tests.
 mocks: ##  generate mocks
 	cd $(shell pwd)/util/mocks && mockgen -build_flags=--mod=mod -destination=mock_client.go -package=mocks sigs.k8s.io/controller-runtime/pkg/client Client
 	cd $(shell pwd)/util/mocks && mockgen -build_flags=--mod=mod -destination=mock_database_queries.go -package=mocks github.com/redhat-appstudio/managed-gitops/backend-shared/db DatabaseQueries
+	cd $(shell pwd)/util/log/mocks && mockgen -build_flags=--mod=mod -destination=log_sink_mock.go -package=mocks github.com/go-logr/logr LogSink
 	cd $(shell pwd)/apis/managed-gitops/v1alpha1/mocks && mockgen -build_flags=--mod=mod -destination=status-writer.go -package=mocks sigs.k8s.io/controller-runtime/pkg/client StatusWriter
 	cd $(shell pwd)/apis/managed-gitops/v1alpha1/mocks && mockgen -build_flags=--mod=mod -destination=cr-client.go -package=mocks sigs.k8s.io/controller-runtime/pkg/client Client
-
 

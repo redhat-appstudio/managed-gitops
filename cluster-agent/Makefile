@@ -262,3 +262,10 @@ clean:
 .PHONY: clean-exec
 clean-exec:
 	rm main
+
+mocks: ##  generate mocks
+	mockery --srcpkg=github.com/argoproj/argo-cd/v2/pkg/apiclient/application --name=ApplicationServiceClient --output $(shell pwd)/utils/mocks
+	mockery --srcpkg=github.com/argoproj/argo-cd/v2/pkg/apiclient --name=Client --output $(shell pwd)/utils/mocks
+	mockery --srcpkg=github.com/argoproj/argo-cd/v2/pkg/apiclient/session --name=SessionServiceClient --output $(shell pwd)/utils/mocks
+	mockery --srcpkg=github.com/argoproj/argo-cd/v2/pkg/apiclient/settings --name=SettingsServiceClient --output $(shell pwd)/utils/mocks
+	mockery --srcpkg=github.com/argoproj/argo-cd/v2/pkg/apiclient/version --name=VersionServiceClient --output $(shell pwd)/utils/mocks

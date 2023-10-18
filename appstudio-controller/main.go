@@ -19,7 +19,6 @@ package main
 import (
 	"flag"
 	"os"
-	"strings"
 
 	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"go.uber.org/zap"
@@ -146,31 +145,6 @@ func main() {
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Environment")
 		os.Exit(1)
-	}
-
-	// If the webhook is not disabled, start listening on the webhook URL
-	if !strings.EqualFold(os.Getenv("DISABLE_APPSTUDIO_WEBHOOK"), "true") {
-
-		setupLog.Info("setting up webhooks")
-		if err = (&applicationv1alpha1.Snapshot{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Snapshot")
-			os.Exit(1)
-		}
-
-		if err = (&applicationv1alpha1.SnapshotEnvironmentBinding{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "SnapshotEnvironmentBinding")
-			os.Exit(1)
-		}
-
-		if err = (&applicationv1alpha1.PromotionRun{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "PromotionRun")
-			os.Exit(1)
-		}
-
-		if err = (&applicationv1alpha1.Environment{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Environment")
-			os.Exit(1)
-		}
 	}
 
 	if err = (&appstudioredhatcomcontrollers.DeploymentTargetClaimReconciler{

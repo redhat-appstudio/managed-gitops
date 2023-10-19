@@ -158,7 +158,7 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateSyncOperationRemoveApplicationField(
 		Application_id: applicationId,
 	}
 
-	res, err := dbq.dbConnection.Model(&operation).Set("application_id = ?", nil).Where("application_id = ?", applicationId).Update()
+	res, err := dbq.dbConnection.Model(&operation).Context(ctx).Set("application_id = ?", nil).Where("application_id = ?", applicationId).Update()
 
 	if err != nil {
 		return 0, err

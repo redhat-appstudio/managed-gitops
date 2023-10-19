@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -196,6 +197,119 @@ var _ = Describe("AppProjectRepository Test", func() {
 			err := dbq.ListAppProjectRepositoryByClusterUserId(ctx, "invalid-ID", &appProjectRepositories)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(appProjectRepositories).To(BeEmpty())
+		})
+	})
+
+	Context("Test UpdateAppProjectRepository function", func() {
+		createSampleAppProjectRepository := func() *db.AppProjectRepository {
+			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
+			Expect(err).ToNot(HaveOccurred())
+
+			var clusterUser = &db.ClusterUser{
+				Clusteruser_id: "test-user-application",
+				User_name:      "test-user-application",
+			}
+			err = dbq.CreateClusterUser(ctx, clusterUser)
+			Expect(err).ToNot(HaveOccurred())
+
+			repoCred := db.RepositoryCredentials{
+				RepositoryCredentialsID: "test-repo-cred-id",
+				UserID:                  clusterUser.Clusteruser_id,
+				PrivateURL:              "https://test-private-url",
+				AuthUsername:            "test-auth-username",
+				AuthPassword:            "test-auth-password",
+				AuthSSHKey:              "test-auth-ssh-key",
+				SecretObj:               "test-secret-obj",
+				EngineClusterID:         gitopsEngineInstance.Gitopsengineinstance_id,
+			}
+
+			By("Inserting the RepositoryCredentials object to the database")
+			err = dbq.CreateRepositoryCredentials(ctx, &repoCred)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Verify whether AppProjectRepository is created")
+			appProjectRepository := db.AppProjectRepository{
+				AppprojectRepositoryID: "test-app-project-repository",
+				Clusteruser_id:         clusterUser.Clusteruser_id,
+				RepoURL:                repoCred.PrivateURL,
+				SeqID:                  int64(seq),
+			}
+
+			err = dbq.CreateAppProjectRepository(ctx, &appProjectRepository)
+			Expect(err).ToNot(HaveOccurred())
+
+			return &appProjectRepository
+		}
+
+		It("should update a valid AppProjectRepository", func() {
+			appProjectRepository := createSampleAppProjectRepository()
+			testURL := "https://private-repo:6443"
+			appProjectRepository.RepoURL = testURL
+
+			err := dbq.UpdateAppProjectRepository(ctx, appProjectRepository)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("verify the updated fields")
+			err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, appProjectRepository)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(appProjectRepository.RepoURL).To(Equal(testURL))
+		})
+
+		It("should return an error if the db connection is nil", func() {
+			dbq = &db.PostgreSQLDatabaseQueries{}
+			err := dbq.UpdateAppProjectRepository(ctx, &db.AppProjectRepository{})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("database connection is nil"))
+		})
+
+		It("should return an error if the repository ID field is not set", func() {
+			appProjectRepository := createSampleAppProjectRepository()
+			testURL := "https://private-repo:6443"
+			appProjectRepository.RepoURL = testURL
+			appProjectRepository.AppprojectRepositoryID = ""
+
+			err := dbq.UpdateAppProjectRepository(ctx, appProjectRepository)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("appproject_repository_id field should not be empty string, in UpdateAppProjectRepository"))
+		})
+
+		It("should return an error if the cluster user ID field is not set", func() {
+			appProjectRepository := createSampleAppProjectRepository()
+			testURL := "https://private-repo:6443"
+			appProjectRepository.RepoURL = testURL
+			appProjectRepository.Clusteruser_id = ""
+
+			err := dbq.UpdateAppProjectRepository(ctx, appProjectRepository)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("clusteruser_id field should not be empty string, in UpdateAppProjectRepository"))
+		})
+
+		It("should return an error if the repo URL field is not set", func() {
+			appProjectRepository := createSampleAppProjectRepository()
+			appProjectRepository.RepoURL = ""
+
+			err := dbq.UpdateAppProjectRepository(ctx, appProjectRepository)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("repo_url field should not be empty string, in UpdateAppProjectRepository"))
+		})
+
+		It("should return an error if the db query fails", func() {
+			appProjectRepository := createSampleAppProjectRepository()
+			testURL := "https://private-repo:6443"
+			appProjectRepository.RepoURL = testURL
+
+			err := dbq.UpdateAppProjectRepository(getExpiredContext(), appProjectRepository)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("error on updating appProjectRepository context deadline exceeded"))
+		})
+
+		It("should return an error if one of the fields exceeds the maximum length", func() {
+			appProjectRepository := createSampleAppProjectRepository()
+			appProjectRepository.RepoURL = strings.Repeat("s", 257)
+
+			err := dbq.UpdateAppProjectRepository(getExpiredContext(), appProjectRepository)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("RepoURL value exceeds maximum size: max: 256, actual: 257"))
 		})
 	})
 

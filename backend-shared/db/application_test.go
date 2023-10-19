@@ -206,4 +206,62 @@ var _ = Describe("Application Test", func() {
 			Expect(apps).To(BeEmpty())
 		})
 	})
+
+	Context("Test RemoveManagedEnvironmentFromAllApplications function", func() {
+		It("should remove environment ID from the target applications", func() {
+			By("create Applications pointing to a given ManagedEnvironment")
+			appCount := 5
+			for i := 0; i < appCount; i++ {
+				app := &db.Application{
+					Application_id:          fmt.Sprintf("test-app-%d", i),
+					Name:                    fmt.Sprintf("sample-app-%d", i),
+					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+					Spec_field:              "sample-spec",
+				}
+
+				err := dbq.CreateApplication(ctx, app)
+				Expect(err).ToNot(HaveOccurred())
+			}
+
+			apps := &[]db.Application{}
+			rows, err := dbq.RemoveManagedEnvironmentFromAllApplications(ctx, managedEnvironment.Managedenvironment_id, apps)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(rows).To(Equal(appCount))
+
+			By("verify if the Environment ID is removed")
+			for i := 0; i < appCount; i++ {
+				app := &db.Application{
+					Application_id: fmt.Sprintf("test-app-%d", i),
+				}
+
+				err := dbq.GetApplicationById(ctx, app)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(app.Managed_environment_id).To(BeEmpty())
+			}
+		})
+
+		It("should return an error if the ManagedEnvironment ID is not set", func() {
+			rows, err := dbq.RemoveManagedEnvironmentFromAllApplications(ctx, "", &[]db.Application{})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("primary key is empty"))
+			Expect(rows).To(BeZero())
+		})
+
+		It("should return an error if the db connection is nil", func() {
+			dbq = &db.PostgreSQLDatabaseQueries{}
+			rows, err := dbq.RemoveManagedEnvironmentFromAllApplications(ctx, "", &[]db.Application{})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("database connection is nil"))
+			Expect(rows).To(BeZero())
+		})
+
+		It("should throw an error if the DB query fails", func() {
+			expiredCtx := getExpiredContext()
+			rows, err := dbq.RemoveManagedEnvironmentFromAllApplications(expiredCtx, managedEnvironment.Managedenvironment_id, &[]db.Application{})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("unable to retrieve applications with managed environment id: context deadline exceeded"))
+			Expect(rows).To(BeZero())
+		})
+	})
 })

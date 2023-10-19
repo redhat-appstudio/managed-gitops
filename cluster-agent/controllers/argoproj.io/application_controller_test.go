@@ -755,7 +755,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			log := log.FromContext(ctx)
 
 			// Call function for workSpace/Namespace reconciler
-			syncCRsWithDB_Applications(ctx, reconciler.DB, reconciler.Client, log)
+			Expect(syncCRsWithDB_Applications(ctx, reconciler.DB, reconciler.Client, log)).To(Succeed())
 
 			// We are using a fake k8s client and because of that we can not check if ArgoCD application has been created/updated.
 			// We will just check if k8s Operation created or not.
@@ -797,7 +797,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			log := log.FromContext(ctx)
 
 			// Call function for workSpace/Namespace reconciler
-			syncCRsWithDB_Applications(ctx, reconciler.DB, reconciler.Client, log)
+			Expect(syncCRsWithDB_Applications(ctx, reconciler.DB, reconciler.Client, log)).To(Succeed())
 
 			// We are using a fake k8s client and because of that we can not check if ArgoCD application has been created/updated.
 			// We will just check if k8s Operation and DB entries are created and assume that in actual environment ArgoCD will pick up this Operation and update/create the application.
@@ -837,7 +837,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			log := log.FromContext(ctx)
 
 			// Call function for workSpace/Namespace reconciler
-			syncCRsWithDB_Applications(ctx, reconciler.DB, reconciler.Client, log)
+			Expect(syncCRsWithDB_Applications(ctx, reconciler.DB, reconciler.Client, log)).To(Succeed())
 
 			// We are using a fake k8s client and because of that we can not check if ArgoCD application has been created/updated.
 			// We will just check if k8s Operation and DB entries are created and assume that in actual environment ArgoCD will pick up this Operation and update/create the application.

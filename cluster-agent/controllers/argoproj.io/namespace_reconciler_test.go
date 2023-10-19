@@ -56,7 +56,8 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			processedApplicationIds := map[string]any{"test-my-application-3": false, "test-my-application-5": false}
 
-			deletedArgoApplications := cleanOrphanedCRsfromCluster_Applications(argoApplications, processedApplicationIds, ctx, reconciler.Client, log)
+			deletedArgoApplications, err := cleanOrphanedCRsfromCluster_Applications(ctx, argoApplications, processedApplicationIds, reconciler.Client, log)
+			Expect(err).To(Succeed())
 
 			Expect(deletedArgoApplications).To(HaveLen(3))
 
@@ -172,7 +173,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			Expect(listOfK8sOperationFirst.Items).NotTo(BeEmpty())
 
 			// Clean Operations
-			syncCRsWithDB_Applications_Delete_Operations(ctx, dbQueries, reconciler.Client, log)
+			Expect(syncCRsWithDB_Applications_Delete_Operations(ctx, dbQueries, reconciler.Client, log)).To(Succeed())
 
 			// Get list of Operations after cleanup.
 			listOfK8sOperationSecond := managedgitopsv1alpha1.OperationList{}
@@ -205,7 +206,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			Expect(listOfK8sOperationFirst.Items).NotTo(BeEmpty())
 
 			// Clean Operations
-			syncCRsWithDB_Applications_Delete_Operations(ctx, dbQueries, reconciler.Client, log)
+			Expect(syncCRsWithDB_Applications_Delete_Operations(ctx, dbQueries, reconciler.Client, log)).To(Succeed())
 
 			// Get list of Operations after cleanup.
 			listOfK8sOperationSecond := managedgitopsv1alpha1.OperationList{}
@@ -324,7 +325,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Call cleanOrphanedCRsfromCluster_Secret function.")
 
-			cleanOrphanedCRsfromCluster_Secret(ctx, dbq, k8sClient, log)
+			Expect(cleanOrphanedCRsfromCluster_Secret(ctx, dbq, k8sClient, log)).To(Succeed())
 
 			By("Verify RepositoryCredentials DB entry still exists.")
 
@@ -348,7 +349,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Call cleanOrphanedCRsfromCluster_Secret function.")
 
-			cleanOrphanedCRsfromCluster_Secret(ctx, dbq, k8sClient, log)
+			Expect(cleanOrphanedCRsfromCluster_Secret(ctx, dbq, k8sClient, log)).To(Succeed())
 
 			By("Verify repository secret from cluster is deleted.")
 
@@ -384,7 +385,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Call cleanOrphanedCRsfromCluster_Secret function.")
 
-			cleanOrphanedCRsfromCluster_Secret(ctx, dbq, k8sClient, log)
+			Expect(cleanOrphanedCRsfromCluster_Secret(ctx, dbq, k8sClient, log)).To(Succeed())
 
 			By("Verify ManagedEnvironment DB entry still exists.")
 
@@ -408,7 +409,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Call cleanOrphanedCRsfromCluster_Secret function.")
 
-			cleanOrphanedCRsfromCluster_Secret(ctx, dbq, k8sClient, log)
+			Expect(cleanOrphanedCRsfromCluster_Secret(ctx, dbq, k8sClient, log)).To(Succeed())
 
 			By("Verify cluster secret from cluster is deleted.")
 
@@ -428,7 +429,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Call cleanOrphanedCRsfromCluster_Secret function.")
 
-			cleanOrphanedCRsfromCluster_Secret(ctx, dbq, k8sClient, log)
+			Expect(cleanOrphanedCRsfromCluster_Secret(ctx, dbq, k8sClient, log)).To(Succeed())
 
 			By("Verify cluster secret from cluster is deleted.")
 
@@ -449,7 +450,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Call cleanOrphanedCRsfromCluster_Secret function.")
 
-			cleanOrphanedCRsfromCluster_Secret(ctx, dbq, k8sClient, log)
+			Expect(cleanOrphanedCRsfromCluster_Secret(ctx, dbq, k8sClient, log)).To(Succeed())
 
 			By("Verify cluster secret from cluster is deleted.")
 
@@ -470,7 +471,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Call cleanOrphanedCRsfromCluster_Secret function.")
 
-			cleanOrphanedCRsfromCluster_Secret(ctx, dbq, k8sClient, log)
+			Expect(cleanOrphanedCRsfromCluster_Secret(ctx, dbq, k8sClient, log)).To(Succeed())
 
 			By("Verify cluster secret from cluster is deleted.")
 
@@ -537,7 +538,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Calling cleanOrphanedCRsfromCluster_Operation function to delete orphaned Operation CR, if corresponding DB entry is not present.")
 
-			cleanOrphanedCRsfromCluster_Operation(ctx, dbq, k8sClient, log)
+			Expect(cleanOrphanedCRsfromCluster_Operation(ctx, dbq, k8sClient, log)).To(Succeed())
 
 			By("Verify that orphaned Operation CRs without a DB entry are deleted.")
 
@@ -582,7 +583,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Calling cleanOrphanedCRsfromCluster_Operation function to delete orphaned Operation CR, if corresponding DB entry is not present.")
 
-			cleanOrphanedCRsfromCluster_Operation(ctx, dbq, k8sClient, log)
+			Expect(cleanOrphanedCRsfromCluster_Operation(ctx, dbq, k8sClient, log)).To(Succeed())
 
 			By("Verify that Operation CRs with a valid DB entry are not deleted.")
 
@@ -620,7 +621,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Calling cleanOrphanedCRsfromCluster_Operation function to delete orphaned Operation CR, if corresponding DB entry is not present.")
 
-			cleanOrphanedCRsfromCluster_Operation(ctx, dbq, k8sClient, log)
+			Expect(cleanOrphanedCRsfromCluster_Operation(ctx, dbq, k8sClient, log)).To(Succeed())
 
 			By("Verify that Operation CR with valid DB entry is not deleted.")
 
@@ -671,7 +672,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Calling cleanOrphanedCRsfromCluster_Operation function to delete orphaned Operation CR, if corresponding DB entry is not present.")
 
-			cleanOrphanedCRsfromCluster_Operation(ctx, dbq, k8sClient, log)
+			Expect(cleanOrphanedCRsfromCluster_Operation(ctx, dbq, k8sClient, log)).To(Succeed())
 
 			By("Verify that Operation CRs with a valid DB entry but marked as Completed is deleted.")
 
@@ -706,7 +707,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Calling cleanOrphanedCRsfromCluster_Operation function to delete orphaned Operation CR, if corresponding DB entry is not present.")
 
-			cleanOrphanedCRsfromCluster_Operation(ctx, dbq, k8sClient, log)
+			Expect(cleanOrphanedCRsfromCluster_Operation(ctx, dbq, k8sClient, log)).To(Succeed())
 
 			By("Verify that Operation CRs is not deleted.")
 
@@ -741,7 +742,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Calling cleanOrphanedCRsfromCluster_Operation function to delete orphaned Operation CR, if corresponding DB entry is not present.")
 
-			cleanOrphanedCRsfromCluster_Operation(ctx, dbq, k8sClient, log)
+			Expect(cleanOrphanedCRsfromCluster_Operation(ctx, dbq, k8sClient, log)).To(Succeed())
 
 			By("Verify that Operation CRs is not deleted.")
 
@@ -873,7 +874,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Call function to recreate Secret if missing from cluster.")
 
-			recreateClusterSecrets(ctx, dbq, k8sClient, log)
+			Expect(recreateClusterSecrets(ctx, dbq, k8sClient, log)).To(Succeed())
 
 			By("Get list of Operations after calling function.")
 
@@ -894,7 +895,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Call function to recreate Secret if missing from cluster.")
 
-			recreateClusterSecrets(ctx, dbq, k8sClient, log)
+			Expect(recreateClusterSecrets(ctx, dbq, k8sClient, log)).To(Succeed())
 
 			By("Get list of Operations after calling function.")
 
@@ -911,7 +912,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Call function to recreate Secret if missing from cluster.")
 
-			recreateClusterSecrets(ctx, dbq, k8sClient, log)
+			Expect(recreateClusterSecrets(ctx, dbq, k8sClient, log)).To(Succeed())
 
 			By("Get list of Operations after calling function.")
 
@@ -945,7 +946,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Call function to recreate Secret if missing from cluster.")
 
-			recreateClusterSecrets(ctx, dbq, k8sClient, log)
+			Expect(recreateClusterSecrets(ctx, dbq, k8sClient, log)).To(Succeed())
 
 			By("Get list of Operations after calling function.")
 
@@ -1060,7 +1061,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Call function to recreate Secret if missing from cluster.")
 
-			recreateClusterSecrets(ctx, dbq, k8sClient, log)
+			Expect(recreateClusterSecrets(ctx, dbq, k8sClient, log)).To(Succeed())
 
 			By("Get list of Operations after calling function.")
 
@@ -1081,7 +1082,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Call function to recreate Secret if missing from cluster.")
 
-			recreateClusterSecrets(ctx, dbq, k8sClient, log)
+			Expect(recreateClusterSecrets(ctx, dbq, k8sClient, log)).To(Succeed())
 
 			By("Get list of Operations after calling function.")
 
@@ -1098,7 +1099,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Call function to recreate Secret if missing from cluster.")
 
-			recreateClusterSecrets(ctx, dbq, k8sClient, log)
+			Expect(recreateClusterSecrets(ctx, dbq, k8sClient, log)).To(Succeed())
 
 			By("Get list of Operations after calling function.")
 

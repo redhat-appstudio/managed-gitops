@@ -154,4 +154,45 @@ var _ = Describe("Apicrtodatabasemapping Tests", func() {
 
 		})
 	})
+
+	Context("Test GetAPICRForDatabaseUID function", func() {
+		It("should return APICRToDatabaseMapping for a valid resource", func() {
+			expectedAPICRMapping := &db.APICRToDatabaseMapping{
+				DBRelationKey:   item.DBRelationKey,
+				DBRelationType:  item.DBRelationType,
+				APIResourceType: item.APIResourceType,
+			}
+			err = dbq.GetAPICRForDatabaseUID(ctx, expectedAPICRMapping)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(*expectedAPICRMapping).To(Equal(item))
+		})
+
+		It("should return an error if the db connection is nil", func() {
+			dbq = &db.PostgreSQLDatabaseQueries{}
+			err = dbq.GetAPICRForDatabaseUID(ctx, &item)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("database connection is nil"))
+		})
+
+		It("should return an error if the db query fails", func() {
+			expectedAPICRMapping := &db.APICRToDatabaseMapping{
+				DBRelationKey:   item.DBRelationKey,
+				DBRelationType:  item.DBRelationType,
+				APIResourceType: item.APIResourceType,
+			}
+			err = dbq.GetAPICRForDatabaseUID(getExpiredContext(), expectedAPICRMapping)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("error on retrieving database mapping for APICRToDatabase: context deadline exceeded"))
+		})
+
+		It("should return an error if the input APICRMapping doesn't have relation key set", func() {
+			expectedAPICRMapping := &db.APICRToDatabaseMapping{
+				DBRelationType:  item.DBRelationType,
+				APIResourceType: item.APIResourceType,
+			}
+			err = dbq.GetAPICRForDatabaseUID(ctx, expectedAPICRMapping)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("DBRelationKey field should not be empty string, in GetAPICRForDatabaseUID"))
+		})
+	})
 })

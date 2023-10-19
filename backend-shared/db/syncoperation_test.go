@@ -212,4 +212,38 @@ var _ = Describe("SyncOperation Tests", func() {
 
 		})
 	})
+
+	Context("Test UpdateSyncOperationRemoveApplicationField function", func() {
+		It("should remove the Application ID from a valid SyncOperation", func() {
+			rows, err := dbq.UpdateSyncOperationRemoveApplicationField(ctx, insertRow.Application_id)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(rows).To(Equal(1))
+
+			err = dbq.GetSyncOperationById(ctx, &insertRow)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(insertRow.Application_id).To(BeEmpty())
+		})
+
+		It("should return an error if db connection is nil", func() {
+			dbq = &db.PostgreSQLDatabaseQueries{}
+			rows, err := dbq.UpdateSyncOperationRemoveApplicationField(ctx, insertRow.Application_id)
+			Expect(err).To(HaveOccurred())
+			Expect(rows).To(BeZero())
+			Expect(err.Error()).To(Equal("database connection is nil"))
+		})
+
+		It("should return an error if Application ID is empty", func() {
+			rows, err := dbq.UpdateSyncOperationRemoveApplicationField(ctx, "")
+			Expect(err).To(HaveOccurred())
+			Expect(rows).To(BeZero())
+			Expect(err.Error()).To(Equal("applicationId field should not be empty string, in UpdateOperationRemoveApplicationField"))
+		})
+
+		It("should return an error if the db query fails", func() {
+			rows, err := dbq.UpdateSyncOperationRemoveApplicationField(getExpiredContext(), insertRow.Application_id)
+			Expect(err).To(HaveOccurred())
+			Expect(rows).To(BeZero())
+			Expect(err.Error()).To(Equal("context deadline exceeded"))
+		})
+	})
 })

@@ -46,6 +46,40 @@ type EventLoopEvent struct {
 	WorkspaceID string
 }
 
+// EventsMatch returns "" if the events match, otherwise returns a string indicating which field did not match
+func EventsMatch(one *EventLoopEvent, two *EventLoopEvent) string {
+	if one == nil && two == nil {
+		return ""
+	}
+
+	if (one == nil && two != nil) || (one != nil && two == nil) {
+		return "nil mismatch"
+	}
+
+	if one.EventType != two.EventType {
+		return "eventtype mismatch"
+	}
+
+	if one.ReqResource != two.ReqResource {
+		return "reqresource mismatch"
+	}
+
+	if one.Request.Name != two.Request.Name {
+		return "request name mismatch"
+	}
+
+	if one.Request.Namespace != two.Request.Namespace {
+		return "request namespace mismatch"
+	}
+
+	if one.WorkspaceID != two.WorkspaceID {
+		return "workspaceid mismatch"
+	}
+
+	return ""
+
+}
+
 // Packages an EventLoopEvent as a message between event loop channels.
 // - The type of messages depends on the MessageType
 type EventLoopMessage struct {

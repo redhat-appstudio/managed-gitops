@@ -121,7 +121,9 @@ func (g *garbageCollector) startGarbageCollectionCycle() {
 				return nil
 			})
 
-			log.Error(err, "error in garbage collector")
+			if err != nil {
+				log.Error(err, "error in garbage collector")
+			}
 
 		}
 	}()

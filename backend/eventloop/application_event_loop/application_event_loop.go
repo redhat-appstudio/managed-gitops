@@ -306,10 +306,11 @@ func processApplicationEventQueueLoopMessage(ctx context.Context, newEvent Reque
 		} else if eventLoopMessage.ReqResource == eventlooptypes.GitOpsDeploymentTypeName ||
 			eventLoopMessage.ReqResource == eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName {
 
-			if state.activeDeploymentEvent.Message.Event != newEvent.Message.Event {
+			if mismatchingField := eventlooptypes.EventsMatch(state.activeDeploymentEvent.Message.Event, newEvent.Message.Event); mismatchingField != "" {
 				log.Error(nil, "SEVERE: unmatched deployment event work item",
-					"activeDeploymentEvent", eventlooptypes.StringEventLoopEvent(state.activeDeploymentEvent.Message.Event))
+					"activeDeploymentEvent", eventlooptypes.StringEventLoopEvent(state.activeDeploymentEvent.Message.Event), "newEvent", "activeDeploymentEvent", eventlooptypes.StringEventLoopEvent(newEvent.Message.Event), "mismatchingField", mismatchingField)
 			}
+
 			state.activeDeploymentEvent = nil
 
 			state.deploymentEventRunnerShutdown = newEvent.Message.ShutdownSignalled
@@ -319,10 +320,12 @@ func processApplicationEventQueueLoopMessage(ctx context.Context, newEvent Reque
 
 		} else if eventLoopMessage.ReqResource == eventlooptypes.GitOpsDeploymentSyncRunTypeName {
 
-			if state.activeSyncOperationEvent.Message.Event != newEvent.Message.Event {
+			if mismatchingField := eventlooptypes.EventsMatch(state.activeSyncOperationEvent.Message.Event, newEvent.Message.Event); mismatchingField != "" {
 				log.Error(nil, "SEVERE: unmatched sync operation event work item",
-					"activeSyncOperationEvent", eventlooptypes.StringEventLoopEvent(state.activeSyncOperationEvent.Message.Event))
+					"activeSyncOperationEvent", eventlooptypes.StringEventLoopEvent(state.activeSyncOperationEvent.Message.Event),
+					"newEvent", eventlooptypes.StringEventLoopEvent(newEvent.Message.Event), "mismatchingField", mismatchingField)
 			}
+
 			state.activeSyncOperationEvent = nil
 			state.syncOperationEventRunnerShutdown = newEvent.Message.ShutdownSignalled
 			if state.syncOperationEventRunnerShutdown {

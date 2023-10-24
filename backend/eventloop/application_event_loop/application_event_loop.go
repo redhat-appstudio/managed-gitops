@@ -308,7 +308,9 @@ func processApplicationEventQueueLoopMessage(ctx context.Context, newEvent Reque
 
 			if mismatchingField := eventlooptypes.EventsMatch(state.activeDeploymentEvent.Message.Event, newEvent.Message.Event); mismatchingField != "" {
 				log.Error(nil, "SEVERE: unmatched deployment event work item",
-					"activeDeploymentEvent", eventlooptypes.StringEventLoopEvent(state.activeDeploymentEvent.Message.Event), "newEvent", "activeDeploymentEvent", eventlooptypes.StringEventLoopEvent(newEvent.Message.Event), "mismatchingField", mismatchingField)
+					"activeDeploymentEvent", eventlooptypes.StringEventLoopEvent(state.activeDeploymentEvent.Message.Event),
+					"newEvent", eventlooptypes.StringEventLoopEvent(newEvent.Message.Event),
+					"mismatchingField", mismatchingField)
 			}
 
 			state.activeDeploymentEvent = nil
@@ -323,7 +325,8 @@ func processApplicationEventQueueLoopMessage(ctx context.Context, newEvent Reque
 			if mismatchingField := eventlooptypes.EventsMatch(state.activeSyncOperationEvent.Message.Event, newEvent.Message.Event); mismatchingField != "" {
 				log.Error(nil, "SEVERE: unmatched sync operation event work item",
 					"activeSyncOperationEvent", eventlooptypes.StringEventLoopEvent(state.activeSyncOperationEvent.Message.Event),
-					"newEvent", eventlooptypes.StringEventLoopEvent(newEvent.Message.Event), "mismatchingField", mismatchingField)
+					"newEvent", eventlooptypes.StringEventLoopEvent(newEvent.Message.Event),
+					"mismatchingField", mismatchingField)
 			}
 
 			state.activeSyncOperationEvent = nil

@@ -573,7 +573,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 					ParentEnvironment:  "",
 					Tags:               []string{},
 					Configuration: appstudiosharedv1.EnvironmentConfiguration{
-						Env: []appstudiosharedv1.EnvVarPair{},
+						Env: []appstudiosharedv1.EnvVarPair{
+							{Name: "e1", Value: "v1"},
+						},
 					},
 					// The cluster doesn't need to be real for this test
 					UnstableConfigurationFields: &appstudiosharedv1.UnstableEnvironmentConfiguration{
@@ -664,7 +666,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 				Expect(ok).To(BeTrue())
 				envObj.Spec.UnstableConfigurationFields = nil
 				envObj.Spec.Configuration = appstudiosharedv1.EnvironmentConfiguration{
-					Env: []appstudiosharedv1.EnvVarPair{},
+					Env: []appstudiosharedv1.EnvVarPair{
+						{Name: "e1", Value: "v1"},
+					},
 					Target: appstudiosharedv1.EnvironmentTarget{
 						DeploymentTargetClaim: appstudiosharedv1.DeploymentTargetClaimConfig{
 							ClaimName: dtc.Name,
@@ -698,7 +702,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 				Expect(ok).To(BeTrue())
 
 				envObj.Spec.Configuration = appstudiosharedv1.EnvironmentConfiguration{
-					Env: []appstudiosharedv1.EnvVarPair{},
+					Env: []appstudiosharedv1.EnvVarPair{
+						{Name: "e1", Value: "v1"},
+					},
 				}
 				envObj.Spec.UnstableConfigurationFields = &appstudiosharedv1.UnstableEnvironmentConfiguration{
 					KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{

@@ -40,6 +40,7 @@ import (
 	gitopsdeploymentv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 
 	appstudioredhatcomcontrollers "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
+	"github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/webhooks"
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
@@ -152,25 +153,7 @@ func main() {
 	if !strings.EqualFold(os.Getenv("DISABLE_APPSTUDIO_WEBHOOK"), "true") {
 
 		setupLog.Info("setting up webhooks")
-		if err = (&applicationv1alpha1.Snapshot{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Snapshot")
-			os.Exit(1)
-		}
-
-		if err = (&applicationv1alpha1.SnapshotEnvironmentBinding{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "SnapshotEnvironmentBinding")
-			os.Exit(1)
-		}
-
-		if err = (&applicationv1alpha1.PromotionRun{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "PromotionRun")
-			os.Exit(1)
-		}
-
-		if err = (&applicationv1alpha1.Environment{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Environment")
-			os.Exit(1)
-		}
+		setUpWebhooks(mgr)
 	}
 
 	if err = (&appstudioredhatcomcontrollers.DeploymentTargetClaimReconciler{
@@ -220,6 +203,15 @@ func main() {
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
+		os.Exit(1)
+	}
+}
+
+// setUpWebhooks sets up webhooks.
+func setUpWebhooks(mgr ctrl.Manager) {
+	err := webhooks.SetupWebhooks(mgr, webhooks.EnabledWebhooks...)
+	if err != nil {
+		setupLog.Error(err, "unable to setup webhooks")
 		os.Exit(1)
 	}
 }

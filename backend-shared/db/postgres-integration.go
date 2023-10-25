@@ -60,8 +60,6 @@ func ConnectToDatabaseWithPort(verbose bool, port int) (*pg.DB, error) {
 			MinVersion: tls.VersionTLS12,
 			ServerName: addr,
 		}
-
-		opts.TLSConfig.InsecureSkipVerify = true /* #nosec G402 */
 	}
 
 	db := pg.Connect(opts)

@@ -44,6 +44,11 @@ WORKDIR /
 RUN mkdir -p /migrations
 RUN mkdir -p /init-container
 
+# Add Amazon public CA certs to system root CA, to allow us to validate Amazon RDS TLS connections.
+# - More information on Amazon TLS certs is available here: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html
+RUN curl -o /etc/pki/ca-trust/source/anchors/global-bundle.pem https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem \
+	&& update-ca-trust
+
 # Copy both the controller binaries into the $PATH so they can be invoked
 COPY --from=builder workspace/backend/bin/manager /usr/local/bin/gitops-service-backend
 COPY --from=builder workspace/cluster-agent/bin/manager /usr/local/bin/gitops-service-cluster-agent

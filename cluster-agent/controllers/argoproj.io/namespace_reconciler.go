@@ -172,7 +172,11 @@ func syncCRsWithDB_Applications(ctx context.Context, dbQueries db.DatabaseQuerie
 	}
 
 	// Start a goroutine, because DeleteArgoCDApplication() function from cluster-agent/controllers may take some time to delete application.
-	go cleanOrphanedCRsfromCluster_Applications(ctx, argoApplications, processedApplicationIds, client, log)
+	go func() {
+		if _, err := cleanOrphanedCRsfromCluster_Applications(ctx, argoApplications, processedApplicationIds, client, log); err != nil {
+			log.Error(err, "unable to cleanOrphaned Argo CD Applications")
+		}
+	}()
 
 	return res
 }

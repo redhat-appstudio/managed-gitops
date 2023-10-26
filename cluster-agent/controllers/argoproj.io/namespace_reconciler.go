@@ -969,7 +969,7 @@ func getListOfRepositoryCredentialsFromTable(ctx context.Context, dbQueries db.D
 		if err := dbQueries.GetRepositoryCredentialsBatch(ctx, &tempList, appRowBatchSize, offset); err != nil {
 			log.Error(err, fmt.Sprintf("Error occurred in cleanOrphanedEntriesfromTable_ClusterUser while fetching batch from Offset: %d to %d: ",
 				offset, offset+appRowBatchSize))
-			if res != nil {
+			if res == nil {
 				res = fmt.Errorf("error occurred in cleanOrphanedEntriesfromTable_ClusterUser while fetching batch from Offset: %w", err)
 			}
 			break

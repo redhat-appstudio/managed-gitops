@@ -451,7 +451,7 @@ func locateOrCreateTargetManualBinding(ctx context.Context, promotionRun appstud
 	for _, component := range componentList.Items {
 		if component.Spec.Application == promotionRun.Spec.Application {
 			components = append(components, appstudioshared.BindingComponent{
-				Name: component.Spec.ComponentName,
+				Name: component.Name,
 			})
 		}
 	}

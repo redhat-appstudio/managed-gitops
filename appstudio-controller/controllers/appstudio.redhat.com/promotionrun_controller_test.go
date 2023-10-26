@@ -294,8 +294,8 @@ var _ = Describe("PromotionRunController Reconciler Tests", func() {
 			Expect(binding.Spec.Environment).To(Equal(promotionRun.Spec.ManualPromotion.TargetEnvironment))
 			Expect(binding.Spec.Snapshot).To(Equal(promotionRun.Spec.Snapshot))
 			Expect(binding.Spec.Components).To(HaveLen(2))
-			Expect(binding.Spec.Components[0].Name).To(Equal(component1.Spec.ComponentName))
-			Expect(binding.Spec.Components[1].Name).To(Equal(component2.Spec.ComponentName))
+			Expect(binding.Spec.Components[0].Name).To(Equal(component1.Name))
+			Expect(binding.Spec.Components[1].Name).To(Equal(component2.Name))
 		})
 
 		It("Should create a binding name no greater than 250 characters.", func() {
@@ -341,8 +341,8 @@ var _ = Describe("PromotionRunController Reconciler Tests", func() {
 			Expect(binding.Spec.Environment).To(Equal(promotionRun.Spec.ManualPromotion.TargetEnvironment))
 			Expect(binding.Spec.Snapshot).To(Equal(promotionRun.Spec.Snapshot))
 			Expect(binding.Spec.Components).To(HaveLen(2))
-			Expect(binding.Spec.Components[0].Name).To(Equal(component1.Spec.ComponentName))
-			Expect(binding.Spec.Components[1].Name).To(Equal(component2.Spec.ComponentName))
+			Expect(binding.Spec.Components[0].Name).To(Equal(component1.Name))
+			Expect(binding.Spec.Components[1].Name).To(Equal(component2.Name))
 		})
 
 		It("Should not create the binding for the application if one is already present that targets the application and the environment.", func() {
@@ -421,8 +421,8 @@ var _ = Describe("PromotionRunController Reconciler Tests", func() {
 			Expect(binding.Spec.Application).To(Equal(promotionRun.Spec.Application))
 			Expect(binding.Spec.Environment).To(Equal(promotionRun.Spec.ManualPromotion.TargetEnvironment))
 			Expect(binding.Spec.Snapshot).To(Equal(promotionRun.Spec.Snapshot))
-			Expect(binding.Spec.Components[0].Name).To(Equal(component1.Spec.ComponentName))
-			Expect(binding.Spec.Components[1].Name).To(Equal(component2.Spec.ComponentName))
+			Expect(binding.Spec.Components[0].Name).To(Equal(component1.Name))
+			Expect(binding.Spec.Components[1].Name).To(Equal(component2.Name))
 		})
 
 		It("Should create the binding for the application even if there exists a binding that targets the environment but NOT the application.", func() {
@@ -465,8 +465,8 @@ var _ = Describe("PromotionRunController Reconciler Tests", func() {
 			Expect(binding.Spec.Application).To(Equal(promotionRun.Spec.Application))
 			Expect(binding.Spec.Environment).To(Equal(promotionRun.Spec.ManualPromotion.TargetEnvironment))
 			Expect(binding.Spec.Snapshot).To(Equal(promotionRun.Spec.Snapshot))
-			Expect(binding.Spec.Components[0].Name).To(Equal(component1.Spec.ComponentName))
-			Expect(binding.Spec.Components[1].Name).To(Equal(component2.Spec.ComponentName))
+			Expect(binding.Spec.Components[0].Name).To(Equal(component1.Name))
+			Expect(binding.Spec.Components[1].Name).To(Equal(component2.Name))
 		})
 
 		It("PromotionRun Reconciler should successfully locate and use the Binding CR created for given PromotionRun CR.", func() {

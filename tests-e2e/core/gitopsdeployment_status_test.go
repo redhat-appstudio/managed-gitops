@@ -201,19 +201,29 @@ var _ = Describe("GitOpsDeployment Status.Conditions tests", func() {
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
-			errMessage := `rpc error: code = Unknown desc = authentication required`
-			expectedConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{
+			preArgoCDv18ExpectedConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{
 				{
 					Type:    managedgitopsv1alpha1.ApplicationConditionComparisonError,
-					Message: errMessage,
+					Message: `rpc error: code = Unknown desc = authentication required`,
+					Status:  managedgitopsv1alpha1.GitOpsConditionStatusTrue,
+					Reason:  managedgitopsv1alpha1.ApplicationConditionComparisonError,
+				},
+			}
+
+			// In Argo CD v1.8+, the condition error message has changed
+			argoCDv18ExpectedConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{
+				{
+					Type:    managedgitopsv1alpha1.ApplicationConditionComparisonError,
+					Message: `Failed to load target state: failed to generate manifest for source 1 of 1: rpc error: code = Unknown desc = authentication required`,
 					Status:  managedgitopsv1alpha1.GitOpsConditionStatusTrue,
 					Reason:  managedgitopsv1alpha1.ApplicationConditionComparisonError,
 				},
 			}
 
 			Eventually(gitOpsDeploymentResource, "5m", "1s").Should(
-				SatisfyAll(
-					gitopsDeplFixture.HaveConditions(expectedConditions),
+				SatisfyAny(
+					gitopsDeplFixture.HaveConditions(preArgoCDv18ExpectedConditions),
+					gitopsDeplFixture.HaveConditions(argoCDv18ExpectedConditions),
 				),
 			)
 		})

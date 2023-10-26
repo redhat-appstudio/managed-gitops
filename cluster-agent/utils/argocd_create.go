@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -312,15 +313,20 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 	}
 	actualServiceAccount := &corev1.ServiceAccount{}
 
-	err := k8sClient.Get(ctx, client.ObjectKeyFromObject(serviceAccount), actualServiceAccount)
-	if err == nil {
-		// It already exists, so we update it
+	// Update the service account if it already exists
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(serviceAccount), actualServiceAccount); err != nil {
+			return err
+		}
+
 		actualServiceAccount.Secrets = serviceAccount.Secrets
 		actualServiceAccount.ImagePullSecrets = serviceAccount.ImagePullSecrets
 		actualServiceAccount.AutomountServiceAccountToken = serviceAccount.AutomountServiceAccountToken
-		if err := k8sClient.Update(ctx, actualServiceAccount); err != nil {
-			return fmt.Errorf("error on Update service account: %w", err)
-		}
+
+		return k8sClient.Update(ctx, actualServiceAccount)
+	})
+
+	if err == nil {
 		logutil.LogAPIResourceChangeEvent(actualServiceAccount.Namespace, actualServiceAccount.Name, actualServiceAccount, logutil.ResourceModified, log)
 	} else if apierr.IsNotFound(err) {
 		// It doesn't exist, so we create it
@@ -330,7 +336,7 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 		logutil.LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, logutil.ResourceCreated, log)
 	} else {
 		// Some other error occurred
-		return fmt.Errorf("error on Get service account: %w", err)
+		return fmt.Errorf("error while handling service account: %w", err)
 	}
 
 	secret := &corev1.Secret{

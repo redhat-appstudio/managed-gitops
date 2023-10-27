@@ -643,7 +643,7 @@ func createNewManagedEnv(ctx context.Context, managedEnvironment managedgitopsv1
 	return managedEnv, createSuccessEnvInitCondition(managedEnvironment), userError_false, err
 }
 
-func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string, managedEnvCR *db.ManagedEnvironment, user db.ClusterUser,
+func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string, managedEnvDB *db.ManagedEnvironment, user db.ClusterUser,
 	k8sClientFactory SRLK8sClientFactory, dbQueries db.DatabaseQueries, log logr.Logger) error {
 
 	log = log.WithValues("managedEnvID", managedEnvID)
@@ -758,13 +758,13 @@ func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 	log.Info("Deleted ManagedEnvironment row")
 
 	// 6) Delete the cluster credentials row of the managed environment
-	if managedEnvCR != nil {
-		log := log.WithValues("clusterCredentialsId", managedEnvCR.Clustercredentials_id)
+	if managedEnvDB != nil {
+		log := log.WithValues("clusterCredentialsId", managedEnvDB.Clustercredentials_id)
 
-		rowsDeleted, err = dbQueries.DeleteClusterCredentialsById(ctx, managedEnvCR.Clustercredentials_id)
+		rowsDeleted, err = dbQueries.DeleteClusterCredentialsById(ctx, managedEnvDB.Clustercredentials_id)
 		if err != nil || rowsDeleted != 1 {
 			log.Error(err, "Unable to delete ClusterCredentials of the managed environment")
-			return fmt.Errorf("unable to delete cluster credentials '%s' for managed environment: %v (%v)", managedEnvCR.Clustercredentials_id, err, rowsDeleted)
+			return fmt.Errorf("unable to delete cluster credentials '%s' for managed environment: %v (%v)", managedEnvDB.Clustercredentials_id, err, rowsDeleted)
 		}
 		log.Info("Deleted ClusterCredentials of the managed environment")
 	}

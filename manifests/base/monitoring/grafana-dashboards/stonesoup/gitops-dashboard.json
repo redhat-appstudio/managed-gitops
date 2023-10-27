@@ -24,7 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 3,
+  "id": 4,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -32,7 +32,7 @@
       "collapsed": true,
       "datasource": {
         "type": "prometheus",
-        "uid": "PF224BEF3374A25F8"
+        "uid": "PBFA97CFB590B2093"
       },
       "gridPos": {
         "h": 1,
@@ -45,7 +45,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "fieldConfig": {
             "defaults": {
@@ -93,7 +93,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "exemplar": true,
               "expr": "time() - max(process_start_time_seconds{job=\"gitops-core-service-controller-manager-metrics-service\"})",
@@ -108,7 +108,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "description": "Number of active and failed GitopsDeployments",
           "fieldConfig": {
@@ -267,7 +267,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "exemplar": true,
               "expr": "active_gitopsDeployments",
@@ -278,7 +278,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "exemplar": true,
               "expr": "gitopsDeployments_failures",
@@ -294,7 +294,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "description": "Number Of operations CR on a cluster",
           "fieldConfig": {
@@ -392,7 +392,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "builder",
               "expr": "number_of_operationsCR",
@@ -409,7 +409,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "refId": "A"
         }
@@ -430,7 +430,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "description": "workqueue_work_duration_seconds_bucket metrics",
           "fieldConfig": {
@@ -498,7 +498,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
               "exemplar": false,
@@ -518,7 +518,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "description": "workqueue_work_duration_seconds_count metrics",
           "fieldConfig": {
@@ -601,7 +601,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
               "expr": "sum(rate(workqueue_work_duration_seconds_count{name=\"snapshotenvironmentbinding\"}[$interval]))",
@@ -616,7 +616,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "fieldConfig": {
             "defaults": {
@@ -697,7 +697,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
               "expr": "sum(workqueue_depth{name=\"snapshotenvironmentbinding\"})",
@@ -712,7 +712,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "description": "controller_runtime_reconcile_errors_total metrics",
           "fieldConfig": {
@@ -795,7 +795,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
               "expr": "sum(rate(controller_runtime_reconcile_errors_total{controller=\"snapshotenvironmentbinding\"}[$interval]))",
@@ -811,7 +811,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "description": "controller_runtime_reconcile_time_* metrics",
           "fieldConfig": {
@@ -878,7 +878,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
               "expr": "sum(rate(controller_runtime_reconcile_time_seconds_bucket{controller=\"snapshotenvironmentbinding\"}[$interval])) by (le)",
@@ -894,7 +894,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "description": "Maximum number of concurrent reconciles per controller",
           "fieldConfig": {
@@ -974,7 +974,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
               "expr": "controller_runtime_max_concurrent_reconciles{controller=\"snapshotenvironmentbinding\"}",
@@ -989,7 +989,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "description": "How many seconds of work has been done that is in progress and hasn't been observed by work_duration",
           "fieldConfig": {
@@ -1071,7 +1071,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
               "expr": "workqueue_unfinished_work_seconds{name=\"snapshotenvironmentbinding\"}",
@@ -1086,7 +1086,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "description": "controller_runtime_reconcile_total metrics",
           "fieldConfig": {
@@ -1169,7 +1169,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
               "expr": "sum(rate(controller_runtime_reconcile_total{controller=\"snapshotenvironmentbinding\"}[$interval]))",
@@ -1184,7 +1184,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "description": "Controller runtime reconcile time count",
           "fieldConfig": {
@@ -1266,7 +1266,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
               "expr": "sum(rate(controller_runtime_reconcile_time_seconds_count{controller=\"snapshotenvironmentbinding\"}[$interval]))",
@@ -1295,7 +1295,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "fieldConfig": {
             "defaults": {
@@ -1339,7 +1339,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -1442,7 +1443,7 @@
             "h": 6,
             "w": 12,
             "x": 0,
-            "y": 2
+            "y": 41
           },
           "id": 34,
           "interval": "",
@@ -1466,7 +1467,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
               "expr": "sum(argocd_app_info{namespace=\"gitops-service-argocd\",health_status!=\"\"}) by (health_status)",
@@ -1483,7 +1484,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "fieldConfig": {
             "defaults": {
@@ -1527,7 +1528,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -1660,7 +1662,7 @@
             "h": 6,
             "w": 12,
             "x": 12,
-            "y": 2
+            "y": 41
           },
           "id": 36,
           "interval": "",
@@ -1700,7 +1702,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "fieldConfig": {
             "defaults": {
@@ -1742,7 +1744,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -1754,7 +1757,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 16
+            "y": 47
           },
           "id": 40,
           "options": {
@@ -1775,7 +1778,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
               "expr": "gitops_argocd_apps_reconciled_percent",
@@ -1799,12 +1802,12 @@
         "x": 0,
         "y": 3
       },
-      "id": 36,
+      "id": 60,
       "panels": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "description": "Number of Operation DB rows from cluster-agent",
           "fieldConfig": {
@@ -1848,7 +1851,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1895,9 +1899,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 17
+            "y": 4
           },
-          "id": 34,
+          "id": 63,
           "options": {
             "legend": {
               "calcs": [
@@ -1916,7 +1920,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
               "expr": "operationDB_completedState",
@@ -1927,7 +1931,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
               "expr": "operationDB_failedState",
@@ -1943,7 +1947,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "description": "Number of Operation DB rows from backend",
           "fieldConfig": {
@@ -1987,7 +1991,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2109,9 +2114,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 17
+            "y": 4
           },
-          "id": 32,
+          "id": 64,
           "options": {
             "legend": {
               "calcs": [
@@ -2130,7 +2135,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
               "expr": "total_number_of_operationDB_rows",
@@ -2141,7 +2146,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
               "expr": "operationDB_rows_in_waiting_state",
@@ -2153,7 +2158,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
               "expr": "operationDB_rows_in_in_progress_state",
@@ -2165,7 +2170,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
               "expr": "operationDB_rows_in_completed_state",
@@ -2177,7 +2182,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
               "expr": "operationDB_rows_in_error_state",
@@ -2189,7 +2194,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
               "expr": "total_operationDB_rows_in_complete_state",
@@ -2201,7 +2206,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
               "expr": "operationDB_rows_in_non_complete_state",
@@ -2222,7 +2227,7 @@
       "collapsed": true,
       "datasource": {
         "type": "prometheus",
-        "uid": "PF224BEF3374A25F8"
+        "uid": "PBFA97CFB590B2093"
       },
       "gridPos": {
         "h": 1,
@@ -2235,7 +2240,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "description": "",
           "fieldConfig": {
@@ -2318,7 +2323,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "exemplar": true,
               "expr": "go_memstats_heap_alloc_bytes{job=\"gitops-appstudio-service-controller-manager-metrics-service\"}",
@@ -2333,7 +2338,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "fieldConfig": {
             "defaults": {
@@ -2415,7 +2420,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "exemplar": true,
               "expr": "irate(process_cpu_seconds_total{job=\"gitops-appstudio-service-controller-manager-metrics-service\"}[1m])",
@@ -2430,7 +2435,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "fieldConfig": {
             "defaults": {
@@ -2512,7 +2517,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "exemplar": true,
               "expr": "go_goroutines{job=\"gitops-appstudio-service-controller-manager-metrics-service\"}",
@@ -2529,7 +2534,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "refId": "A"
         }
@@ -2541,7 +2546,7 @@
       "collapsed": true,
       "datasource": {
         "type": "prometheus",
-        "uid": "PF224BEF3374A25F8"
+        "uid": "PBFA97CFB590B2093"
       },
       "gridPos": {
         "h": 1,
@@ -2554,7 +2559,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "description": "",
           "fieldConfig": {
@@ -2637,7 +2642,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "exemplar": true,
               "expr": "go_memstats_heap_alloc_bytes{job=\"gitops-core-service-controller-manager-metrics-service\"}",
@@ -2652,7 +2657,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "fieldConfig": {
             "defaults": {
@@ -2734,7 +2739,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "exemplar": true,
               "expr": "irate(process_cpu_seconds_total{job=\"gitops-core-service-controller-manager-metrics-service\"}[1m])",
@@ -2749,7 +2754,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "fieldConfig": {
             "defaults": {
@@ -2831,7 +2836,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "exemplar": true,
               "expr": "go_goroutines{job=\"gitops-core-service-controller-manager-metrics-service\"}",
@@ -2848,7 +2853,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "refId": "A"
         }
@@ -2860,7 +2865,7 @@
       "collapsed": true,
       "datasource": {
         "type": "prometheus",
-        "uid": "PF224BEF3374A25F8"
+        "uid": "PBFA97CFB590B2093"
       },
       "gridPos": {
         "h": 1,
@@ -2873,7 +2878,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "description": "",
           "fieldConfig": {
@@ -2956,7 +2961,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "exemplar": true,
               "expr": "go_memstats_heap_alloc_bytes{job=\"gitops-service-agent-controller-manager-metrics-service\"}",
@@ -2971,7 +2976,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "fieldConfig": {
             "defaults": {
@@ -3053,7 +3058,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "exemplar": true,
               "expr": "irate(process_cpu_seconds_total{job=\"gitops-service-agent-controller-manager-metrics-service\"}[1m])",
@@ -3068,7 +3073,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "fieldConfig": {
             "defaults": {
@@ -3150,7 +3155,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PF224BEF3374A25F8"
+                "uid": "PBFA97CFB590B2093"
               },
               "exemplar": true,
               "expr": "go_goroutines{job=\"gitops-service-agent-controller-manager-metrics-service\"}",
@@ -3167,7 +3172,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PF224BEF3374A25F8"
+            "uid": "PBFA97CFB590B2093"
           },
           "refId": "A"
         }
@@ -3265,6 +3270,6 @@
   "timezone": "",
   "title": "GitOps",
   "uid": "BhY6sRo4z",
-  "version": 3,
+  "version": 1,
   "weekStart": ""
 }

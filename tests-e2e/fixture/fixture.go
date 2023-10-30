@@ -57,9 +57,10 @@ const (
 )
 
 const (
-	// EnableNamespaceBackedArgoCD is currently disabled, due to concerns with performance issues when Argo CD is running in namespace-scoped mode.
-	// When enabled, this will ensure that certain tests/fixtures add the managed by label to Namespace.
-	EnableNamespaceBackedArgoCD = false
+	// EnableNamespaceBackedArgoCD: When enabled, this will ensure that certain tests/fixtures add the managed-by label to Namespace. This allows the gitops-service-argocd instance to manage them.
+	//
+	// When Argo CD is running in cluster-scoped mode (i.e. due to concerns with performance issues when Argo CD is running in namespace-scoped mode), this field should be set to false.
+	EnableNamespaceBackedArgoCD = true
 )
 
 // EnsureCleanSlateNonKCPVirtualWorkspace should be called before every E2E tests:

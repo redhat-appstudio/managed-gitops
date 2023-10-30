@@ -66,7 +66,9 @@ var _ = Describe("Environment Status.Conditions tests", func() {
 				},
 				Spec: appstudioshared.EnvironmentSpec{
 					Configuration: appstudioshared.EnvironmentConfiguration{
-						Env: []appstudioshared.EnvVarPair{},
+						Env: []appstudioshared.EnvVarPair{
+							{Name: "e1", Value: "v1"},
+						},
 						Target: appstudioshared.EnvironmentTarget{
 							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
 								ClaimName: "test",
@@ -114,7 +116,9 @@ var _ = Describe("Environment Status.Conditions tests", func() {
 						},
 					},
 					Configuration: appstudioshared.EnvironmentConfiguration{
-						Env: []appstudioshared.EnvVarPair{},
+						Env: []appstudioshared.EnvVarPair{
+							{Name: "e1", Value: "v1"},
+						},
 						Target: appstudioshared.EnvironmentTarget{
 							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
 								ClaimName: "testdtc",
@@ -195,7 +199,9 @@ var _ = Describe("Environment E2E tests", func() {
 					ParentEnvironment:  "",
 					Tags:               []string{},
 					Configuration: appstudioshared.EnvironmentConfiguration{
-						Env: []appstudioshared.EnvVarPair{},
+						Env: []appstudioshared.EnvVarPair{
+							{Name: "e1", Value: "v1"},
+						},
 					},
 					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
 						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
@@ -268,7 +274,9 @@ var _ = Describe("Environment E2E tests", func() {
 					ParentEnvironment:  "",
 					Tags:               []string{},
 					Configuration: appstudioshared.EnvironmentConfiguration{
-						Env: []appstudioshared.EnvVarPair{},
+						Env: []appstudioshared.EnvVarPair{
+							{Name: "e1", Value: "v1"},
+						},
 					},
 					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
 						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
@@ -388,7 +396,9 @@ var _ = Describe("Environment E2E tests", func() {
 					ParentEnvironment:  "",
 					Tags:               []string{},
 					Configuration: appstudioshared.EnvironmentConfiguration{
-						Env: []appstudioshared.EnvVarPair{},
+						Env: []appstudioshared.EnvVarPair{
+							{Name: "e1", Value: "v1"},
+						},
 						Target: appstudioshared.EnvironmentTarget{
 							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
 								ClaimName: dtc.Name,
@@ -472,7 +482,9 @@ var _ = Describe("Environment E2E tests", func() {
 					ParentEnvironment:  "",
 					Tags:               []string{},
 					Configuration: appstudioshared.EnvironmentConfiguration{
-						Env: []appstudioshared.EnvVarPair{},
+						Env: []appstudioshared.EnvVarPair{
+							{Name: "e1", Value: "v1"},
+						},
 						Target: appstudioshared.EnvironmentTarget{
 							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
 								ClaimName: dtc.Name,
@@ -566,7 +578,9 @@ var _ = Describe("Environment E2E tests", func() {
 					ParentEnvironment:  "",
 					Tags:               []string{},
 					Configuration: appstudioshared.EnvironmentConfiguration{
-						Env: []appstudioshared.EnvVarPair{},
+						Env: []appstudioshared.EnvVarPair{
+							{Name: "e1", Value: "v1"},
+						},
 						Target: appstudioshared.EnvironmentTarget{
 							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
 								ClaimName: dtc.Name,

@@ -289,7 +289,9 @@ func buildEnvironmentResource(name, displayName, parentEnvironment string, envTy
 			ParentEnvironment:  parentEnvironment,
 			Tags:               []string{name},
 			Configuration: appstudiosharedv1.EnvironmentConfiguration{
-				Env: []appstudiosharedv1.EnvVarPair{},
+				Env: []appstudiosharedv1.EnvVarPair{
+					{Name: "e1", Value: "v1"},
+				},
 			},
 		},
 	}

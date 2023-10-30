@@ -584,8 +584,8 @@ github.com/prometheus/procfs v0.7.3/go.mod h1:cz+aTbrPOrUb4q7XlbU9ygM+/jj0fzG6c1
 github.com/prometheus/procfs v0.8.0 h1:ODq8ZFEaYeCaZOJlZZdJA2AbQR98dSHSM1KW/You5mo=
 github.com/prometheus/procfs v0.8.0/go.mod h1:z7EfXMXOkbkqb9IINtpCn86r/to3BnA0uaxHdg830/4=
 github.com/prometheus/tsdb v0.7.1/go.mod h1:qhTCs0VvXwvX/y3TZrWD7rabWM+ijKTux40TwIPHuXU=
-github.com/redhat-appstudio/application-api v0.0.0-20230906075853-8d1126322971 h1:5fZaG1iVebcLWeJsVpWxSNmd0qhH1x9rLXWP+jVOSZo=
-github.com/redhat-appstudio/application-api v0.0.0-20230906075853-8d1126322971/go.mod h1:E277KEEjL6rEXUHIhc0FQd6jyf3CzCQ7MOkauqF3gt4=
+github.com/redhat-appstudio/application-api v0.0.0-20231025105224-2790bb451725 h1:9808yVdQmzCLGrbedW6h4brggYqdnMpyMwKhFpx9/pE=
+github.com/redhat-appstudio/application-api v0.0.0-20231025105224-2790bb451725/go.mod h1:OvmeiVOItG2OSX/QE+vQwzOYfbOMBhBy43ZFxkWZJyc=
 github.com/redis/go-redis/v9 v9.0.0-rc.4/go.mod h1:Vo3EsyWnicKnSKCA7HhgnvnyA74wOA69Cd2Meli5mmA=
 github.com/redis/go-redis/v9 v9.0.2 h1:BA426Zqe/7r56kCcvxYLWe1mkaz71LKF77GwgFzSxfE=
 github.com/redis/go-redis/v9 v9.0.2/go.mod h1:/xDTe9EF1LM61hek62Poq2nzQSGj0xSrEtEHbBQevps=

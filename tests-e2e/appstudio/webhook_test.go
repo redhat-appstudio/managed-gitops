@@ -90,9 +90,16 @@ var _ = Describe("Webhook E2E tests", func() {
 
 		It("Should validate SnapshotEnvironmentBinding CR Webhooks.", func() {
 
+			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
 			if !isWebhookInstalled("snapshotenvironmentbindings", k8sClient) {
 				Skip("skipping as snapshotenvironmentbindings webhook is not installed")
 			}
+
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			ctx = context.Background()
 
 			By("Create Application.")
 

@@ -134,20 +134,36 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			request = newRequest(apiNamespace.Name, binding.Name)
 		})
 
-		It("Should delete the SnapshotEnvironmentBinding if the Application doesn't exist", func() {
+		It("should delete the SnapshotEnvironmentBinding if the Application doesn't exist and X minutes have passed", func() {
 			// Create the Binding
 			binding.Spec.Application = "no-such-app"
-			err := bindingReconciler.Create(ctx, binding)
-			Expect(err).ToNot(HaveOccurred())
+			binding.CreationTimestamp = metav1.NewTime(time.Now().Add(-1 * allowDeletionOfOrphanedSnapshotEnvironmentBindingAfterXMinutes))
+			Expect(bindingReconciler.Create(ctx, binding)).To(Succeed())
 
 			// Call the Reconciler
-			_, err = bindingReconciler.Reconcile(ctx, request)
+			_, err := bindingReconciler.Reconcile(ctx, request)
 			Expect(err).ToNot(HaveOccurred())
 
 			// Check that the binding has been deleted
 			err = bindingReconciler.Client.Get(ctx, request.NamespacedName, binding)
 			Expect(err).To(HaveOccurred())
 			Expect(apierr.IsNotFound(err)).To(BeTrue())
+		})
+
+		It("should not delete the SnapshotEnvironmentBinding if the Application doesn't exist and fewer than X minutes have passed", func() {
+			// Create the Binding
+			binding.Spec.Application = "no-such-app"
+			binding.CreationTimestamp = metav1.NewTime(time.Now())
+			Expect(bindingReconciler.Create(ctx, binding)).To(Succeed())
+
+			// Call the Reconciler
+			requeue, err := bindingReconciler.Reconcile(ctx, request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(requeue.RequeueAfter).To(Equal(allowDeletionOfOrphanedSnapshotEnvironmentBindingAfterXMinutes))
+
+			// Check that the binding has not been deleted
+			err = bindingReconciler.Client.Get(ctx, request.NamespacedName, binding)
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should set the .status.GitOpsDeployments field of Binding.", func() {

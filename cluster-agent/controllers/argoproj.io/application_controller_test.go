@@ -214,6 +214,10 @@ var _ = Describe("Application Controller", func() {
 				Expect(cond.Message).To(Equal(other.Message))
 			}
 
+			// Don't compare differences in the 'IgnoreDifferences' field
+			appStatus.Sync.ComparedTo.IgnoreDifferences = []appv1.ResourceIgnoreDifferences{}
+			guestbookApp.Status.Sync.ComparedTo.IgnoreDifferences = []appv1.ResourceIgnoreDifferences{}
+
 			By("verify if the comparedTo field is set")
 			// We have to replace the destination name because the controller will update it with the
 			// ManagedEnvironment ID before saving it in ApplicationState DB

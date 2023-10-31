@@ -26,6 +26,11 @@ vet: utils/argocd_login_command_test.go:28:54: cannot use mockAppClient (variabl
 
 this means the new ArgoCD version has introduced changes, for which you do not have the required mock files.
 
+8. Finally, you may need to regenerate the mocks from the new Argo CD version. You can run `make mocks` from the repository root. Make sure you are using the latest version of mockery (i.e. `go install github.com/vektra/mockery/v2@latest`)
+
+
+# Deprecated: Old mechanism for regenerating mocks
+
 To regenerate the new mock files, go to `cd cluster-agent/utils/mocks` and follow a similar prodecure to this:
 
 - Install the mockery tool using the following command:

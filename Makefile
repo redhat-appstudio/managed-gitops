@@ -8,7 +8,7 @@ APPLICATION_API_COMMIT ?= f25d47ce749967013a7f13dcb9e65ede36b96f18
 
 # Default values match the their respective deployments in staging/production environment for GitOps Service, otherwise the E2E will fail.
 ARGO_CD_NAMESPACE ?= gitops-service-argocd
-ARGO_CD_VERSION ?= v2.7.11
+ARGO_CD_VERSION ?= v2.8.3
 
 # Tool to build the container image. It can be either docker or podman
 DOCKER ?= docker

@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // isEmptyValues returns an error if at least one of the parameters is nil or empty.
@@ -177,8 +179,7 @@ func ConvertSnakeCaseToCamelCase(fieldName string) string {
 		if splitFieldName[i] == "id" || splitFieldName[i] == "uid" || splitFieldName[i] == "url" {
 			fieldNameInCamelCase += strings.ToUpper(splitFieldName[i])
 		} else {
-			// TODO: strings.Title() has been deprecated in Go 1.18. Use golang.org/x/text/cases instead.
-			fieldNameInCamelCase += strings.Title(splitFieldName[i]) // nolint:staticcheck
+			fieldNameInCamelCase += cases.Title(language.English).String(splitFieldName[i])
 		}
 	}
 

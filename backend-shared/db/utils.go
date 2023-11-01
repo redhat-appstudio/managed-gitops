@@ -179,7 +179,7 @@ func ConvertSnakeCaseToCamelCase(fieldName string) string {
 		if splitFieldName[i] == "id" || splitFieldName[i] == "uid" || splitFieldName[i] == "url" {
 			fieldNameInCamelCase += strings.ToUpper(splitFieldName[i])
 		} else {
-			fieldNameInCamelCase += cases.Title(language.English).String(splitFieldName[i])
+			fieldNameInCamelCase += cases.Title(language.English, cases.NoLower).String(splitFieldName[i])
 		}
 	}
 

@@ -72,9 +72,15 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			Expect(err).To(Succeed())
 			Eventually(&application, "1m", "1s").ShouldNot(k8s.ExistByName(k8sClient))
 
-			By("Checking that the binding gets deleted")
-			Eventually(&binding, "1m", "1s").ShouldNot(k8s.ExistByName(k8sClient))
-			Consistently(&binding, "1m", "5s").ShouldNot(k8s.ExistByName(k8sClient))
+			// The contents of this part of the test is based on 'allowDeletionOfOrphanedSnapshotEnvironmentBindingAfterXMinutes'.
+			// - When changing the value of allowDeletionOfOrphanedSnapshotEnvironmentBindingAfterXMinutes, you should also change this line.
+
+			Consistently(&binding, "2m", "10s").Should(k8s.ExistByName(k8sClient), "the binding should continue to exist for at least 2 minutes after the parent Application is deleted")
+
+			By("Checking that the binding gets deleted (this will take ~1 minutes)")
+			Eventually(&binding, "2m", "10s").ShouldNot(k8s.ExistByName(k8sClient), "binding should be deleted 3 minutes after the parent Application is deleted")
+
+			Consistently(&binding, "10s", "1s").ShouldNot(k8s.ExistByName(k8sClient), "binding should continue to not exist for several additional seconds")
 		})
 
 		// This test is to verify the scenario when a user creates an SnapshotEnvironmentBinding CR in Cluster.

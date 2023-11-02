@@ -70,6 +70,11 @@ const (
 	environmentLabelKey = appstudioLabelKey + "/environment"
 )
 
+const (
+	// allowDeletionOfOrphanedSnapshotEnvironmentBindingAfterXMinutes controls how long to wait before cleaning up an orphaned SnapshotEnvironmentBinding
+	allowDeletionOfOrphanedSnapshotEnvironmentBindingAfterXMinutes = time.Minute * 3
+)
+
 // SnapshotEnvironmentBindingReconciler reconciles a SnapshotEnvironmentBinding object
 type SnapshotEnvironmentBindingReconciler struct {
 	client.Client
@@ -127,12 +132,20 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 	}
 	if err := rClient.Get(ctx, client.ObjectKeyFromObject(&application), &application); apierr.IsNotFound(err) {
 
-		if err := rClient.Delete(ctx, &binding); err != nil {
-			return ctrl.Result{}, fmt.Errorf("unable to delete Binding %s in Namespace %s: %w", binding.Name, binding.Namespace, err)
+		// If the parent Application of the SnapshotEnvironmentBinding no longer exists, then delete the SnapshotEnvironmentBinding
+		if time.Now().After(binding.CreationTimestamp.Add(allowDeletionOfOrphanedSnapshotEnvironmentBindingAfterXMinutes)) {
+			// Only delete the SEB if it has been 3 minutes since it was created. This allows us to avoid a race condition when Application/SEB are created in reverse order, and SEB is reconciled first.
+
+			if err := rClient.Delete(ctx, &binding); err != nil {
+				return ctrl.Result{}, fmt.Errorf("unable to delete Binding %s in Namespace %s: %w", binding.Name, binding.Namespace, err)
+			}
+			log.Info("deleting SnapshotEnvironmentBinding because referenced Application no longer exists", "applicationName", application.Name)
+			logutil.LogAPIResourceChangeEvent(binding.Namespace, binding.Name, binding, logutil.ResourceDeleted, log)
+			return ctrl.Result{}, nil
+		} else {
+			// The Application does not exist, but not enough time has passed, so requeue the request
+			return ctrl.Result{RequeueAfter: allowDeletionOfOrphanedSnapshotEnvironmentBindingAfterXMinutes}, nil
 		}
-		log.Info("deleting SnapshotEnvironmentBinding because referenced Application no longer exists", "applicationName", application.Name)
-		logutil.LogAPIResourceChangeEvent(binding.Namespace, binding.Name, binding, logutil.ResourceDeleted, log)
-		return ctrl.Result{}, nil
 
 	} else if err != nil {
 		return ctrl.Result{}, fmt.Errorf("error getting Application %s associated with Binding %s in Namespace %s: %w", binding.Spec.Application, binding.Name, binding.Namespace, err)

@@ -665,23 +665,34 @@ func extractTimestampFromLine(line string) string {
 	var res string
 
 	if err := json.Unmarshal(([]byte)(line), &fullJsonMap); err != nil {
+
+		// 1) If an error occurs, exit w/o returning a TS
 		res = ""
 	} else {
 
 		structuredMapVal, exists := fullJsonMap["structured"]
 		if exists {
 
+			// 2) If structured exists (because we are in splunk logs), then us the ts field under structured
 			structuredMap := (structuredMapVal).(map[string]any)
 
 			res = extractStringField("ts", structuredMap)
 
 		} else {
 
-			res = extractStringField("@timestamp", fullJsonMap)
+			// 3) Otherwise, if we are not in splunk, then us the ts field
+			res = extractStringField("ts", fullJsonMap)
+
+			if res == "" {
+				// 4) Finally, if all else fails, look for @timestamp, and use that
+				res = extractStringField("@timestamp", fullJsonMap)
+			}
+
 		}
 
 	}
 
+	// Warning message if we're not able to extract the timestamp
 	if res == "" {
 		fmt.Println("Unable to extract timestamp from line: " + line)
 	}

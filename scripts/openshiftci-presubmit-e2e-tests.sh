@@ -44,5 +44,8 @@ export DB_PASS=$(kubectl get -n gitops secret gitops-postgresql-staging -o jsonp
 # Show commands in logs
 set -x
 
+# Wait for our controller Deployments to be Ready
+kubectl get deployments --no-headers -o custom-columns="DEPLOYMENT:.metadata.name" | xargs -I {} kubectl rollout status deploy/{}
+
 # Run E2E tests
 make test-e2e

@@ -17,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	. "github.com/onsi/gomega"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 )
 
 var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
@@ -139,11 +140,11 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 						Status: metav1.ConditionTrue,
 					}, {
 						Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
-						Reason: managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
+						Reason: managedgitopsv1alpha1.RepositoryCredentialReasonInvalidRepositoryUrl,
 						Status: metav1.ConditionFalse,
 					}, {
 						Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
-						Reason: managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
+						Reason: managedgitopsv1alpha1.RepositoryCredentialReasonInvalidRepositoryUrl,
 						Status: metav1.ConditionFalse,
 					},
 				},
@@ -156,25 +157,35 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 				Conditions: []metav1.Condition{
 					{
 						Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
-						Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
+						Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInvalidRepositoryUrl,
 						Status:  metav1.ConditionTrue,
 						Message: "repository not found",
 					}, {
 						Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
-						Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
+						Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInvalidRepositoryUrl,
 						Status:  metav1.ConditionFalse,
 						Message: "repository not found",
 					}, {
 						Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
-						Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
+						Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInvalidRepositoryUrl,
 						Status:  metav1.ConditionFalse,
 						Message: "repository not found",
 					},
 				},
 			}
 
-			err := UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, gitopsDeploymentRepositoryCredentialCR, k8sClient, &corev1.Secret{}, log.FromContext(ctx))
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      gitopsDeploymentRepositoryCredentialCR.Spec.Secret,
+					Namespace: gitopsDeploymentRepositoryCredentialCR.Namespace,
+				},
+				Type: sharedutil.RepositoryCredentialSecretType,
+			}
+
+			isValid, err := UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, gitopsDeploymentRepositoryCredentialCR, secret, mock_returnInvalidRepositoryCredentials, k8sClient, log.FromContext(ctx))
+
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isValid).To(BeFalse())
 
 			Expect(gitopsDeploymentRepositoryCredentialCR).Should(SatisfyAll(haveErrOccurredConditionSet(expectedRepoCredStatus, false)))
 		})
@@ -188,19 +199,19 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 				Conditions: []metav1.Condition{
 					{
 						Type:               managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
-						Reason:             managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
+						Reason:             managedgitopsv1alpha1.RepositoryCredentialReasonInvalidRepositoryUrl,
 						Status:             metav1.ConditionTrue,
 						Message:            "Repository does not exist: repository not found",
 						LastTransitionTime: transitionTime,
 					}, {
 						Type:               managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
-						Reason:             managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
+						Reason:             managedgitopsv1alpha1.RepositoryCredentialReasonInvalidRepositoryUrl,
 						Status:             metav1.ConditionFalse,
 						Message:            "Repository does not exist: repository not found",
 						LastTransitionTime: transitionTime,
 					}, {
 						Type:               managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
-						Reason:             managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
+						Reason:             managedgitopsv1alpha1.RepositoryCredentialReasonInvalidRepositoryUrl,
 						Status:             metav1.ConditionFalse,
 						Message:            "Repository does not exist: repository not found",
 						LastTransitionTime: transitionTime,
@@ -211,7 +222,17 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 			gitopsDeploymentRepositoryCredentialCR.Status = expectedRepoCredStatus
 			Expect(k8sClient.Status().Update(ctx, gitopsDeploymentRepositoryCredentialCR)).To(Succeed())
 
-			err := UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, gitopsDeploymentRepositoryCredentialCR, k8sClient, &corev1.Secret{}, log.FromContext(ctx))
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      gitopsDeploymentRepositoryCredentialCR.Spec.Secret,
+					Namespace: gitopsDeploymentRepositoryCredentialCR.Namespace,
+				},
+				Type: sharedutil.RepositoryCredentialSecretType,
+			}
+
+			isValid, err := UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, gitopsDeploymentRepositoryCredentialCR, secret, mock_returnInvalidRepositoryCredentials, k8sClient, log.FromContext(ctx))
+
+			Expect(isValid).To(BeFalse())
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(gitopsDeploymentRepositoryCredentialCR).Should(SatisfyAll(haveErrOccurredConditionSet(expectedRepoCredStatus, true)))
@@ -240,8 +261,9 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 				},
 			}
 
-			err := UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, gitopsDeploymentRepositoryCredentialCR, k8sClient, nil, log.FromContext(ctx))
+			isValid, err := UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, gitopsDeploymentRepositoryCredentialCR, nil, mock_returnValidRepositoryCredentials, k8sClient, log.FromContext(ctx))
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isValid).To(BeFalse())
 
 			Expect(gitopsDeploymentRepositoryCredentialCR).Should(SatisfyAll(haveErrOccurredConditionSet(expectedRepoCredStatus, false)))
 		})
@@ -270,8 +292,10 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 				},
 			}
 
-			err := UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, gitopsDeploymentRepositoryCredentialCR, k8sClient, nil, log.FromContext(ctx))
+			isValid, err := UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, gitopsDeploymentRepositoryCredentialCR, nil, mock_returnValidRepositoryCredentials, k8sClient, log.FromContext(ctx))
+
 			Expect(err).ToNot(HaveOccurred())
+			Expect(isValid).To(BeFalse())
 
 			Expect(gitopsDeploymentRepositoryCredentialCR).Should(SatisfyAll(haveErrOccurredConditionSet(expectedRepoCredStatus, false)))
 		})
@@ -279,7 +303,7 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 
 	Context("Test validateRepositoryCredentials", func() {
 
-		DescribeTable("Test scenarios for validateRepositoryCredentials", func(repoUrl string, secret *corev1.Secret, expectedString string) {
+		DescribeTable("Test scenarios for validateRepositoryCredentials", func(repoUrl string, secret corev1.Secret, expectedString string) {
 
 			err := validateRepositoryCredentials(repoUrl, secret)
 
@@ -287,8 +311,23 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 			Expect(strings.Contains(err.Error(), expectedString)).To(BeTrue())
 
 		},
-			Entry("Test for Invalid Url", "git@github.com:redhat-appstudio/test.git", &corev1.Secret{Data: map[string][]byte{"username": []byte("username"), "password": []byte("password")}}, "not found"),
-			Entry("Test for Valid Url and Invalid Secret", "git@github.com:redhat-appstudio/managed-gitops.git", &corev1.Secret{Data: map[string][]byte{"username": []byte("username"), "password": []byte("password")}}, "not found"),
+			Entry("Test for Invalid Url", "git@github.com:redhat-appstudio/test.git", corev1.Secret{Data: map[string][]byte{"username": []byte("username"), "password": []byte("password")}}, "not found"),
+			Entry("Test for Valid Url and Invalid Secret", "git@github.com:redhat-appstudio/managed-gitops.git", corev1.Secret{Data: map[string][]byte{"username": []byte("username"), "password": []byte("password")}}, "not found"),
 		)
 	})
 })
+
+var (
+	mock_returnValidRepositoryCredentials   ValidateRepoURLAndCredentialsFunction = mockValidRepositoryCredentialsFunction
+	mock_returnInvalidRepositoryCredentials ValidateRepoURLAndCredentialsFunction = mockInvalidRepositoryCredentialsFunction
+)
+
+func mockValidRepositoryCredentialsFunction(rawRepoURL string, secret corev1.Secret) error {
+	// Skip validation of repository credential: mock that it is valid.
+	return nil
+}
+
+func mockInvalidRepositoryCredentialsFunction(rawRepoURL string, secret corev1.Secret) error {
+	// Skip validation of repository credential: mock that it is INVALID.
+	return fmt.Errorf("repository not found")
+}

@@ -229,12 +229,12 @@ func handleResourceLoopRepositoryCredential(ctx context.Context, msg workspaceRe
 	}
 
 	// Retrieve the namespace that the repository credential is contained within
-	namespace := &corev1.Namespace{
+	namespace := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: req.Namespace,
 		},
 	}
-	if err := msg.apiNamespaceClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace); err != nil {
+	if err := msg.apiNamespaceClient.Get(ctx, client.ObjectKeyFromObject(&namespace), &namespace); err != nil {
 
 		if !apierr.IsNotFound(err) {
 			return retry, fmt.Errorf("unexpected error in retrieving repo credentials: %v", err)
@@ -249,7 +249,7 @@ func handleResourceLoopRepositoryCredential(ctx context.Context, msg workspaceRe
 	// - If the GitOpsDeploymentRepositoryCredential does exist, but not in the DB, then create a RepositoryCredential DB entry
 	// - If the GitOpsDeploymentRepositoryCredential does exist, and also in the DB, then compare and change a RepositoryCredential DB entry
 	// Then, in all 3 cases, create an Operation to update the cluster-agent
-	_, err := sharedResourceLoop.ReconcileRepositoryCredential(ctx, msg.apiNamespaceClient, *namespace, req.Name, k8sClientFactory, log)
+	_, err := sharedResourceLoop.ReconcileRepositoryCredential(ctx, msg.apiNamespaceClient, namespace, req.Name, k8sClientFactory, log)
 
 	if err != nil {
 		return retry, fmt.Errorf("unable to reconcile repository credential. Error: %v", err)

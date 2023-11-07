@@ -48,7 +48,7 @@ var _ = Describe("Environment Status.Conditions tests", func() {
 					Name:      "my-managed-env-secret",
 					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
-				Type:       "managed-gitops.redhat.com/managed-environment",
+				Type:       sharedutil.ManagedEnvironmentSecretType,
 				StringData: map[string]string{"kubeconfig": kubeConfigContents},
 			}
 

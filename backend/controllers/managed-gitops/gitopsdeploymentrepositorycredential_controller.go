@@ -25,8 +25,11 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
@@ -79,5 +82,46 @@ func (r *GitOpsDeploymentRepositoryCredentialReconciler) SetupWithManager(mgr ct
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{},
 			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Watches(
+			&source.Kind{Type: &corev1.Secret{}},
+			handler.EnqueueRequestsFromMapFunc(r.findSecretsForRepositoryCredential),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{})).
 		Complete(r)
+}
+
+func (r *GitOpsDeploymentRepositoryCredentialReconciler) findSecretsForRepositoryCredential(secret client.Object) []reconcile.Request {
+	ctx := context.Background()
+	handlerLog := log.FromContext(ctx).
+		WithName(logutil.LogLogger_managed_gitops)
+
+	secretObj, ok := secret.(*corev1.Secret)
+
+	if !ok {
+		handlerLog.Error(nil, "incompatible object in the Environment mapping function, expected a Secret")
+		return []reconcile.Request{}
+	}
+
+	if secretObj.Type != sharedutil.RepositoryCredentialSecretType {
+		return []reconcile.Request{}
+	}
+
+	repoCredList := managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialList{}
+
+	if err := r.List(ctx, &repoCredList, &client.ListOptions{Namespace: secretObj.Namespace}); err != nil {
+		return []reconcile.Request{}
+	}
+
+	requests := []reconcile.Request{}
+
+	for idx := range repoCredList.Items {
+		repoCredCR := repoCredList.Items[idx]
+
+		if repoCredCR.Spec.Secret == secretObj.Name {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: client.ObjectKeyFromObject(&repoCredCR),
+			})
+		}
+	}
+
+	return requests
 }

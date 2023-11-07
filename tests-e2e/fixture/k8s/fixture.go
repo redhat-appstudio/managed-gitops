@@ -170,7 +170,7 @@ func UpdateWithoutConflict(obj client.Object, k8sClient client.Client, modify fu
 }
 
 // CreateSecret creates a secret with the given stringData.
-func CreateSecret(namespace string, secretName string, stringData map[string]string, k8sClient client.Client) error {
+func CreateSecret(namespace string, secretName string, typeStr string, stringData map[string]string, k8sClient client.Client) (corev1.Secret, error) {
 
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{},
@@ -181,10 +181,15 @@ func CreateSecret(namespace string, secretName string, stringData map[string]str
 		Immutable:  nil,
 		Data:       nil,
 		StringData: stringData,
-		Type:       "",
+		Type:       corev1.SecretType(typeStr),
 	}
 
-	return Create(secret, k8sClient)
+	if err := Create(secret, k8sClient); err != nil {
+		return corev1.Secret{}, err
+	} else {
+		return *secret, err
+	}
+
 }
 
 // getOrCreateServiceAccountBearerToken returns a token if there is an existing token secret for a service account.

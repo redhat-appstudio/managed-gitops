@@ -19,6 +19,7 @@ import (
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	sharedoperations "github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -286,7 +287,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 						Name:      "my-managed-env-secret",
 						Namespace: "test-k8s-namespace",
 					},
-					Type:       "managed-gitops.redhat.com/managed-environment",
+					Type:       sharedutil.ManagedEnvironmentSecretType,
 					StringData: map[string]string{shared_resource_loop.KubeconfigKey: "abc"},
 				}
 				err = k8sClient.Create(context.Background(), secretCr)
@@ -545,7 +546,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 						Name:      "test-secret",
 						Namespace: "test-k8s-namespace",
 					},
-					Type: "managed-gitops.redhat.com/managed-environment",
+					Type: sharedutil.ManagedEnvironmentSecretType,
 					StringData: map[string]string{
 						"username": "test-user",
 						"password": "test@123",

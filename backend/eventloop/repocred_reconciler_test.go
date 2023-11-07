@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,15 +17,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logger "sigs.k8s.io/controller-runtime/pkg/log"
 )
-
-func findCondition(conditions []metav1.Condition, typeName string) *metav1.Condition {
-	for i := range conditions {
-		if conditions[i].Type == typeName {
-			return &conditions[i]
-		}
-	}
-	return nil
-}
 
 var _ = Describe("RepoCred Reconcile Function Tests", func() {
 	Context("Testing reconcileRepositoryCredentials function for RepositoryCredentials table entries.", func() {
@@ -57,7 +49,7 @@ var _ = Describe("RepoCred Reconcile Function Tests", func() {
 
 			ctx = context.Background()
 			log = logger.FromContext(ctx)
-			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+			dbq, err = db.NewUnsafePostgresDBQueries(false, true)
 			Expect(err).ToNot(HaveOccurred())
 
 			By("Create required DB entries.")
@@ -104,6 +96,10 @@ var _ = Describe("RepoCred Reconcile Function Tests", func() {
 
 		It("should skip the reconcile and not blow up if the GitOpsDeploymentRepositoryCredential CR is not found", func() {
 
+			mock_skipValidateRepositoryCredentials := func(rawRepoURL string, secret corev1.Secret) error {
+				return nil
+			}
+
 			defer dbq.CloseDatabase()
 
 			By("not creating a GitOpsDeployment CR in cluster and calling the Reconcile function.")
@@ -111,7 +107,7 @@ var _ = Describe("RepoCred Reconcile Function Tests", func() {
 				Name:      apiCRToDatabaseMappingDb.APIResourceName,
 				Namespace: apiCRToDatabaseMappingDb.APIResourceNamespace,
 			}
-			reconcileRepositoryCredentialStatus(ctx, k8sClient, dbq, db.APICRToDatabaseMapping{}, objectMeta, log)
+			reconcileRepositoryCredentialStatus(ctx, db.APICRToDatabaseMapping{}, objectMeta, mock_skipValidateRepositoryCredentials, k8sClient, dbq, log)
 		})
 
 		It("should set an error status for RepositoryCredentials if the secret field is not set in the CR", func() {
@@ -195,6 +191,7 @@ var _ = Describe("RepoCred Reconcile Function Tests", func() {
 					Name:      "test-my-repository-credentials-secret",
 					Namespace: apiCRToDatabaseMappingDb.APIResourceNamespace,
 				},
+				Type: sharedutil.RepositoryCredentialSecretType,
 				Data: map[string][]byte{"username": []byte("username"), "password": []byte("password")},
 			}
 			err := k8sClient.Create(ctx, secret)
@@ -235,3 +232,12 @@ var _ = Describe("RepoCred Reconcile Function Tests", func() {
 		})
 	})
 })
+
+func findCondition(conditions []metav1.Condition, typeName string) *metav1.Condition {
+	for i := range conditions {
+		if conditions[i].Type == typeName {
+			return &conditions[i]
+		}
+	}
+	return nil
+}

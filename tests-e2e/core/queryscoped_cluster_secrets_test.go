@@ -12,6 +12,7 @@ import (
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	k8s "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	appsv1 "k8s.io/api/apps/v1"
@@ -154,7 +155,7 @@ var _ = Describe("Query-scoped GitOpsDeployment tests", func() {
 							Name:      "managed-env-deploys-to-" + userName,
 							Namespace: destUserNamespace,
 						},
-						Type:       "managed-gitops.redhat.com/managed-environment",
+						Type:       sharedutil.ManagedEnvironmentSecretType,
 						StringData: map[string]string{"kubeconfig": kubeConfigContents},
 					}
 					err = k8s.Create(&secret, k8sClient)

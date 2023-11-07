@@ -11,6 +11,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -180,7 +181,7 @@ func BuildManagedEnvironment(apiServerURL string, kubeConfigContents string, cre
 			Name:      "my-managed-env-secret",
 			Namespace: fixture.GitOpsServiceE2ENamespace,
 		},
-		Type:       "managed-gitops.redhat.com/managed-environment",
+		Type:       sharedutil.ManagedEnvironmentSecretType,
 		StringData: map[string]string{"kubeconfig": kubeConfigContents},
 	}
 

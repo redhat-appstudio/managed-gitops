@@ -18,6 +18,7 @@ import (
 	"github.com/go-logr/logr"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -37,13 +38,14 @@ const (
 func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 	repositoryCredentialCRName string,
 	repositoryCredentialCRNamespace corev1.Namespace,
+	validateRepoURLFunction ValidateRepoURLAndCredentialsFunction,
 	apiNamespaceClient client.Client,
 	dbQueries db.DatabaseQueries, shouldWait bool, l logr.Logger) (*db.RepositoryCredentials, error) {
 
 	resourceNS := repositoryCredentialCRNamespace.Name
 
 	clusterUser, _, err := internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx, repositoryCredentialCRNamespace, dbQueries, l)
-	if err != nil {
+	if err != nil || clusterUser == nil {
 		return nil, fmt.Errorf("unable to retrieve cluster user while processing GitOpsRepositoryCredentials: '%s' in namespace: '%s': %v",
 			repositoryCredentialCRName, string(repositoryCredentialCRNamespace.UID), err)
 	}
@@ -139,13 +141,13 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 
 				// We need to fire-up an Operation as well
 				l.Info("Creating an Operation for the deleted RepositoryCredential DB row", "RepositoryCredential ID", repositoryCredentialPrimaryKey)
-				if operationDBID, err = createRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries,
+				if operationDBID, err = createRepoCredOperation(ctx, dbRepoCred, *clusterUser, gitopsEngineInstance.Namespace_name, dbQueries,
 					apiNamespaceClient, shouldWait, l); err != nil {
 
 					l.Error(err, "Error creating an Operation for the deleted RepositoryCredential DB row", "RepositoryCredential ID", repositoryCredentialPrimaryKey)
 					return nil, err
 				}
-				if err := CleanRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, operationDBID, l); err != nil {
+				if err := CleanRepoCredOperation(ctx, dbRepoCred, *clusterUser, gitopsEngineInstance.Namespace_name, dbQueries, apiNamespaceClient, operationDBID, l); err != nil {
 					l.Error(err, "Error cleaning up the Operation for the deleted RepositoryCredential DB row", "RepositoryCredential ID", repositoryCredentialPrimaryKey)
 					return nil, err
 				}
@@ -175,7 +177,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 
 	// Sanity test for gitopsDeploymentRepositoryCredentialCR.Spec.Secret to be non-empty value
 	if gitopsDeploymentRepositoryCredentialCR.Spec.Secret == "" {
-		if err := UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, gitopsDeploymentRepositoryCredentialCR, apiNamespaceClient, nil, l); err != nil {
+		if _, err := UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, gitopsDeploymentRepositoryCredentialCR, nil, validateRepoURLFunction, apiNamespaceClient, l); err != nil {
 			l.Error(err, fmt.Sprintf("error updating status of GitopsDeploymentRepositoryCredential %v", gitopsDeploymentRepositoryCredentialCR))
 		}
 		return nil, fmt.Errorf("secret cannot be empty")
@@ -203,7 +205,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 			// Something went wrong, retry
 			errMessage = fmt.Errorf("error retrieving secret: %v", err)
 		}
-		if err := UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, gitopsDeploymentRepositoryCredentialCR, apiNamespaceClient, secret, l); err != nil {
+		if _, err := UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, gitopsDeploymentRepositoryCredentialCR, secret, validateRepoURLFunction, apiNamespaceClient, l); err != nil {
 			l.Error(err, fmt.Sprintf("error updating status of GitopsDeploymentRepositoryCredential %v", gitopsDeploymentRepositoryCredentialCR))
 		}
 
@@ -217,8 +219,15 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 	}
 
 	// Before updating the records in DB, we need to set the Conditions of the CR
-	if err := UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, gitopsDeploymentRepositoryCredentialCR, apiNamespaceClient, secret, l); err != nil {
-		l.Error(err, fmt.Sprintf("error updating status of GitopsDeploymentRepositoryCredential %v", gitopsDeploymentRepositoryCredentialCR))
+	if isValidRepositoryCredentials, err := UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, gitopsDeploymentRepositoryCredentialCR, secret, validateRepoURLFunction, apiNamespaceClient, l); err != nil {
+
+		retMsg := fmt.Sprintf("error updating status of GitopsDeploymentRepositoryCredential %v", gitopsDeploymentRepositoryCredentialCR)
+		l.Error(err, retMsg)
+
+		return nil, fmt.Errorf("%s: %w", retMsg, err)
+
+	} else if !isValidRepositoryCredentials {
+		return nil, fmt.Errorf("invalid repository credentials")
 	}
 
 	// 6) If there is no existing APICRToDBMapping for this CR, then let's create one
@@ -273,11 +282,11 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 
 		l.Info(fmt.Sprintf("Created a ApiCRToDBMapping: (APIResourceType: %s, APIResourceUID: %s, DBRelationType: %s)", newApiCRToDBMapping.APIResourceType, newApiCRToDBMapping.APIResourceUID, newApiCRToDBMapping.DBRelationType))
 
-		operationDBID, err := createRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, shouldWait, l)
+		operationDBID, err := createRepoCredOperation(ctx, dbRepoCred, *clusterUser, gitopsEngineInstance.Namespace_name, dbQueries, apiNamespaceClient, shouldWait, l)
 		if err != nil {
 			return nil, err
 		}
-		if err := CleanRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, operationDBID, l); err != nil {
+		if err := CleanRepoCredOperation(ctx, dbRepoCred, *clusterUser, gitopsEngineInstance.Namespace_name, dbQueries, apiNamespaceClient, operationDBID, l); err != nil {
 			l.Error(err, "unable to clean up operation", "Operation ID", operationDBID)
 			return nil, err
 		}
@@ -338,11 +347,11 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 				return nil, err
 			}
 
-			if operationDBID, err = createRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, shouldWait, l); err != nil {
+			if operationDBID, err = createRepoCredOperation(ctx, dbRepoCred, *clusterUser, resourceNS, dbQueries, apiNamespaceClient, shouldWait, l); err != nil {
 				return nil, err
 			}
 
-			if err := CleanRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, operationDBID, l); err != nil {
+			if err := CleanRepoCredOperation(ctx, dbRepoCred, *clusterUser, resourceNS, dbQueries, apiNamespaceClient, operationDBID, l); err != nil {
 				return nil, err
 			}
 		}
@@ -351,7 +360,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 	}
 }
 
-func CleanRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCredentials, clusterUser *db.ClusterUser, ns string,
+func CleanRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCredentials, clusterUser db.ClusterUser, operationNS string,
 	dbQueries db.DatabaseQueries, client client.Client, operationDBID string, l logr.Logger) error {
 
 	// Get list of Operations from cluster.
@@ -411,7 +420,7 @@ func CleanRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCredent
 	return nil
 }
 
-func createRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCredentials, clusterUser *db.ClusterUser, ns string,
+func createRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCredentials, clusterUser db.ClusterUser, operationNS string,
 	dbQueries db.DatabaseQueries, apiNamespaceClient client.Client, shouldWait bool, l logr.Logger) (string, error) {
 
 	dbOperationInput := db.Operation{
@@ -422,14 +431,14 @@ func createRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCreden
 		Operation_owner_user_id: clusterUser.Clusteruser_id,
 	}
 
-	operationCR, operationDB, err := operations.CreateOperation(ctx, shouldWait, dbOperationInput, clusterUser.Clusteruser_id, ns, dbQueries,
+	operationCR, operationDB, err := operations.CreateOperation(ctx, shouldWait, dbOperationInput, clusterUser.Clusteruser_id, operationNS, dbQueries,
 		apiNamespaceClient, l)
 	if err != nil {
 		errV := fmt.Errorf("unable to create operation: %v", err)
 		return "", errV
 	}
 
-	l.Info("operation has been created", "CR", operationCR, "DB", operationDB)
+	l.Info("repocred operation has been created", "CR", operationCR, "DB", operationDB)
 
 	return operationDB.Operation_id, nil
 }
@@ -437,10 +446,12 @@ func createRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCreden
 // Updates the given repository credential CR's status condition to match the given condition and additional checks.
 // If there is an existing status condition with the exact same status, reason and message, no update is made in order
 // to preserve the LastTransitionTime (see https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Condition.LastTransitionTime )
-func UpdateGitopsDeploymentRepositoryCredentialStatus(ctx context.Context, repositoryCredential *managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential, k8sClient client.Client, secret *corev1.Secret, log logr.Logger) error {
+//
+// returns true if the RepositoryCredentials status is valid, false otherwise (for example, false if CR references a Secret that doesn't exist)
+func UpdateGitopsDeploymentRepositoryCredentialStatus(ctx context.Context, repositoryCredential *managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential, secret *corev1.Secret, validateRepoURL ValidateRepoURLAndCredentialsFunction, k8sClient client.Client, log logr.Logger) (bool, error) {
 
 	// if the condition was sent along with the function call, we don't need to perform additional checks
-	newConditions := generateValidRepositoryCredentialsConditions(*repositoryCredential, ctx, secret)
+	newConditions, areCredsValid := generateRepositoryCredentialsConditions(ctx, *repositoryCredential, secret, validateRepoURL)
 
 	needToUpdateConditions := false
 	for _, condition := range newConditions {
@@ -458,25 +469,29 @@ func UpdateGitopsDeploymentRepositoryCredentialStatus(ctx context.Context, repos
 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(repositoryCredential), repositoryCredential); err != nil {
 
 			if apierr.IsNotFound(err) {
-				return nil
+				return false, nil
 			}
 			// Something went wrong, retry
 			vErr := fmt.Errorf("unexpected error in retrieving repository credentials: %v", err)
 			log.Error(vErr, errGenericCR, "repositoryCredCRName", repositoryCredential)
-			return vErr
+			return false, vErr
 		}
 
 		repositoryCredential.Status.SetConditions(newConditions)
 		// Update the GitOpsDeploymentRepositoryCredential CR
 		if err := k8sClient.Status().Update(ctx, repositoryCredential); err != nil {
 			log.Error(err, "updating repository credential CR's status condition")
+			return false, fmt.Errorf("updating repository credential CR's status condition: %w", err)
 		}
 	}
 
-	return nil
+	return areCredsValid, nil
 }
 
-func generateValidRepositoryCredentialsConditions(repositoryCredential managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential, ctx context.Context, secret *corev1.Secret) []metav1.Condition {
+// generateValidRepositoryCredentialsConditions generates set of conditions for the repository credentials, plus true/false on whether the credential data was valid
+func generateRepositoryCredentialsConditions(ctx context.Context, repositoryCredential managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential, secret *corev1.Secret, isValidRepoURLAndCredentials func(rawRepoURL string, secret corev1.Secret) error) ([]metav1.Condition, bool) {
+
+	repoCredsAreValid := true
 
 	var validRepoUrlCondition, validRepoCredCondition metav1.Condition
 
@@ -490,6 +505,7 @@ func generateValidRepositoryCredentialsConditions(repositoryCredential managedgi
 			Status:  metav1.ConditionTrue,
 			Message: "Secret field is missing value",
 		}
+		repoCredsAreValid = false
 	} else if secret == nil {
 		// Secret is not sent because secret identified in RepositoryCredential was not found
 		errorOccuredCondition = metav1.Condition{
@@ -498,9 +514,22 @@ func generateValidRepositoryCredentialsConditions(repositoryCredential managedgi
 			Status:  metav1.ConditionTrue,
 			Message: "Secret specified not found",
 		}
+		repoCredsAreValid = false
+	} else if secret != nil {
+
+		// Secret must have repository credential type
+		if secret.Type != sharedutil.RepositoryCredentialSecretType {
+			errorOccuredCondition = metav1.Condition{
+				Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
+				Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonSecretInvalidType,
+				Status:  metav1.ConditionTrue,
+				Message: "Secret has an invalid type, must be " + sharedutil.RepositoryCredentialSecretType,
+			}
+			repoCredsAreValid = false
+		}
 	}
 
-	if errorOccuredCondition != (metav1.Condition{}) {
+	if errorOccuredCondition != (metav1.Condition{}) || secret == nil {
 		validRepoUrlCondition = metav1.Condition{
 			Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
 			Reason:  errorOccuredCondition.Reason,
@@ -514,28 +543,28 @@ func generateValidRepositoryCredentialsConditions(repositoryCredential managedgi
 			Message: errorOccuredCondition.Message,
 		}
 	} else {
-		err := validateRepositoryCredentials(repositoryCredential.Spec.Repository, secret)
-		if err != nil {
+		if err := isValidRepoURLAndCredentials(repositoryCredential.Spec.Repository, *secret); err != nil {
 			if strings.Contains(err.Error(), "not found") {
 				// Repository does not exist
 				validRepoUrlCondition = metav1.Condition{
 					Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
-					Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
+					Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInvalidRepositoryUrl,
 					Status:  metav1.ConditionFalse,
 					Message: fmt.Sprintf("Repository does not exist: %s", err.Error()),
 				}
 				validRepoCredCondition = metav1.Condition{
 					Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
-					Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
+					Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInvalidRepositoryUrl,
 					Status:  metav1.ConditionFalse,
 					Message: fmt.Sprintf("Repository does not exist: %s", err.Error()),
 				}
 				errorOccuredCondition = metav1.Condition{
 					Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
-					Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
+					Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInvalidRepositoryUrl,
 					Status:  metav1.ConditionTrue,
 					Message: fmt.Sprintf("Repository does not exist: %s", err.Error()),
 				}
+				repoCredsAreValid = false
 			} else {
 				// Credentials were invalid
 				validRepoUrlCondition = metav1.Condition{
@@ -556,6 +585,7 @@ func generateValidRepositoryCredentialsConditions(repositoryCredential managedgi
 					Status:  metav1.ConditionTrue,
 					Message: fmt.Sprintf("Repository Credentials provided %s for Repository %s are invalid", secret.Name, repositoryCredential.Spec.Repository),
 				}
+				repoCredsAreValid = false
 			}
 		} else {
 			// No errors occured
@@ -580,10 +610,19 @@ func generateValidRepositoryCredentialsConditions(repositoryCredential managedgi
 		}
 	}
 
-	return []metav1.Condition{errorOccuredCondition, validRepoUrlCondition, validRepoCredCondition}
+	return []metav1.Condition{errorOccuredCondition, validRepoUrlCondition, validRepoCredCondition}, repoCredsAreValid
 }
 
-func validateRepositoryCredentials(rawRepoURL string, secret *corev1.Secret) error {
+// ValidateRepoURLAndCredentialsFunction is a function signature primarily for 'validateRepositoryCredentials', but alternative functions can be provided by unit tests, in order to mock the Git repository validation.
+type ValidateRepoURLAndCredentialsFunction func(rawRepoURL string, secret corev1.Secret) error
+
+var (
+	// DefaultValidateRepositoryCredentials refers to the default validation algorithm used everywhere (except unit tests)
+	DefaultValidateRepositoryCredentials ValidateRepoURLAndCredentialsFunction = validateRepositoryCredentials
+)
+
+// validateRepositoryCredentials tests the validating of a GitOps repository, and its credentials
+func validateRepositoryCredentials(rawRepoURL string, secret corev1.Secret) error {
 
 	normalizedRepoUrl := NormalizeGitURL(rawRepoURL)
 	rem := git.NewRemote(memory.NewStorage(), &config.RemoteConfig{

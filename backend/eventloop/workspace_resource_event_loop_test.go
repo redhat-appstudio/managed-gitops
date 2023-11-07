@@ -15,6 +15,7 @@ import (
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
@@ -26,6 +27,12 @@ import (
 
 var _ = Describe("Test Workspace Resource Loop", func() {
 	Context("Testing WorkspaceResourceLoop", func() {
+
+		mockValidRepositoryCredentialsFunction := func(rawRepoURL string, secret corev1.Secret) error {
+			// skip validation of repository credentials
+			return nil
+		}
+
 		var (
 			workspaceChan chan workspaceEventLoopMessage
 			inputChan     chan workspaceResourceLoopMessage
@@ -50,7 +57,8 @@ var _ = Describe("Test Workspace Resource Loop", func() {
 				WithObjects(apiNamespace, argocdNamespace, kubesystemNamespace).
 				Build()
 
-			sharedResourceLoop := shared_resource_loop.NewSharedResourceLoop()
+			sharedResourceLoop := shared_resource_loop.NewSharedResourceLoopWithCustomFuncs(mockValidRepositoryCredentialsFunction)
+
 			workspaceChan = make(chan workspaceEventLoopMessage)
 			wel := newWorkspaceResourceLoopWithFactory(sharedResourceLoop, workspaceChan, MockSRLK8sClientFactory{fakeClient: k8sClient}, apiNamespace.Name, string(apiNamespace.UID))
 			Expect(wel).ToNot(BeNil())
@@ -117,6 +125,7 @@ var _ = Describe("Test Workspace Resource Loop", func() {
 					Name:      "test-secret",
 					Namespace: ns.Name,
 				},
+				Type: sharedutil.RepositoryCredentialSecretType,
 				Data: map[string][]byte{
 					"username": []byte("test-username"),
 					"password": []byte("test-password"),

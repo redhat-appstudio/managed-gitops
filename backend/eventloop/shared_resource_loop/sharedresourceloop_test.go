@@ -157,9 +157,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 		It("Should create or fetch a user by Namespace id.", func() {
 
-			sharedResourceEventLoop := &SharedResourceEventLoop{inputChannel: make(chan sharedResourceLoopMessage)}
-
-			go internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
+			sharedResourceEventLoop := NewSharedResourceLoop()
 
 			// At first assuming there are no existing users, hence creating new.
 			usrOld,
@@ -190,9 +188,8 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 		})
 
 		It("Should create or fetch resources.", func() {
-			sharedResourceEventLoop := &SharedResourceEventLoop{inputChannel: make(chan sharedResourceLoopMessage)}
 
-			go internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
+			sharedResourceEventLoop := NewSharedResourceLoop()
 
 			// At first assuming there are no existing resources, hence creating new.
 			sharedResourceOld, isUserErr, err := sharedResourceEventLoop.ReconcileSharedManagedEnv(ctx, k8sClient, *namespace, "", "",
@@ -249,9 +246,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 		})
 
 		It("Should fetch a engine instance by ID.", func() {
-			sharedResourceEventLoop := &SharedResourceEventLoop{inputChannel: make(chan sharedResourceLoopMessage)}
-
-			go internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
+			sharedResourceEventLoop := NewSharedResourceLoop()
 
 			// Negative test, engineInstance is not present, it should return error
 			engineInstanceOld, err := sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, "", k8sClient, *namespace, l)
@@ -307,9 +302,8 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 		})
 
 		It("Should fetch a GitOpsDeploymentRepositoryCredential.", func() {
-			sharedResourceEventLoop := &SharedResourceEventLoop{inputChannel: make(chan sharedResourceLoopMessage)}
 
-			go internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
+			sharedResourceEventLoop := NewSharedResourceLoop()
 
 			// Create new engine instance which will be used by "GetGitopsEngineInstanceById" fucntion
 			dbq, err := db.NewUnsafePostgresDBQueries(false, true)
@@ -403,7 +397,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			repositoryCredentialCRNamespace.Name = gitopsEngineInstance.Namespace_name
 			repositoryCredentialCRNamespace.UID = types.UID(gitopsEngineInstance.Namespace_uid)
 
-			dbRepoCred, err := internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, dbq, false, l)
+			dbRepoCred, err := internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, mock_returnValidRepositoryCredentials, k8sClient, dbq, false, l)
 
 			// Negative test (there is no Secret)
 			Expect(err).To(HaveOccurred())
@@ -415,6 +409,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 					Name:      "test-secret",
 					Namespace: gitopsEngineInstance.Namespace_name,
 				},
+				Type: sharedutil.RepositoryCredentialSecretType,
 				Data: map[string][]byte{
 					"username": []byte("test-username"),
 					"password": []byte("test-password"),
@@ -425,7 +420,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			// Create again the CR
 			// Expected: Since there's no DB entry for the CR, it will create an operation
-			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, dbq, false, l)
+			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, mock_returnValidRepositoryCredentials, k8sClient, dbq, false, l)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(dbRepoCred).NotTo(BeNil())
 
@@ -473,7 +468,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			// Delete the Operation using the CleanRepoCredOperation function
 			fmt.Println("TEST: Delete the Operation using the CleanRepoCredOperation function")
-			err = CleanRepoCredOperation(ctx, *dbRepoCred, usrNew, cr.Namespace, dbq, k8sClient, operationDB.Operation_id, l)
+			err = CleanRepoCredOperation(ctx, *dbRepoCred, *usrNew, cr.Namespace, dbq, k8sClient, operationDB.Operation_id, l)
 			Expect(err).ToNot(HaveOccurred()) // No error expected because the Operation is in Waiting state (so it's not deleted, and we don't consider this as an error)
 
 			// Set the Operation DB state to Completed (so it will be deleted the next time)
@@ -483,7 +478,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			// Call the CleanRepoCredOperation function again
 			fmt.Println("TEST: Call the CleanRepoCredOperation function again")
-			err = CleanRepoCredOperation(ctx, *dbRepoCred, usrNew, cr.Namespace, dbq, k8sClient, operationDB.Operation_id, l)
+			err = CleanRepoCredOperation(ctx, *dbRepoCred, *usrNew, cr.Namespace, dbq, k8sClient, operationDB.Operation_id, l)
 			Expect(err).ToNot(HaveOccurred())
 
 			// Verify the Operation CR and DB Entry are deleted
@@ -503,7 +498,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			// Re-running should not error
 			fmt.Println("Re-running the internalProcessMessage_ReconcileRepositoryCredential()")
-			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, dbq, false, l)
+			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, mock_returnValidRepositoryCredentials, k8sClient, dbq, false, l)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(dbRepoCred).NotTo(BeNil())
 
@@ -527,7 +522,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			err = dbq.UpdateRepositoryCredentials(ctx, dbRepoCred)
 			Expect(err).ToNot(HaveOccurred())
 
-			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, dbq, false, l)
+			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, mock_returnValidRepositoryCredentials, k8sClient, dbq, false, l)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(dbRepoCred).ToNot(BeNil())
 
@@ -569,7 +564,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(err).To(HaveOccurred()) // err unexpected number of rows affected:
 			// Expect(err).ToNot(HaveOccurred())
 
-			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, dbq, false, l)
+			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, mock_returnValidRepositoryCredentials, k8sClient, dbq, false, l)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(dbRepoCred).ToNot(BeNil())
 
@@ -596,7 +591,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			// Expected: Since there is no GitOpsDeploymentRepositoryCredential CR, it will delete the DB entry
 			err = k8sClient.Delete(ctx, cr)
 			Expect(err).ToNot(HaveOccurred())
-			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, dbq, false, l)
+			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, mock_returnValidRepositoryCredentials, k8sClient, dbq, false, l)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(dbRepoCred).To(BeNil())
 
@@ -619,7 +614,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			// Negative test: Try again to reconcile the RepositoryCredential
 			// Expected: It should not error (both db row and CR should be deleted). Nothing we can do.
-			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, dbq, false, l)
+			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, mock_returnValidRepositoryCredentials, k8sClient, dbq, false, l)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(dbRepoCred).To(BeNil())
 
@@ -639,9 +634,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			err = dbq.CreateClusterUser(ctx, clusterUserDb)
 			Expect(err).ToNot(HaveOccurred())
 
-			sharedResourceEventLoop := &SharedResourceEventLoop{inputChannel: make(chan sharedResourceLoopMessage)}
-
-			go internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
+			sharedResourceEventLoop := NewSharedResourceLoop()
 
 			user,
 				isNewUser,
@@ -753,6 +746,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 					Name:      "test-secret",
 					Namespace: gitopsEngineInstance.Namespace_name,
 				},
+				Type: sharedutil.RepositoryCredentialSecretType,
 				Data: map[string][]byte{
 					"username": []byte("test-username"),
 					"password": []byte("test-password"),
@@ -761,7 +755,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			err = k8sClient.Create(ctx, secret)
 			Expect(err).ToNot(HaveOccurred())
 
-			dbRepoCred, err := internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, dbq, false, l)
+			dbRepoCred, err := internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, mock_returnValidRepositoryCredentials, k8sClient, dbq, false, l)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(dbRepoCred).NotTo(BeNil())
 
@@ -785,9 +779,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			err := db.SetupForTestingDBGinkgo()
 			Expect(err).ToNot(HaveOccurred())
 
-			sharedResourceEventLoop := &SharedResourceEventLoop{inputChannel: make(chan sharedResourceLoopMessage)}
-
-			go internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
+			sharedResourceEventLoop := NewSharedResourceLoop()
 
 			By("Create new engine instance which will be used by `GetGitopsEngineInstanceById` function")
 			dbq, err := db.NewUnsafePostgresDBQueries(false, true)
@@ -877,6 +869,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 					Name:      "test-secret",
 					Namespace: gitopsEngineInstance.Namespace_name,
 				},
+				Type: sharedutil.RepositoryCredentialSecretType,
 				Data: map[string][]byte{
 					"username": []byte("test-username"),
 					"password": []byte("test-password"),
@@ -885,7 +878,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			err = k8sClient.Create(ctx, secret)
 			Expect(err).ToNot(HaveOccurred())
 
-			dbRepoCred, err := internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, dbq, false, l)
+			dbRepoCred, err := internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, mock_returnValidRepositoryCredentials, k8sClient, dbq, false, l)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(dbRepoCred).NotTo(BeNil())
 
@@ -913,7 +906,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(appProjectRepositoryDB).NotTo(BeNil())
 
-			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, dbq, false, l)
+			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, mock_returnValidRepositoryCredentials, k8sClient, dbq, false, l)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(dbRepoCred).NotTo(BeNil())
 			Expect(dbRepoCred.PrivateURL).To(Equal("http://github.com/jgwest/my-repo"))
@@ -942,9 +935,8 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 		})
 
 		It("Should test ReconcileRepositoryCredential when RepositoryCredential CR is not nil", func() {
-			sharedResourceEventLoop := &SharedResourceEventLoop{inputChannel: make(chan sharedResourceLoopMessage)}
 
-			go internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
+			sharedResourceEventLoop := NewSharedResourceLoopWithCustomFuncs(mockValidRepositoryCredentialsFunction)
 
 			// Create new engine instance which will be used by "GetGitopsEngineInstanceById" fucntion
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
@@ -995,6 +987,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 					Name:      "test-secret",
 					Namespace: gitopsEngineInstance.Namespace_name,
 				},
+				Type: sharedutil.RepositoryCredentialSecretType,
 				Data: map[string][]byte{
 					"username": []byte("test-username"),
 					"password": []byte("test-password"),
@@ -1008,14 +1001,15 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			repositoryCredentialCRNamespace.Name = gitopsEngineInstance.Namespace_name
 			repositoryCredentialCRNamespace.UID = types.UID(gitopsEngineInstance.Namespace_uid)
 
-			dbRepoCred, err := internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, dbq, false, l)
+			dbRepoCred, err := internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, mock_returnValidRepositoryCredentials, k8sClient, dbq, false, l)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(dbRepoCred).ToNot(BeNil())
 
 			sharedResourceEventLoopRepoCred, err := sharedResourceEventLoop.ReconcileRepositoryCredential(ctx, k8sClient, repositoryCredentialCRNamespace, cr.Name, MockSRLK8sClientFactory{fakeClient: k8sClient}, log.FromContext(context.Background()))
 
-			Expect(sharedResourceEventLoopRepoCred.RepositoryCredentialsID).To(Equal(dbRepoCred.RepositoryCredentialsID))
 			Expect(err).ToNot(HaveOccurred())
+			Expect(sharedResourceEventLoopRepoCred.RepositoryCredentialsID).To(Equal(dbRepoCred.RepositoryCredentialsID))
+
 			// To be used by AfterEach to clean up the resources created by test
 			resourcesToBeDeleted = testResources{
 				Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
@@ -1028,13 +1022,12 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 		})
 
 		It("Should test ReconcileRepositoryCredential when RepositoryCredential CR is nil", func() {
-			sharedResourceEventLoop := &SharedResourceEventLoop{inputChannel: make(chan sharedResourceLoopMessage)}
 
-			go internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
+			sharedResourceEventLoop := NewSharedResourceLoop()
 
-			sharedResourceLoop, err := sharedResourceEventLoop.ReconcileRepositoryCredential(ctx, k8sClient, *namespace, "test-name", MockSRLK8sClientFactory{fakeClient: k8sClient}, log.FromContext(context.Background()))
+			repoCreds, err := sharedResourceEventLoop.ReconcileRepositoryCredential(ctx, k8sClient, *namespace, "test-name", MockSRLK8sClientFactory{fakeClient: k8sClient}, log.FromContext(context.Background()))
 			Expect(err).ToNot(HaveOccurred())
-			Expect(sharedResourceLoop).To(BeNil())
+			Expect(repoCreds).To(BeNil())
 
 			resourcesToBeDeleted = testResources{}
 		})

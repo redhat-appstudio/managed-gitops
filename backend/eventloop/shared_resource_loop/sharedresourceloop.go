@@ -44,6 +44,9 @@ import (
 //     concurrently create API-namespace-scoped database resources at the same time.
 type SharedResourceEventLoop struct {
 	inputChannel chan sharedResourceLoopMessage
+
+	// For use by unit tests only: If this function is non-nil, it will be used instead of the default repository credentials validation function.
+	validateRepoURLAndCredentialsFunction ValidateRepoURLAndCredentialsFunction
 }
 
 // ReconcileAppProjectRepositories ensures that the necessary AppProjectRepository database rows exists in the database, and that they are consistent with the GitOpsDeployment/GitOpsDeploymentRepositoryCredentials defined in the given Namespace.
@@ -258,13 +261,29 @@ func (srEventLoop *SharedResourceEventLoop) ReconcileRepositoryCredential(ctx co
 
 }
 
+// NewSharedResourceLoop creates a new SharedResourceLoop, and starts the goroutine responsible for processing channel messages.
+// See documentation at top of this file for details.
 func NewSharedResourceLoop() *SharedResourceEventLoop {
 
 	sharedResourceEventLoop := &SharedResourceEventLoop{
 		inputChannel: make(chan sharedResourceLoopMessage),
 	}
 
-	go internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
+	go sharedResourceEventLoop.internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
+
+	return sharedResourceEventLoop
+}
+
+// NewSharedResourceLoopWithCustomFuncs allows override of validation functions from NewSharedResourceLoop
+// Note: This should only be called from unit tests
+func NewSharedResourceLoopWithCustomFuncs(validateRepoURLFunction ValidateRepoURLAndCredentialsFunction) *SharedResourceEventLoop {
+
+	sharedResourceEventLoop := &SharedResourceEventLoop{
+		inputChannel:                          make(chan sharedResourceLoopMessage),
+		validateRepoURLAndCredentialsFunction: validateRepoURLFunction,
+	}
+
+	go sharedResourceEventLoop.internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
 
 	return sharedResourceEventLoop
 }
@@ -383,7 +402,7 @@ type sharedResourceLoopMessage_reconcileAppProjectRepositoryResponse struct {
 	err error
 }
 
-func internalSharedResourceEventLoop(inputChan chan sharedResourceLoopMessage) {
+func (srel *SharedResourceEventLoop) internalSharedResourceEventLoop(inputChan chan sharedResourceLoopMessage) {
 
 	ctx := context.Background()
 	l := log.FromContext(ctx).
@@ -398,7 +417,7 @@ func internalSharedResourceEventLoop(inputChan chan sharedResourceLoopMessage) {
 		msg := <-inputChan
 
 		_, err = sharedutil.CatchPanic(func() error {
-			processSharedResourceMessage(msg.ctx, msg, dbQueries, msg.log)
+			srel.processSharedResourceMessage(msg.ctx, msg, dbQueries, msg.log)
 			return nil
 		})
 		if err != nil {
@@ -407,7 +426,7 @@ func internalSharedResourceEventLoop(inputChan chan sharedResourceLoopMessage) {
 	}
 }
 
-func processSharedResourceMessage(ctx context.Context, msg sharedResourceLoopMessage, dbQueries db.DatabaseQueries, log logr.Logger) {
+func (srel *SharedResourceEventLoop) processSharedResourceMessage(ctx context.Context, msg sharedResourceLoopMessage, dbQueries db.DatabaseQueries, log logr.Logger) {
 
 	log.V(logutil.LogLevel_Debug).Info("sharedResourceEventLoop received message: " + string(msg.messageType))
 
@@ -487,8 +506,14 @@ func processSharedResourceMessage(ctx context.Context, msg sharedResourceLoopMes
 		payload, ok := (msg.payload).(sharedResourceLoopMessage_reconcileRepositoryCredentialRequest)
 		if ok {
 
+			repoCredValidationFunction := DefaultValidateRepositoryCredentials
+
+			if srel.validateRepoURLAndCredentialsFunction != nil {
+				repoCredValidationFunction = srel.validateRepoURLAndCredentialsFunction
+			}
+
 			repositoryCredential, err = internalProcessMessage_ReconcileRepositoryCredential(ctx,
-				payload.repositoryCredentialCRName, msg.workspaceNamespace, msg.workspaceClient, dbQueries, true, log)
+				payload.repositoryCredentialCRName, msg.workspaceNamespace, repoCredValidationFunction, msg.workspaceClient, dbQueries, true, log)
 
 		} else {
 			err = fmt.Errorf("SEVERE - unexpected cast in internalSharedResourceEventLoop")

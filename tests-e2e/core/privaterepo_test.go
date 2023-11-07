@@ -28,6 +28,7 @@ import (
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
@@ -70,8 +71,6 @@ const (
 
 var (
 	errGitHubUsernameNotSet  = errors.New("GITHUB_USERNAME env variable not set")
-	errGitHubTokenNotSet     = errors.New("GITHUB_TOKEN env variable not set")
-	errGitHubSSHKeyNotSet    = errors.New("GITHUB_SSH_KEY env variable not set")
 	errGitHubOffline         = errors.New("GitHub is offline")
 	errGitHubRepoURLNotValid = errors.New("GitHub repo URL is not valid")
 )
@@ -97,17 +96,14 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 		// --- Setup --- //
 		// Prepare the test environment by reading appropriate environment variables and reaching out to the git server
 		// or else skip the test if the environment is not properly configured
-		By("0. Get the environment variables required for the test")
+		By("0. Get the environment variables required for the test and clean the test environment")
 
 		env, err = getEnvironmentConfig()
 		if err != nil {
 			Skip(err.Error())
 		}
 
-		Expect(env.ready).To(BeTrue())        // Skip the test if GitHub is offline (unreachable for some reason)
-		Expect(env.username).NotTo(BeEmpty()) // Skip the test if the GITHUB_USERNAME environment variable is not set
-		Expect(env.token).NotTo(BeEmpty())    // Skip the test if the GITHUB_TOKEN environment variable is not set
-		Expect(env.sshKey).NotTo(BeEmpty())   // Skip the test if the GITHUB_SSH_KEY environment variable is not set
+		Expect(env.ready).To(BeTrue()) // Skip the test if GitHub is offline (unreachable for some reason)
 
 		// Get a k8s client to use in the tests
 		k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -115,38 +111,32 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 
 		// Get the config map to be deployed from the private repo
 		configMap = getConfigMapYAML()
+
+		Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
 	})
 
-	Context("Deploy from a private repository (access via username/password)", func() {
+	Context("Deploy from a private repository, access via username/password", func() {
 
 		It("Should work without HTTPS/Token authentication issues", func() {
 			// --- Tests --- //
-			By("1. Clean the test environment")
-			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
-			By("2. Create the Secret with the user/pass credentials")
+			if env.username == "" || env.token == "" {
+				Skip("username/token not defined")
+			}
+			Expect(env.username).NotTo(BeEmpty())
+			Expect(env.token).NotTo(BeEmpty())
+
+			By("1. Create the Secret with the user/pass credentials")
 			stringData := map[string]string{
 				"username": env.username,
 				"password": env.token,
 			}
-			Expect(k8s.CreateSecret(fixture.GitOpsServiceE2ENamespace, secretToken, stringData, k8sClient)).To(Succeed())
+			Expect(k8s.CreateSecret(fixture.GitOpsServiceE2ENamespace, secretToken, sharedutil.RepositoryCredentialSecretType, stringData, k8sClient)).Error().ToNot(HaveOccurred())
 
-			By("3. Create the GitOpsDeploymentRepositoryCredential CR for HTTPS")
+			By("2. Create the GitOpsDeploymentRepositoryCredential CR for HTTPS")
 			CR := gitopsDeploymentRepositoryCredentialCRForTokenTest()
-			Expect(k8s.Create(CR, k8sClient)).To(Succeed())
-			Expect(CR.Status.Conditions).To(HaveLen(3))
-
-			By("4. Create the GitOpsDeployment CR")
-			gitOpsDeployment := gitopsDeplFixture.BuildGitOpsDeploymentResource(deploymentCRToken, privateRepoURL, privateRepoPath,
-				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
-			Expect(k8s.Create(&gitOpsDeployment, k8sClient)).To(Succeed())
-
-			By("5. GitOpsDeployment should have expected health and status")
-			Eventually(gitOpsDeployment, "4m", "1s").Should(
-				SatisfyAll(
-					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
-					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)),
-			)
+			Expect(k8s.Create(&CR, k8sClient)).To(Succeed())
 
 			expectedRepositoryCredentialStatusConditions := []metav1.Condition{
 				{
@@ -164,39 +154,59 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 				},
 			}
 
-			Eventually(CR, "12m", "1s").Should(
+			Eventually(CR, "2m", "1s").Should(gitopsDeplRepoCredFixture.HaveConditions(expectedRepositoryCredentialStatusConditions))
+			Consistently(CR, "10s", "1s").Should(gitopsDeplRepoCredFixture.HaveConditions(expectedRepositoryCredentialStatusConditions))
+
+			By("3. Create the GitOpsDeployment CR")
+			gitOpsDeployment := gitopsDeplFixture.BuildGitOpsDeploymentResource(deploymentCRToken, privateRepoURL, privateRepoPath,
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+			Expect(k8s.Create(&gitOpsDeployment, k8sClient)).To(Succeed())
+
+			By("4. GitOpsDeployment should have expected health and status")
+			Eventually(gitOpsDeployment, "4m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)),
+			)
+
+			Eventually(CR, "1m", "1s").Should(
 				SatisfyAll(
 					gitopsDeplRepoCredFixture.HaveConditions(expectedRepositoryCredentialStatusConditions)),
 			)
 
-			By("6. ConfigMap should be deployed")
-			Eventually(func() error { return k8s.Get(configMap, k8sClient) }, "4m", "1s").Should(Succeed())
+			Consistently(CR, "10s", "1s").Should(
+				SatisfyAll(
+					gitopsDeplRepoCredFixture.HaveConditions(expectedRepositoryCredentialStatusConditions)),
+			)
 
-			By("7. Secret should be created by for GitOpsDeploymentRepositoryCredential resource")
+			By("5. ConfigMap should be deployed")
+			Eventually(func() error { return k8s.Get(configMap, k8sClient) }, "1m", "1s").Should(Succeed())
+
+			By("6. Secret should be created by for GitOpsDeploymentRepositoryCredential resource")
 
 			ctx := context.Background()
 			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
 			Expect(err).ToNot(HaveOccurred())
 
 			var apiCRToDatabaseMappings []db.APICRToDatabaseMapping
-			err = dbQueries.UnsafeListAllAPICRToDatabaseMappings(ctx, &apiCRToDatabaseMappings)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(dbQueries.UnsafeListAllAPICRToDatabaseMappings(ctx, &apiCRToDatabaseMappings)).To(Succeed())
 
+			matchFound := false
 			for idx := range apiCRToDatabaseMappings {
 				apiCRToDBMapping := apiCRToDatabaseMappings[idx]
 				if apiCRToDBMapping.APIResourceUID == string(CR.UID) {
 					repoCred, err := dbQueries.GetRepositoryCredentialsByID(ctx, apiCRToDBMapping.DBRelationKey)
 					Expect(err).ToNot(HaveOccurred())
 
-					By("Get the secret")
-
+					// Retrieve the Secret based on the RepositoryCredentials row
 					secret := &corev1.Secret{}
-					err = k8sClient.Get(ctx, types.NamespacedName{Name: argosharedutil.GenerateArgoCDRepoCredSecretName(repoCred), Namespace: "gitops-service-argocd"}, secret)
-					Expect(err).ToNot(HaveOccurred())
+					Expect(k8sClient.Get(ctx, types.NamespacedName{Name: argosharedutil.GenerateArgoCDRepoCredSecretName(repoCred), Namespace: "gitops-service-argocd"}, secret)).To(Succeed())
 
+					matchFound = true
 					break
 				}
 			}
+			Expect(matchFound).To(BeTrue())
 		})
 	})
 
@@ -204,31 +214,22 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 
 		It("Should work without SSH authentication issues", func() {
 			// --- Tests --- //
-			By("1. Clean the test environment")
-			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
-			By("2. Create the Secret with the SSH key")
+			if env.sshKey == "" {
+				Skip("SSH key not defined")
+			}
+
+			Expect(env.sshKey).NotTo(BeEmpty()) // Skip the test if the GITHUB_SSH_KEY environment variable is not set
+
+			By("1. Create the Secret with the SSH key")
 			stringData := map[string]string{
 				"sshPrivateKey": env.sshKey,
 			}
-			Expect(k8s.CreateSecret(fixture.GitOpsServiceE2ENamespace, secretSSHKey, stringData, k8sClient)).To(Succeed())
+			Expect(k8s.CreateSecret(fixture.GitOpsServiceE2ENamespace, secretSSHKey, sharedutil.RepositoryCredentialSecretType, stringData, k8sClient)).Error().ToNot(HaveOccurred())
 
-			By("3. Create the GitOpsDeploymentRepositoryCredential CR for SSH")
+			By("2. Create the GitOpsDeploymentRepositoryCredential CR for SSH")
 			CR := gitopsDeploymentRepositoryCredentialCRForSSHTest()
-			Expect(k8s.Create(CR, k8sClient)).To(Succeed())
-			Expect(CR.Status.Conditions).To(HaveLen(3))
-
-			By("4. Create the GitOpsDeployment CR")
-			gitOpsDeployment := gitopsDeplFixture.BuildGitOpsDeploymentResource(deploymentCRSSH, privateRepoSSH, privateRepoPath,
-				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
-			Expect(k8s.Create(&gitOpsDeployment, k8sClient)).To(Succeed())
-
-			By("5. GitOpsDeployment should have expected health and status")
-			Eventually(gitOpsDeployment, "4m", "1s").Should(
-				SatisfyAll(
-					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
-					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)),
-			)
+			Expect(k8s.Create(&CR, k8sClient)).To(Succeed())
 
 			expectedRepositoryCredentialStatusConditions := []metav1.Condition{
 				{
@@ -245,88 +246,131 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 					Status: metav1.ConditionTrue,
 				},
 			}
-			Eventually(CR, "12m", "1s").Should(
+
+			Eventually(CR, "2m", "1s").Should(gitopsDeplRepoCredFixture.HaveConditions(expectedRepositoryCredentialStatusConditions))
+			Consistently(CR, "10s", "1s").Should(gitopsDeplRepoCredFixture.HaveConditions(expectedRepositoryCredentialStatusConditions))
+
+			By("3. Create the GitOpsDeployment CR")
+			gitOpsDeployment := gitopsDeplFixture.BuildGitOpsDeploymentResource(deploymentCRSSH, privateRepoSSH, privateRepoPath,
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+			Expect(k8s.Create(&gitOpsDeployment, k8sClient)).To(Succeed())
+
+			By("4. GitOpsDeployment should have expected health and status")
+			Eventually(gitOpsDeployment, "4m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)),
+			)
+
+			expectedRepositoryCredentialStatusConditions = []metav1.Condition{
+				{
+					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
+					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonCredentialsUpToDate,
+					Status: metav1.ConditionFalse,
+				}, {
+					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
+					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonValidRepositoryUrl,
+					Status: metav1.ConditionTrue,
+				}, {
+					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
+					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonCredentialsUpToDate,
+					Status: metav1.ConditionTrue,
+				},
+			}
+			Eventually(CR, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
 					gitopsDeplRepoCredFixture.HaveConditions(expectedRepositoryCredentialStatusConditions)),
 			)
 
-			By("6. ConfigMap should be deployed")
+			By("5. ConfigMap should be deployed")
 			configMap := getConfigMapYAML()
 			Eventually(func() error { return k8s.Get(configMap, k8sClient) }, "4m", "1s").Should(Succeed())
 
-			By("7. Secret should be created by for GitOpsDeploymentRepositoryCredential resource")
+			By("6. Secret should be created by for GitOpsDeploymentRepositoryCredential resource")
 
 			ctx := context.Background()
 			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
 			Expect(err).ToNot(HaveOccurred())
 
 			var apiCRToDatabaseMappings []db.APICRToDatabaseMapping
-			err = dbQueries.UnsafeListAllAPICRToDatabaseMappings(ctx, &apiCRToDatabaseMappings)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(dbQueries.UnsafeListAllAPICRToDatabaseMappings(ctx, &apiCRToDatabaseMappings)).To(Succeed())
 
+			matchFound := false
 			for idx := range apiCRToDatabaseMappings {
 				apiCRToDBMapping := apiCRToDatabaseMappings[idx]
 				if apiCRToDBMapping.APIResourceUID == string(CR.UID) {
 					repoCred, err := dbQueries.GetRepositoryCredentialsByID(ctx, apiCRToDBMapping.DBRelationKey)
 					Expect(err).ToNot(HaveOccurred())
 
-					By("Get the secret")
-
 					secret := &corev1.Secret{}
-					err = k8sClient.Get(ctx, types.NamespacedName{Name: argosharedutil.GenerateArgoCDRepoCredSecretName(repoCred), Namespace: "gitops-service-argocd"}, secret)
-					Expect(err).ToNot(HaveOccurred())
-
+					Expect(k8sClient.Get(ctx, types.NamespacedName{Name: argosharedutil.GenerateArgoCDRepoCredSecretName(repoCred), Namespace: "gitops-service-argocd"}, secret)).To(Succeed())
+					matchFound = true
 					break
 				}
 			}
+			Expect(matchFound).To(BeTrue())
 		})
 	})
 
 	Context("Check changes to Gitops Deployment Repository Credential Status Conditions for Private Repo", func() {
 
 		It("Should work without HTTPS/Token authentication issues", func() {
-			// --- Tests --- //
-			By("1. Clean the test environment")
-			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
-			By("2. Create the Secret with the user/pass credentials")
+			if env.username == "" || env.token == "" {
+				Skip("username/token not defined")
+			}
+			Expect(env.username).NotTo(BeEmpty())
+			Expect(env.token).NotTo(BeEmpty())
+
+			// --- Tests --- //
+
+			By("1. Create the Secret with invalid user/pass credentials")
 			stringData := map[string]string{
 				"username": env.username,
 				"password": "test-password",
 			}
-			Expect(k8s.CreateSecret(fixture.GitOpsServiceE2ENamespace, secretToken, stringData, k8sClient)).To(Succeed())
+
+			secret, err := k8s.CreateSecret(fixture.GitOpsServiceE2ENamespace, secretToken, sharedutil.RepositoryCredentialSecretType, stringData, k8sClient)
+			Expect(err).ToNot(HaveOccurred())
 
 			expectedRepositoryCredentialStatusConditions := []metav1.Condition{
 				{
 					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
-					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonSecretNotSpecified,
+					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonInvalidCredentials,
 					Status: metav1.ConditionTrue,
 				}, {
 					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
-					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
-					Status: metav1.ConditionFalse,
+					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonValidRepositoryUrl,
+					Status: metav1.ConditionTrue,
 				}, {
 					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
-					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
+					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonInvalidCredentials,
 					Status: metav1.ConditionFalse,
 				},
 			}
 
-			By("3. Create the GitOpsDeploymentRepositoryCredential CR for HTTPS")
+			By("2. Create the GitOpsDeploymentRepositoryCredential CR for HTTPS")
 			CR := gitopsDeploymentRepositoryCredentialCRForTokenTest()
-			Expect(k8s.Create(CR, k8sClient)).To(Succeed())
-			Expect(CR.Status.Conditions).To(HaveLen(3))
-			Eventually(CR, "12m", "1s").Should(
+			Expect(k8s.Create(&CR, k8sClient)).To(Succeed())
+
+			Eventually(CR, "3m", "1s").Should(
 				SatisfyAll(
 					gitopsDeplRepoCredFixture.HaveConditions(expectedRepositoryCredentialStatusConditions)),
 			)
 
-			By("4. Update the Secret")
+			Consistently(CR, "10s", "1s").Should(
+				SatisfyAll(
+					gitopsDeplRepoCredFixture.HaveConditions(expectedRepositoryCredentialStatusConditions)),
+			)
+
+			Expect(k8s.Delete(&secret, k8sClient)).To(Succeed())
+
+			By("3. Create a new Secret with valid credentials")
 			stringData = map[string]string{
 				"username": env.username,
 				"password": env.token,
 			}
-			Expect(k8s.CreateSecret(fixture.GitOpsServiceE2ENamespace, secretToken, stringData, k8sClient)).To(Succeed())
+			Expect(k8s.CreateSecret(fixture.GitOpsServiceE2ENamespace, secretToken, sharedutil.RepositoryCredentialSecretType, stringData, k8sClient)).Error().ToNot(HaveOccurred())
 
 			expectedRepositoryCredentialStatusConditions = []metav1.Condition{
 				{
@@ -344,14 +388,143 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 				},
 			}
 
-			By("5. GitOpsDeploymentRepositoryCredential conditions should have been updated")
-			Eventually(CR, "12m", "1s").Should(
+			By("4. GitOpsDeploymentRepositoryCredential conditions should have been updated from failure to success")
+			Eventually(CR, "1m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplRepoCredFixture.HaveConditions(expectedRepositoryCredentialStatusConditions)),
+			)
+
+			Consistently(CR, "10s", "1s").Should(
 				SatisfyAll(
 					gitopsDeplRepoCredFixture.HaveConditions(expectedRepositoryCredentialStatusConditions)),
 			)
 
 		})
 	})
+
+	When("changes are made to the GitOpsDeploymentRepositoryCredential's Secret", func() {
+
+		It("should correctly reconcile the Secret contents", func() {
+
+			if env.username == "" || env.token == "" {
+				Skip("username/token not defined")
+			}
+			Expect(env.username).NotTo(BeEmpty())
+			Expect(env.token).NotTo(BeEmpty())
+
+			// --- Tests --- //
+
+			By("create the Secret with invalid user/pass credentials")
+			stringData := map[string]string{
+				"username": env.username,
+				"password": "invalid-contents",
+			}
+			secret, err := k8s.CreateSecret(fixture.GitOpsServiceE2ENamespace, secretToken, sharedutil.RepositoryCredentialSecretType, stringData, k8sClient)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("create the GitOpsDeploymentRepositoryCredential CR for HTTPS, and verifying the status field shows invalid credentials")
+			CR := gitopsDeploymentRepositoryCredentialCRForTokenTest()
+			Expect(k8s.Create(&CR, k8sClient)).To(Succeed())
+
+			expectedRepositoryCredentialStatusConditions := []metav1.Condition{
+				{
+					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
+					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonInvalidCredentials,
+					Status: metav1.ConditionTrue,
+				}, {
+					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
+					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonValidRepositoryUrl,
+					Status: metav1.ConditionTrue,
+				}, {
+					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
+					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonInvalidCredentials,
+					Status: metav1.ConditionFalse,
+				},
+			}
+
+			Eventually(CR, "1m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplRepoCredFixture.HaveConditions(expectedRepositoryCredentialStatusConditions)),
+			)
+
+			Consistently(CR, "10s", "1s").Should(
+				SatisfyAll(
+					gitopsDeplRepoCredFixture.HaveConditions(expectedRepositoryCredentialStatusConditions)),
+			)
+
+			By("updating the existing Secret to a valid username/password, and verifying the status field changes to valid status")
+
+			secret.Data = map[string][]byte{
+				"username": []byte(env.username),
+				"password": []byte(env.token),
+			}
+
+			Expect(k8sClient.Update(context.Background(), &secret)).To(Succeed())
+
+			expectedRepositoryCredentialStatusConditions = []metav1.Condition{
+				{
+					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
+					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonCredentialsUpToDate,
+					Status: metav1.ConditionFalse,
+				}, {
+					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
+					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonValidRepositoryUrl,
+					Status: metav1.ConditionTrue,
+				}, {
+					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
+					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonCredentialsUpToDate,
+					Status: metav1.ConditionTrue,
+				},
+			}
+
+			Eventually(CR, "1m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplRepoCredFixture.HaveConditions(expectedRepositoryCredentialStatusConditions)),
+			)
+
+			Consistently(CR, "10s", "1s").Should(
+				SatisfyAll(
+					gitopsDeplRepoCredFixture.HaveConditions(expectedRepositoryCredentialStatusConditions)),
+			)
+
+			By("updating the contents to invalid contents again, and verifying the status field changes to invalid credentials")
+
+			secret.Data = map[string][]byte{
+				"username": []byte(env.username),
+				"password": []byte("invalid-contents"),
+			}
+
+			Expect(k8sClient.Update(context.Background(), &secret)).To(Succeed())
+
+			expectedRepositoryCredentialStatusConditions = []metav1.Condition{
+				{
+					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
+					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonInvalidCredentials,
+					Status: metav1.ConditionTrue,
+				}, {
+					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
+					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonValidRepositoryUrl,
+					Status: metav1.ConditionTrue,
+				}, {
+					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
+					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonInvalidCredentials,
+					Status: metav1.ConditionFalse,
+				},
+			}
+
+			Eventually(CR, "1m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplRepoCredFixture.HaveConditions(expectedRepositoryCredentialStatusConditions)),
+			)
+
+			Consistently(CR, "10s", "1s").Should(
+				SatisfyAll(
+					gitopsDeplRepoCredFixture.HaveConditions(expectedRepositoryCredentialStatusConditions)),
+			)
+
+		})
+	})
+
 })
 
 // Helper functions
@@ -369,28 +542,18 @@ func getGithubUsername() (string, error) {
 	return username, err
 }
 
-// getGithubToken returns the value of the GITHUB_TOKEN environment variable, or an error if it is not set
-func getGithubToken() (string, error) {
-	var err error
-	password, present := os.LookupEnv("GITHUB_TOKEN")
+// getGithubToken returns the value of the GITHUB_TOKEN environment variable
+func getGithubToken() string {
+	password, _ := os.LookupEnv("GITHUB_TOKEN")
 
-	if !present {
-		err = errGitHubTokenNotSet
-	}
-
-	return password, err
+	return password
 }
 
-// getGithubSSHKey returns the value of the GITHUB_SSH_KEY environment variable, or an error if it is not set
-func getGithubSSHKey() (string, error) {
-	var err error
-	sshKey, present := os.LookupEnv("GITHUB_SSH_KEY")
+// getGithubSSHKey returns the value of the GITHUB_SSH_KEY environment variable
+func getGithubSSHKey() string {
+	sshKey, _ := os.LookupEnv("GITHUB_SSH_KEY")
 
-	if !present {
-		err = errGitHubSSHKeyNotSet
-	}
-
-	return sshKey, err
+	return sshKey
 }
 
 // isGitServerOnline returns true if the git server (e.g. GitHub) is online, or false if it is offline
@@ -412,16 +575,10 @@ func getEnvironmentConfig() (envConfig, error) {
 	}
 
 	// Grab the git Server's (e.g. GitHub) token from the environment variable
-	env.token, err = getGithubToken()
-	if err != nil {
-		return env, err
-	}
+	env.token = getGithubToken()
 
 	// Grab the git Server's (e.g. GitHub) SSH key from the environment variable
-	env.sshKey, err = getGithubSSHKey()
-	if err != nil {
-		return env, err
-	}
+	env.sshKey = getGithubSSHKey()
 
 	// Check if the git Server (e.g. GitHub) is online or the test environment is blocking the connection.
 	env.ready = isGitServerOnline(gitServer)
@@ -441,8 +598,8 @@ func getEnvironmentConfig() (envConfig, error) {
 
 // gitopsDeploymentRepositoryCredentialCRForTokenTest returns a GitOpsDeploymentRepositoryCredential CR for the HTTPS token test
 // pointing to the private repo (HTTPS URL format) and using the secret containing the username and the token
-func gitopsDeploymentRepositoryCredentialCRForTokenTest() *managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential {
-	return &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
+func gitopsDeploymentRepositoryCredentialCRForTokenTest() managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential {
+	return managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      repoCredCRToken,
 			Namespace: fixture.GitOpsServiceE2ENamespace,
@@ -456,8 +613,8 @@ func gitopsDeploymentRepositoryCredentialCRForTokenTest() *managedgitopsv1alpha1
 
 // gitopsDeploymentRepositoryCredentialCRForSSHTest returns a GitOpsDeploymentRepositoryCredential CR for the SSH key test
 // pointing to the private repo (SSH URL format) and using the secret containing the SSH key
-func gitopsDeploymentRepositoryCredentialCRForSSHTest() *managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential {
-	return &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
+func gitopsDeploymentRepositoryCredentialCRForSSHTest() managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential {
+	return managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      repoCredCRSSH,
 			Namespace: fixture.GitOpsServiceE2ENamespace,

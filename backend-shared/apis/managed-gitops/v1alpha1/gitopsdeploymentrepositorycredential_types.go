@@ -81,8 +81,9 @@ const (
 	RepositoryCredentialReasonCredentialsUpToDate  = "RepositoryCredentialUpToDate"
 	RepositoryCredentialReasonSecretNotSpecified   = "SecretNotSpecified"
 	RepositoryCredentialReasonSecretNotFound       = "SecretNotFound"
+	RepositoryCredentialReasonSecretInvalidType    = "SecretInvalidType"
 	RepositoryCredentialReasonInvalidCredentials   = "InvalidCredentials"
-	RepositoryCredentialReasonInValidRepositoryUrl = "InvalidRepositoryUrl"
+	RepositoryCredentialReasonInvalidRepositoryUrl = "InvalidRepositoryUrl"
 	RepositoryCredentialReasonValidRepositoryUrl   = "ValidRepositoryUrl"
 )
 

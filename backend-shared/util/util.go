@@ -33,6 +33,8 @@ const (
 
 	ManagedEnvironmentSecretType = "managed-gitops.redhat.com/managed-environment"
 
+	RepositoryCredentialSecretType = "managed-gitops.redhat.com/repository-credential"
+
 	Log_JobKey      = "job"                    // Clean up job key
 	Log_JobKeyValue = "managed-gitops-cleanup" // Clean up job value
 	Log_JobTypeKey  = "jobType"                // Key to identify clean up job type

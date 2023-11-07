@@ -17,7 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// HaveConditions will return a matcher that will check whether a GitOpsDeployment has the expected conditons.
+// HaveConditions will return a matcher that will check whether a GitOpsDeploymentRepositoryCredential has the expected conditons.
 // - When comparing conditions, it will ignore the LastProbeTime/LastTransitionTime fields.
 func HaveConditions(conditions []metav1.Condition) matcher.GomegaMatcher {
 

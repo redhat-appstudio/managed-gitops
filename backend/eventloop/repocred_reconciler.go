@@ -105,7 +105,7 @@ func reconcileRepositoryCredentials(ctx context.Context, dbQueries db.DatabaseQu
 			if db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentRepositoryCredential == apiCrToDbMappingFromDB.APIResourceType {
 
 				// Process if CR is of GitOpsDeploymentRepositoryCredential type.
-				reconcileRepositoryCredentialStatus(ctx, client, dbQueries, apiCrToDbMappingFromDB, objectMeta, log)
+				reconcileRepositoryCredentialStatus(ctx, apiCrToDbMappingFromDB, objectMeta, sharedresourceloop.DefaultValidateRepositoryCredentials, client, dbQueries, log)
 
 				log.V(logutil.LogLevel_Debug).Info("RepositoryCredential ACTDM Reconcile processed APICRToDatabaseMapping entry: " + apiCrToDbMappingFromDB.APIResourceUID)
 
@@ -118,7 +118,7 @@ func reconcileRepositoryCredentials(ctx context.Context, dbQueries db.DatabaseQu
 	}
 }
 
-func reconcileRepositoryCredentialStatus(ctx context.Context, apiNamespaceClient client.Client, dbQueries db.DatabaseQueries, apiCrToDbMappingFromDB db.APICRToDatabaseMapping, objectMeta metav1.ObjectMeta, l logr.Logger) {
+func reconcileRepositoryCredentialStatus(ctx context.Context, apiCrToDbMappingFromDB db.APICRToDatabaseMapping, objectMeta metav1.ObjectMeta, validateRepo sharedresourceloop.ValidateRepoURLAndCredentialsFunction, apiNamespaceClient client.Client, dbQueries db.DatabaseQueries, l logr.Logger) {
 
 	gitopsDeploymentRepositoryCredentialCR := managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{ObjectMeta: objectMeta}
 
@@ -132,7 +132,7 @@ func reconcileRepositoryCredentialStatus(ctx context.Context, apiNamespaceClient
 
 	// Sanity test for gitopsDeploymentRepositoryCredentialCR.Spec.Secret to be non-empty value
 	if gitopsDeploymentRepositoryCredentialCR.Spec.Secret == "" {
-		if err := sharedresourceloop.UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, &gitopsDeploymentRepositoryCredentialCR, apiNamespaceClient, nil, log); err != nil {
+		if _, err := sharedresourceloop.UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, &gitopsDeploymentRepositoryCredentialCR, nil, validateRepo, apiNamespaceClient, log); err != nil {
 			log.Error(err, "error updating status of GitopsDeploymentRepositoryCredential")
 		}
 		return
@@ -148,14 +148,14 @@ func reconcileRepositoryCredentialStatus(ctx context.Context, apiNamespaceClient
 	// Fetch the secret from the cluster
 	if err := apiNamespaceClient.Get(ctx, client.ObjectKey{Name: secret.Name, Namespace: secret.Namespace}, secret); err != nil {
 		log.Error(err, "Secret not found when reconcling repository credential status", "secretName", secret.Name)
-		if err := sharedresourceloop.UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, &gitopsDeploymentRepositoryCredentialCR, apiNamespaceClient, nil, log); err != nil {
+		if _, err := sharedresourceloop.UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, &gitopsDeploymentRepositoryCredentialCR, nil, validateRepo, apiNamespaceClient, log); err != nil {
 			log.Error(err, "error updating status of GitopsDeploymentRepositoryCredential")
 		}
 		return
 	}
 
 	// Update the status of GitopsDeploymentRepositoryCredential
-	if err := sharedresourceloop.UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, &gitopsDeploymentRepositoryCredentialCR, apiNamespaceClient, secret, log); err != nil {
+	if _, err := sharedresourceloop.UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, &gitopsDeploymentRepositoryCredentialCR, secret, validateRepo, apiNamespaceClient, log); err != nil {
 		log.Error(err, "error updating status of GitopsDeploymentRepositoryCredential")
 	}
 

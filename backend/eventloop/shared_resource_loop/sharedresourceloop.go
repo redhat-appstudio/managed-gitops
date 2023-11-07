@@ -313,7 +313,7 @@ type sharedResourceLoopMessage_getOrCreateSharedResourcesResponse struct {
 	// A user error is case where the user has specified an invalid value in the GitOpsDeploymentManagedEnvironment, or the Secret
 	//
 	// - An example of a user error: user specified a Secret (in the GitOpsDeploymentManagedEnvironment) that doesn't exist.
-	// - An exampe of a non-user error: unable to connect to the database
+	// - An example of a non-user error: unable to connect to the database
 	//
 	// We do not need to continue to reconcile a resource that has a user error: a fix is required to the resource (for example, creating a missing Secret)
 	isUserError bool

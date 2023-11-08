@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/go-logr/logr"
 	applicationv1alpha1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
@@ -36,17 +37,32 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
+const (
+	// environmentTierName is the tier that will be used for sandbox namespace-backed environments
+	environmentTierName = "appstudio-env"
+
+	// DeploymentTargetClaimLabel is the label indicating the DeploymentTargetClaim that's associated with the SpaceRequest
+	DeploymentTargetClaimLabel = "appstudio.openshift.io/dtc"
+
+	// DeploymentTargetLabel is the label indicating the DeploymentTarget that's associated with the SpaceRequest
+	DeploymentTargetLabel = "appstudio.openshift.io/dt"
+)
+
 // DeploymentTargetClaimReconciler reconciles a DeploymentTargetClaim object
 type DeploymentTargetClaimReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
 
+//+kubebuilder:rbac:groups=appstudio.redhat.com,resources=deploymenttargetclasses,verbs=get;list;watch
 //+kubebuilder:rbac:groups=appstudio.redhat.com,resources=deploymenttargetclaims,verbs=get;list;watch;update;patch
 //+kubebuilder:rbac:groups=appstudio.redhat.com,resources=deploymenttargetclaims/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=appstudio.redhat.com,resources=deploymenttargetclaims/finalizers,verbs=update
 //+kubebuilder:rbac:groups=appstudio.redhat.com,resources=deploymenttargets,verbs=get;list;watch;update;patch
 //+kubebuilder:rbac:groups=appstudio.redhat.com,resources=deploymenttargets/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=toolchain.dev.openshift.com,resources=spacerequests,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=toolchain.dev.openshift.com,resources=spacerequests/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=toolchain.dev.openshift.com,resources=spacerequests/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -89,95 +105,20 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 
 	// Handle deletion if the DTC has a deletion timestamp set.
 	if dtc.GetDeletionTimestamp() != nil {
-		log.Info("Handling a deleted DeploymentTargetClaim")
-		// If the DTC is bound set, handle the corresponding DT
-		if isDTCBound(dtc) {
-			dt, err := getDTBoundByDTC(ctx, r.Client, dtc)
-			if err != nil && !apierr.IsNotFound(err) {
-				log.Error(err, "unable to get DT bound by DTC")
-				return ctrl.Result{}, err
-			}
+		return handleDTCDeletion(ctx, dtc, r.Client, log)
+	}
 
-			if dt != nil {
-				var dtcls applicationv1alpha1.DeploymentTargetClass
-				if dtcls, err = findMatchingDTClassForDT(ctx, *dt, r.Client); err != nil {
-					log.Error(err, "unable to locate matching DTClass for DT", "expectedDTClass", dt.Spec.DeploymentTargetClassName)
-					return ctrl.Result{}, err
-				}
-
-				// Add the deletion finalizer to the DT if it is absent.
-				if addFinalizer(dt, FinalizerDT) {
-					if err = r.Client.Update(ctx, dt); err != nil {
-						return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s to DeploymentTarget %s in namespace %s: %v", FinalizerDT, dt.Name, dt.Namespace, err)
-					}
-					log.Info("Added finalizer to DeploymentTarget", "finalizer", FinalizerDT)
-				}
-
-				if dtcls.Spec.ReclaimPolicy == applicationv1alpha1.ReclaimPolicy_Delete {
-					log.Info("ReclaimPolicy is ReclaimPolicy_Delete") // DTC is being deleted, so delete the DT too
-					if err := r.Client.Delete(ctx, dt); err != nil {
-						return ctrl.Result{}, err
-					}
-					log.Info("DeploymentTarget is marked to Deleted", "DeploymentTarget", dt.Name)
-
-					logutil.LogAPIResourceChangeEvent(dt.Namespace, dt.Name, dt, logutil.ResourceDeleted, log)
-
-				} else if dtcls.Spec.ReclaimPolicy == applicationv1alpha1.ReclaimPolicy_Retain {
-					log.Info("ReclaimPolicy is ReclaimPolicy_Retain")
-
-				} else {
-					log.Error(nil, "the ReclaimPolicy is neither Delete nor Retain")
-				}
-
-				// Since the DTC is in the process of being deleted, remove the ClaimRef from DT
-				if err := r.Client.Get(ctx, client.ObjectKeyFromObject(dt), dt); err != nil {
-
-					if apierr.IsNotFound(err) {
-						return ctrl.Result{Requeue: true}, nil // DT is deleted, so requeue again to remove the finalizers from DTC
-					}
-
-					return ctrl.Result{}, fmt.Errorf("failed to retrieve an updated copy of the DT: %v", err)
-				}
-
-				dt.Spec.ClaimRef = ""
-				if err := r.Client.Update(ctx, dt); err != nil {
-					if apierr.IsNotFound(err) {
-						return ctrl.Result{Requeue: true}, nil // DT is deleted, so requeue again to remove the finalizers from DTC
-					}
-
-					return ctrl.Result{}, fmt.Errorf("failed to update the claimRef: %v", err)
-				}
-				log.Info("ClaimRef of DeploymentTarget is unset since its corresponding DeploymentTargetClaim is already deleted", "DeploymentTarget", dt.Name)
-				logutil.LogAPIResourceChangeEvent(dt.Namespace, dt.Name, dt, logutil.ResourceModified, log)
-
-				if err := updateDTStatusPhase(ctx, r.Client, dt, applicationv1alpha1.DeploymentTargetPhase_Released, log); err != nil {
-					if apierr.IsNotFound(err) {
-						return ctrl.Result{Requeue: true}, nil // DT is deleted, so requeue again to remove the finalizers from DTC
-					} else {
-						return ctrl.Result{}, fmt.Errorf("failed to update DeploymentTarget %s in namespace %s to Released status", dt.Name, dt.Namespace)
-					}
-				}
-
-				// Finally, we remove the DTC finalizer, below
-
-			}
+	// Handle dynamic provisioning of a SpaceRequest for a DTC that requests it
+	if dtc.Status.Phase == applicationv1alpha1.DeploymentTargetClaimPhase_Pending && isMarkedForDynamicProvisioning(dtc) {
+		if err := handleProvisioningOfSpaceRequestForDTC(ctx, dtc, r.Client, log); err != nil {
+			log.Error(err, "unable to handle provisioning of space request for dynamic DTC")
+			return ctrl.Result{}, err
 		}
-
-		// Finally, once the DT is fully handled (phase updated, claim ref updated, or deleted), remove the finalizer from the DTC
-		if removeFinalizer(&dtc, applicationv1alpha1.FinalizerBinder) {
-			if err := r.Client.Update(ctx, &dtc); err != nil {
-				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer %s from DeploymentTargetClaim %s in namespace %s: %v", applicationv1alpha1.FinalizerBinder, dtc.Name, dtc.Namespace, err)
-			}
-			log.Info("Removed finalizer from DeploymentTargetClaim", "finalizer", applicationv1alpha1.FinalizerBinder)
-			return ctrl.Result{}, nil
-		}
-
-		return ctrl.Result{}, nil
 	}
 
 	// If the binding is already done, we need to check if the DTC is still bound to a DT
 	// and update the status accordingly
-	if isBindingCompleted(dtc) {
+	if isDTCBindingCompleted(dtc) {
 		if err := handleBoundedDeploymentTargetClaim(ctx, r.Client, dtc, log); err != nil {
 			log.Error(err, "failed to process bounded DeploymentTargetClaim")
 			return ctrl.Result{}, err
@@ -226,17 +167,19 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 	}
 
 	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&dt), &dt); err != nil {
-		if apierr.IsNotFound(err) {
-			log.Info("Waiting for DeploymentTarget to be created", "DeploymentTarget", dt.Name, "Namespace", dt.Namespace)
 
-			// Update the DTC status as Pending and wait for DT to be created.
-			if err := updateDTCStatusPhase(ctx, r.Client, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Pending, log); err != nil {
-				return ctrl.Result{}, err
-			}
-
-			return ctrl.Result{}, nil
+		if !apierr.IsNotFound(err) {
+			return ctrl.Result{}, err
 		}
-		return ctrl.Result{}, err
+
+		log.Info("Waiting for DeploymentTarget to be created", "DeploymentTarget", dt.Name, "Namespace", dt.Namespace)
+
+		// Update the DTC status as Pending and wait for DT to be created.
+		if err := updateDTCStatusPhase(ctx, r.Client, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Pending, log); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		return ctrl.Result{}, nil
 
 	}
 
@@ -272,6 +215,100 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 	}
 
 	log.Info("DeploymentTargetClaim bound to DeploymentTarget", "DeploymentTargetName", dt.Name, "Namespace", dt.Namespace)
+
+	return ctrl.Result{}, nil
+}
+
+func handleDTCDeletion(ctx context.Context, dtc applicationv1alpha1.DeploymentTargetClaim, k8sClient client.Client, log logr.Logger) (ctrl.Result, error) {
+
+	// Sanity test that the DTC is in the process of being deleted
+	if dtc.GetDeletionTimestamp() == nil {
+		log.Error(nil, "SEVERE: handleDTCDeletion was asked to handle a DTC that wasn't already in deletion state")
+		return ctrl.Result{}, nil
+	}
+
+	log.Info("Handling a deleted DeploymentTargetClaim")
+
+	// If the DTC is bound set, handle the corresponding DT
+	if isDTCBound(dtc) {
+		dt, err := getDTBoundByDTC(ctx, k8sClient, dtc)
+		if err != nil && !apierr.IsNotFound(err) {
+			log.Error(err, "unable to get DT bound by DTC")
+			return ctrl.Result{}, err
+		}
+
+		if dt != nil {
+			var dtcls applicationv1alpha1.DeploymentTargetClass
+			if dtcls, err = findMatchingDTClassForDT(ctx, *dt, k8sClient); err != nil {
+				log.Error(err, "unable to locate matching DTClass for DT", "expectedDTClass", dt.Spec.DeploymentTargetClassName)
+				return ctrl.Result{}, err
+			}
+
+			// Add the deletion finalizer to the DT if it is absent.
+			if addFinalizer(dt, FinalizerDT) {
+				if err = k8sClient.Update(ctx, dt); err != nil {
+					return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s to DeploymentTarget %s in namespace %s: %v", FinalizerDT, dt.Name, dt.Namespace, err)
+				}
+				log.Info("Added finalizer to DeploymentTarget", "finalizer", FinalizerDT)
+			}
+
+			if dtcls.Spec.ReclaimPolicy == applicationv1alpha1.ReclaimPolicy_Delete {
+				log.Info("ReclaimPolicy is ReclaimPolicy_Delete") // DTC is being deleted, so delete the DT too
+				if err := k8sClient.Delete(ctx, dt); err != nil {
+					return ctrl.Result{}, err
+				}
+				log.Info("DeploymentTarget is marked to Deleted", "DeploymentTarget", dt.Name)
+
+				logutil.LogAPIResourceChangeEvent(dt.Namespace, dt.Name, dt, logutil.ResourceDeleted, log)
+
+			} else if dtcls.Spec.ReclaimPolicy == applicationv1alpha1.ReclaimPolicy_Retain {
+				log.Info("ReclaimPolicy is ReclaimPolicy_Retain")
+
+			} else {
+				log.Error(nil, "the ReclaimPolicy is neither Delete nor Retain")
+			}
+
+			// Since the DTC is in the process of being deleted, remove the ClaimRef from DT
+			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dt), dt); err != nil {
+
+				if apierr.IsNotFound(err) {
+					return ctrl.Result{Requeue: true}, nil // DT is deleted, so requeue again to remove the finalizers from DTC
+				}
+
+				return ctrl.Result{}, fmt.Errorf("failed to retrieve an updated copy of the DT: %v", err)
+			}
+
+			dt.Spec.ClaimRef = ""
+			if err := k8sClient.Update(ctx, dt); err != nil {
+				if apierr.IsNotFound(err) {
+					return ctrl.Result{Requeue: true}, nil // DT is deleted, so requeue again to remove the finalizers from DTC
+				}
+
+				return ctrl.Result{}, fmt.Errorf("failed to update the claimRef: %v", err)
+			}
+			log.Info("ClaimRef of DeploymentTarget is unset since its corresponding DeploymentTargetClaim is already deleted", "DeploymentTarget", dt.Name)
+			logutil.LogAPIResourceChangeEvent(dt.Namespace, dt.Name, dt, logutil.ResourceModified, log)
+
+			if err := updateDTStatusPhase(ctx, k8sClient, dt, applicationv1alpha1.DeploymentTargetPhase_Released, log); err != nil {
+				if apierr.IsNotFound(err) {
+					return ctrl.Result{Requeue: true}, nil // DT is deleted, so requeue again to remove the finalizers from DTC
+				} else {
+					return ctrl.Result{}, fmt.Errorf("failed to update DeploymentTarget %s in namespace %s to Released status", dt.Name, dt.Namespace)
+				}
+			}
+
+			// Finally, we remove the DTC finalizer, below
+
+		}
+	}
+
+	// Finally, once the DT is fully handled (phase updated, claim ref updated, or deleted), remove the finalizer from the DTC
+	if removeFinalizer(&dtc, applicationv1alpha1.FinalizerBinder) {
+		if err := k8sClient.Update(ctx, &dtc); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to remove finalizer %s from DeploymentTargetClaim %s in namespace %s: %v", applicationv1alpha1.FinalizerBinder, dtc.Name, dtc.Namespace, err)
+		}
+		log.Info("Removed finalizer from DeploymentTargetClaim", "finalizer", applicationv1alpha1.FinalizerBinder)
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -340,11 +377,13 @@ func bindDeploymentTargetClaimToTarget(ctx context.Context, k8sClient client.Cli
 // handleBoundedDeploymentTargetClaim handles the DTCs that are already bounded i.e have the "bind-complete" annotation.
 // It checks if the DTC is still bound to DTC and updates the status accordingly.
 func handleBoundedDeploymentTargetClaim(ctx context.Context, k8sClient client.Client, dtc applicationv1alpha1.DeploymentTargetClaim, log logr.Logger) error {
-	if !isBindingCompleted(dtc) {
-		return nil
+
+	if !isDTCBindingCompleted(dtc) { // Sanity test that this function is only called on bound DTC
+		log.Error(nil, "SEVERE: handleBoundedDeploymentTargetClaim was called on a DTC that was not bound")
+		return fmt.Errorf("bound DTC could not be processed")
 	}
 
-	log.Info("Handling a bounded DeploymentTargetClaim")
+	log.Info("Handling a bound DeploymentTargetClaim")
 
 	// If the provisioner annotation is present, check if its value still matches the DTC class name.
 	provisioner, found := dtc.Annotations[applicationv1alpha1.AnnTargetProvisioner]
@@ -392,6 +431,7 @@ func handleBoundedDeploymentTargetClaim(ctx context.Context, k8sClient client.Cl
 		return err
 	}
 
+	// Now update the DTC to bound
 	return updateDTCStatusPhase(ctx, k8sClient, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Bound, log)
 
 }
@@ -523,7 +563,7 @@ func updateDTStatusPhase(ctx context.Context, k8sClient client.Client, dt *appli
 	return nil
 }
 
-func isBindingCompleted(dtc applicationv1alpha1.DeploymentTargetClaim) bool {
+func isDTCBindingCompleted(dtc applicationv1alpha1.DeploymentTargetClaim) bool {
 	if dtc.Annotations == nil {
 		return false
 	}
@@ -533,7 +573,7 @@ func isBindingCompleted(dtc applicationv1alpha1.DeploymentTargetClaim) bool {
 }
 
 func isDTCBound(dtc applicationv1alpha1.DeploymentTargetClaim) bool {
-	return isBindingCompleted(dtc) && dtc.Status.Phase == applicationv1alpha1.DeploymentTargetClaimPhase_Bound
+	return isDTCBindingCompleted(dtc) && dtc.Status.Phase == applicationv1alpha1.DeploymentTargetClaimPhase_Bound
 }
 
 func isMarkedForDynamicProvisioning(dtc applicationv1alpha1.DeploymentTargetClaim) bool {
@@ -683,4 +723,141 @@ func (r *DeploymentTargetClaimReconciler) findObjectsForDeploymentTarget(dt clie
 	}
 
 	return requests
+}
+
+func handleProvisioningOfSpaceRequestForDTC(ctx context.Context, dtc applicationv1alpha1.DeploymentTargetClaim, k8sClient client.Client, log logr.Logger) error {
+
+	// Sanity check that the DeploymentTargetClaim is in the expected state
+	if !(dtc.Status.Phase == applicationv1alpha1.DeploymentTargetClaimPhase_Pending && isMarkedForDynamicProvisioning(dtc)) {
+		return nil
+	}
+
+	// If the DTC has a DeploymentTargetClass defined, check if the class is supposed to use the Sandbox provisioner.
+	// If the DeploymentTargetClass is not defined, or it does not use the Sandbox provisioner, exit the Reconcile loop.
+	if dtc.Spec.DeploymentTargetClassName != "" {
+		dtcls, err := findMatchingDTClassForDTC(ctx, k8sClient, dtc)
+		if err != nil {
+			log.Error(err, "failed when trying to find a DeploymentTargetClass that matches the DeploymentTargetClaim")
+			return err
+		}
+
+		if dtcls == nil {
+			log.Error(err, "failed to find a DeploymentTargetClass that matches the DeploymentTargetClaim")
+			missingDTCLSErr := missingDTCLSErrWrap(dtc.Name, string(dtc.Spec.DeploymentTargetClassName))
+			return missingDTCLSErr("the resource could not be found on the cluster")
+		}
+
+		if dtcls.Spec.Provisioner != applicationv1alpha1.Provisioner_Devsandbox {
+			log.Info("the DeploymentTargetClass referenced by the DeploymentTargetClaim doesn't use the DevSandbox provisioner",
+				"DTC.Name", dtc.Name, "DTCLS.Spec.Provisioner", dtcls.Spec.Provisioner)
+			return nil
+		}
+	} else {
+		log.Info("the DeploymentTargetClaim doesn't have a DeploymentTargetClass defined, can't determine which provisioner needs to be used")
+		return nil
+	}
+
+	// Check if there is already a matching SpaceRequest for this DTC
+	spaceRequest, err := findMatchingSpaceRequestForDTC(ctx, k8sClient, &dtc)
+	if err != nil {
+		log.Error(err, "error while finding a SpaceRequest that matches the DeploymentTargetClaim")
+		return err
+	}
+
+	// If there is no existing SpaceRequest, create a new one
+	if spaceRequest == nil {
+		log.Info("No existing SpaceRequest for the DeploymentTargetClaim found, creating a new one")
+		spaceRequest, err = createSpaceRequestForDTC(ctx, k8sClient, &dtc)
+		if err != nil {
+			log.Error(err, "failed to create a new SpaceRequest for the DeploymentTargetClaim")
+			return err
+		}
+		logutil.LogAPIResourceChangeEvent(spaceRequest.Namespace, spaceRequest.Name, spaceRequest, logutil.ResourceCreated, log)
+
+		return nil
+	}
+
+	log.Info("A SpaceRequest for the DeploymentTargetClaim exists", "SpaceRequest.Name", spaceRequest.Name, "Namespace", spaceRequest.Namespace)
+
+	return nil
+
+}
+
+func missingDTCLSErrWrap(dtcName, dtclsName string) func(string) error {
+	return func(msg string) error {
+		return fmt.Errorf("DeploymentTargetClaim %s does not have a matching DeploymentTargetClass %s: %s", dtcName, dtclsName, msg)
+	}
+}
+
+// findMatchingDTClassForDTC tries to find a DTCLS that matches the given DTC in a namespace.
+func findMatchingDTClassForDTC(ctx context.Context, k8sClient client.Client, dtc applicationv1alpha1.DeploymentTargetClaim) (*applicationv1alpha1.DeploymentTargetClass, error) {
+	dtclsList := applicationv1alpha1.DeploymentTargetClassList{}
+	if err := k8sClient.List(ctx, &dtclsList); err != nil {
+		return nil, err
+	}
+
+	var dtcls *applicationv1alpha1.DeploymentTargetClass
+	for i, d := range dtclsList.Items {
+		if d.Name == string(dtc.Spec.DeploymentTargetClassName) {
+			dtcls = &dtclsList.Items[i]
+			break
+		}
+	}
+
+	return dtcls, nil
+}
+
+// findMatchingSpaceRequestForDTC tries to find a SpaceRequest that matches the given DTC in a namespace.
+// The function will return only the SpaceRequest that matches the expected environment Tier name
+func findMatchingSpaceRequestForDTC(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim) (*codereadytoolchainv1alpha1.SpaceRequest, error) {
+	spaceRequestList := codereadytoolchainv1alpha1.SpaceRequestList{}
+
+	opts := []client.ListOption{
+		client.InNamespace(dtc.Namespace),
+		client.MatchingLabels{
+			DeploymentTargetClaimLabel: dtc.Name,
+		},
+	}
+
+	if err := k8sClient.List(ctx, &spaceRequestList, opts...); err != nil {
+		return nil, err
+	}
+
+	if len(spaceRequestList.Items) > 0 {
+		var spaceRequest *codereadytoolchainv1alpha1.SpaceRequest
+		for i, s := range spaceRequestList.Items {
+			if s.Spec.TierName == environmentTierName {
+				spaceRequest = &spaceRequestList.Items[i]
+				break
+			}
+		}
+		return spaceRequest, nil
+	}
+
+	return nil, nil
+}
+
+// createSpaceRequestForDTC creates a new SpaceRequest for the given DTC. It sets the expected tierName and adds the
+// label indicating that it's linked with the DTC
+func createSpaceRequestForDTC(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim) (*codereadytoolchainv1alpha1.SpaceRequest, error) {
+	newSpaceRequest := codereadytoolchainv1alpha1.SpaceRequest{
+		Spec: codereadytoolchainv1alpha1.SpaceRequestSpec{
+			TierName:           environmentTierName,
+			TargetClusterRoles: []string{}, // To be updated in the future once cluster roles become defined
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: dtc.Name + "-",
+			Namespace:    dtc.Namespace,
+			Labels: map[string]string{
+				DeploymentTargetClaimLabel: dtc.Name,
+			},
+		},
+	}
+
+	err := k8sClient.Create(ctx, &newSpaceRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	return &newSpaceRequest, nil
 }

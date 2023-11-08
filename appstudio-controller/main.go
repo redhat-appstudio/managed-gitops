@@ -173,15 +173,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&appstudioredhatcomcontrollers.SandboxProvisionerReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "SandboxProvisioner")
-		os.Exit(1)
-	}
-
-	if err = (&appstudioredhatcomcontrollers.DevsandboxDeploymentReconciler{
+	if err = (&appstudioredhatcomcontrollers.SpaceRequestReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {

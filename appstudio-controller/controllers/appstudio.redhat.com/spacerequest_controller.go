@@ -36,8 +36,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// DevsandboxDeploymentReconciler reconciles a SpaceRequest object
-type DevsandboxDeploymentReconciler struct {
+// SpaceRequestReconciler reconciles a SpaceRequest object
+type SpaceRequestReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
@@ -58,7 +58,7 @@ type DevsandboxDeploymentReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
-func (r *DevsandboxDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *SpaceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops).WithValues(
 		logutil.Log_Component, logutil.Log_Component_Appstudio_Controller,
@@ -162,7 +162,7 @@ func (r *DevsandboxDeploymentReconciler) Reconcile(ctx context.Context, req ctrl
 // - The DTC referenced by the SpaceRequest label does not exit
 //
 // Return true if the SpaceRequest was deleted, false otherwise
-func (r *DevsandboxDeploymentReconciler) deleteSpaceRequestIfOrphaned(ctx context.Context, spacerequest codereadytoolchainv1alpha1.SpaceRequest, dtcLabelFromSpaceRequest string, log logr.Logger) (bool, error) {
+func (r *SpaceRequestReconciler) deleteSpaceRequestIfOrphaned(ctx context.Context, spacerequest codereadytoolchainv1alpha1.SpaceRequest, dtcLabelFromSpaceRequest string, log logr.Logger) (bool, error) {
 
 	// Locate the Devsandbox DeploymentTargetClass
 	var dtClassList applicationv1alpha1.DeploymentTargetClassList
@@ -369,7 +369,7 @@ func createDeploymentTargetForSpaceRequest(ctx context.Context, k8sClient client
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *DevsandboxDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *SpaceRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&codereadytoolchainv1alpha1.SpaceRequest{}).
 		Complete(r)

@@ -23,7 +23,7 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 		var (
 			ctx        context.Context
 			k8sClient  client.Client
-			reconciler DevsandboxDeploymentReconciler
+			reconciler SpaceRequestReconciler
 		)
 
 		spaceRequestExists := func(sr codereadytoolchainv1alpha1.SpaceRequest) bool {
@@ -68,7 +68,7 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 
 			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testNS).Build()
 
-			reconciler = DevsandboxDeploymentReconciler{
+			reconciler = SpaceRequestReconciler{
 				Client: k8sClient,
 				Scheme: scheme,
 			}

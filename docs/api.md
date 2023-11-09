@@ -143,6 +143,46 @@ status:
       reason: SyncError / SyncErrorResolved
       status: True / False / Unknown
       message: (human readable message from Argo CD on the cause of the sync error)
+
+    # ComparisonError will display comparison errors from the corresponding Argo CD Application
+    - type: ComparisonError
+      reason: ComparisonError
+      status: "True"
+      lastTransitionTime: (...)
+      message: (human readable message indicating the problem)
+
+  operationState: # operationState field from the corresponding Argo CD Application. See Argo CD Application API for details
+    operation:
+      initiatedBy:
+        automated: true
+      retry:
+        backoff:
+          duration: 5s
+          factor: 2
+          maxDuration: 3m
+        limit: -1
+      sync:
+        prune: true
+        resources:
+        - group: route.openshift.io
+          kind: Route
+          name: (...)
+        revision: (...)
+        syncOptions:
+        - PrunePropagationPolicy=background
+    message: "human readable message indicating the status"
+    phase: Succeeded
+    startedAt: "2023-08-17T18:01:26Z"
+    finishedAt: "time finished at"    
+    syncResult:
+      resources:
+      - (...)
+      revision: # (...)
+      source:
+        path: # (...)
+        repoURL: # (...)
+        targetRevision: # (...)
+
 ```
 
 This resource is reconciled (translated) into a corresponding [Argo CD Application Resource](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#applications), defined in an GitOps-Service-managed Argo CD namespace.

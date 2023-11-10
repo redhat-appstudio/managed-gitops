@@ -37,7 +37,9 @@ const (
 
 )
 
-// This function iterates through each Workspace/Namespace present in DB and ensures that the state of resources in Cluster is in Sync with DB.
+// This function  iterates through each Workspace/Namespace present in DB and ensures that the state of resources in Cluster is in Sync with DB.
+//
+// See 'docs/self-healing-mechanism.md' for more details.
 func (r *ApplicationReconciler) StartNamespaceReconciler() {
 	ctx := context.Background()
 

@@ -41,6 +41,8 @@ const (
 // background self-healing.
 //
 // This periodic, background self-healing of tables is the responsibility of this file.
+//
+// See 'docs/self-healing-mechanism.md' for more details.
 
 // DatabaseReconciler reconciles Database entries
 type DatabaseReconciler struct {

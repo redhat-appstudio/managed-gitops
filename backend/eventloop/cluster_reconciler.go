@@ -25,6 +25,13 @@ const (
 	orphanedResourcesCleanUpInterval = 2 * time.Hour
 )
 
+// In normal circumstances, when an Argo CD `Application` is deleted, Argo CD will automatically delete all the child resource of that `Application`.
+//
+// However, in some exceptional circumstances, some cluster resources may be missed. This is a significant problem in a closed system, where users do not necessarily have permissions to modify/delete all of the API resources within their Namespace.
+//
+// To handle this case, every X hours, the GitOps Service scans the `*-tenant` namespaces of the clusters for any orphaned Argo-CD-deployed resources, and deletes those resources.
+//
+// See 'docs/self-healing-mechanism.md' for more details.
 type ClusterReconciler struct {
 	discoveryClient discovery.DiscoveryInterface
 

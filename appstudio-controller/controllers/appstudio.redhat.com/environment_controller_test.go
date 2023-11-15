@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1/mocks"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
@@ -1776,6 +1778,109 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}, []reconcile.Request{{NamespacedName: types.NamespacedName{Namespace: apiNamespace.Name, Name: "name"}}}),
 		)
+
+	})
+
+	Context("test generateDesiredResource function", func() {
+		var mockCtrl *gomock.Controller
+		var mockK8sClient *mocks.MockClient
+		log := log.FromContext(ctx)
+		var env appstudioshared.Environment
+		BeforeEach(func() {
+
+			scheme,
+				argocdNamespace,
+				kubesystemNamespace,
+				namespace,
+				err := tests.GenericTestSetup()
+			Expect(err).ToNot(HaveOccurred())
+
+			err = appstudioshared.AddToScheme(scheme)
+			Expect(err).ToNot(HaveOccurred())
+
+			apiNamespace = *namespace
+
+			// Create fake client
+			k8sClient = fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(namespace, argocdNamespace, kubesystemNamespace).
+				Build()
+
+			mockCtrl = gomock.NewController(GinkgoT())
+			mockK8sClient = mocks.NewMockClient(mockCtrl)
+
+			env = appstudioshared.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-env",
+					Namespace: apiNamespace.Name,
+				},
+				Spec: appstudioshared.EnvironmentSpec{
+					DisplayName:        "my-environment",
+					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
+					ParentEnvironment:  "",
+					Tags:               []string{},
+					Configuration:      appstudioshared.EnvironmentConfiguration{},
+					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
+						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+							TargetNamespace:            "my-target-namespace",
+							APIURL:                     "https://my-api-url",
+							ClusterCredentialsSecret:   "test-non-exist",
+							AllowInsecureSkipTLSVerify: false,
+						},
+					},
+				},
+			}
+
+			reconciler = EnvironmentReconciler{
+				Client: k8sClient,
+				Scheme: scheme,
+			}
+
+		})
+
+		AfterEach(func() {
+			mockCtrl.Finish()
+		})
+
+		It("test to cover updateEnvironmentReconciledStatusCondition for generic error while fetching secret", func() {
+
+			err := k8sClient.Create(ctx, &env)
+			Expect(err).ToNot(HaveOccurred())
+
+			mockK8sClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("some generic error"))
+			mockK8sClient.EXPECT().Status().Return(mockK8sClient)
+			mockK8sClient.EXPECT().Update(gomock.Any(), gomock.Any()).Return(fmt.Errorf("unable to update environment status condition."))
+
+			desiredManagedEnv, semanticErrOccurred_dontContinue, err := generateDesiredResource(ctx, env, mockK8sClient, log)
+			Expect(desiredManagedEnv).To(BeNil())
+			Expect(semanticErrOccurred_dontContinue).To(BeFalse())
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("unable to update environment status condition"))
+
+			err = k8sClient.Delete(ctx, &env)
+			Expect(err).ToNot(HaveOccurred())
+
+		})
+
+		It("test to cover updateEnvironmentReconciledStatusCondition for generic error while fetching dtc", func() {
+
+			env.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName = "test-dtc"
+			err := k8sClient.Create(ctx, &env)
+			Expect(err).ToNot(HaveOccurred())
+
+			mockK8sClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("some generic error"))
+			mockK8sClient.EXPECT().Status().Return(mockK8sClient)
+			mockK8sClient.EXPECT().Update(gomock.Any(), gomock.Any()).Return(fmt.Errorf("unable to update environment status condition."))
+
+			desiredManagedEnv, semanticErrOccurred_dontContinue, err := generateDesiredResource(ctx, env, mockK8sClient, log)
+			Expect(desiredManagedEnv).To(BeNil())
+			Expect(semanticErrOccurred_dontContinue).To(BeFalse())
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("unable to update environment status condition"))
+
+			err = k8sClient.Delete(ctx, &env)
+			Expect(err).ToNot(HaveOccurred())
+		})
 
 	})
 })

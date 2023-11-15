@@ -113,13 +113,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&appstudioredhatcomcontrollers.ApplicationReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Application")
-		os.Exit(1)
-	}
 	if err = (&appstudioredhatcomcontrollers.SnapshotReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),

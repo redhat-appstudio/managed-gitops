@@ -1,46 +1,48 @@
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: appstudio-gitops-service-argocd-argocd-server
-rules:
-  - apiGroups:
-      - '*'
-    resources:
-      - '*'
-    verbs:
-      - get
-      - patch
-      - delete
-  - apiGroups:
-      - ''
-    resources:
-      - secrets
-      - configmaps
-    verbs:
-      - create
-      - get
-      - list
-      - watch
-      - update
-      - patch
-      - delete
-  - apiGroups:
-      - argoproj.io
-    resources:
-      - applications
-      - appprojects
-    verbs:
-      - create
-      - get
-      - list
-      - watch
-      - update
-      - delete
-      - patch
-  - apiGroups:
-      - ''
-    resources:
-      - events
-    verbs:
-      - create
-      - list
+# To enable 'gitops-service-argocd' instance as cluster-scoped Argo CD, uncomment the lines below.
+
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: ClusterRole
+# metadata:
+#   name: appstudio-gitops-service-argocd-argocd-server
+# rules:
+#   - apiGroups:
+#       - '*'
+#     resources:
+#       - '*'
+#     verbs:
+#       - get
+#       - patch
+#       - delete
+#   - apiGroups:
+#       - ''
+#     resources:
+#       - secrets
+#       - configmaps
+#     verbs:
+#       - create
+#       - get
+#       - list
+#       - watch
+#       - update
+#       - patch
+#       - delete
+#   - apiGroups:
+#       - argoproj.io
+#     resources:
+#       - applications
+#       - appprojects
+#     verbs:
+#       - create
+#       - get
+#       - list
+#       - watch
+#       - update
+#       - delete
+#       - patch
+#   - apiGroups:
+#       - ''
+#     resources:
+#       - events
+#     verbs:
+#       - create
+#       - list

@@ -112,6 +112,25 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 			Expect(dt.Annotations).ToNot(BeNil())
 			Expect(dt.Annotations[appstudiosharedv1.AnnDynamicallyProvisioned]).To(Equal(string(appstudiosharedv1.Provisioner_Devsandbox)))
 			Expect(dt.Spec.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify).To(BeFalse())
+
+			By("verify when spacerequest has DeploymentTargetLabel label")
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&spacerequest), &spacerequest)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Add DeploymentTargetLabel
+			spacerequest.Labels = map[string]string{
+				DeploymentTargetClaimLabel: dtc.Name,
+				DeploymentTargetLabel:      dt.Name,
+			}
+
+			err = k8sClient.Update(ctx, &spacerequest)
+			Expect(err).ToNot(HaveOccurred())
+
+			request = newRequest(spacerequest.Namespace, spacerequest.Name)
+			res, err = reconciler.Reconcile(ctx, request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(res).To(Equal(ctrl.Result{}))
+
 		})
 
 		It("should return an error when handling a SpaceRequest that doesn't have a matching DTC", func() {

@@ -15,6 +15,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/golang/mock/gomock"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1/mocks"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -351,6 +353,44 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 				})
 
 			})
+
+			It("test findMatchingSpaceRequestForDT for SpaceRequestList", func() {
+				var (
+					mockK8sClient    *mocks.MockClient
+					ctx              context.Context
+					deploymentTarget appstudiosharedv1.DeploymentTarget
+				)
+
+				// Create a list of SpaceRequests with different TierNames
+				spaceRequests := []codereadytoolchainv1alpha1.SpaceRequest{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								DeploymentTargetLabel: deploymentTarget.Name,
+							},
+						},
+						Spec: codereadytoolchainv1alpha1.SpaceRequestSpec{
+							TierName: "appstudio-env",
+						},
+					},
+				}
+
+				mockCtrl := gomock.NewController(GinkgoT())
+				defer mockCtrl.Finish()
+				mockK8sClient = mocks.NewMockClient(mockCtrl)
+
+				// Mock the List operation to return the list of SpaceRequests
+				mockK8sClient.EXPECT().
+					List(ctx, gomock.Any(), gomock.Any()).
+					SetArg(1, codereadytoolchainv1alpha1.SpaceRequestList{Items: spaceRequests}).
+					Return(nil)
+
+				result, err := findMatchingSpaceRequestForDT(ctx, mockK8sClient, deploymentTarget)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(result).ToNot(BeNil())
+				Expect(result.Spec.TierName).To(Equal("appstudio-env"))
+			})
+
 		})
 
 	})

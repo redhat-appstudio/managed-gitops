@@ -705,6 +705,29 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 		})
 
+		It("should verify that if DeploymentTargetClaim is not found referencing to an the Environment", func() {
+			By("creating an Environment that references the DTC")
+			environment.Spec.UnstableConfigurationFields = nil
+			environment.Spec.Configuration.Target = appstudiosharedv1.EnvironmentTarget{
+				DeploymentTargetClaim: appstudiosharedv1.DeploymentTargetClaimConfig{
+					ClaimName: "dtc-that-doesnt-exist",
+				},
+			}
+			err := bindingReconciler.Client.Update(ctx, &environment)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("creating default Binding")
+			err = bindingReconciler.Client.Create(ctx, binding)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("calling Reconcile on the SnapshotEnvironmentBinding")
+			request = newRequest(binding.Namespace, binding.Name)
+			_, err = bindingReconciler.Reconcile(ctx, request)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("error on retrieving DeploymentTargetClaim"))
+
+		})
+
 		It("should verify that if the Environment contains configuration information, that it is included in the generated GitOpsDeployment", func() {
 
 			By("creating an Environment with valid configuration fields")

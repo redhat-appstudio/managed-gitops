@@ -777,10 +777,15 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			By("Removing reference to the managed environment from the GitOpsDeployment resource")
-			gitOpsDeploymentResource.Spec.Destination.Environment = ""
-			gitOpsDeploymentResource.Spec.Destination.Namespace = ""
 
-			err = k8s.Update(&gitOpsDeploymentResource, k8sClient)
+			err = k8s.UpdateWithoutConflict(&gitOpsDeploymentResource, k8sClient, func(obj client.Object) {
+
+				goObj, ok := obj.(*managedgitopsv1alpha1.GitOpsDeployment)
+				Expect(ok).To(BeTrue())
+				goObj.Spec.Destination.Environment = ""
+				goObj.Spec.Destination.Namespace = ""
+
+			})
 			Expect(err).ToNot(HaveOccurred())
 
 			By("Verify whether AppProject CR no longer references the old ManagedEnvironment")

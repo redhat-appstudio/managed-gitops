@@ -26,7 +26,7 @@ import (
 )
 
 var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
-
+	const ErrorOccurred = "ErrorOccurred"
 	Context("Testing SnapshotEnvironmentBinding Reconciler.", func() {
 
 		var environment appstudiosharedv1.Environment
@@ -1043,6 +1043,141 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(gitopsDeployment, "2m", "10s").ShouldNot(gitopsDeplFixture.HaveLabel("appstudio.openshift.io", "testing-update"))
 		})
+
+		It("test BindingConditions when GitOpsRepoConditions status is false", func() {
+			By("Create SnapshotEnvironmentBindingResource")
+			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
+			err = k8s.Create(&binding, k8sClient)
+			Expect(err).To(Succeed())
+
+			By("Update GitOpsRepoConditions")
+			binding.Status = appstudiosharedv1.SnapshotEnvironmentBindingStatus{
+				GitOpsRepoConditions: []metav1.Condition{
+					{
+						Type:               "GitOpsRepoNotReady",
+						Status:             metav1.ConditionFalse,
+						Reason:             "GitOpsRepoNotReady",
+						Message:            "Cannot Reconcile Binding '" + binding.Name + "', since GitOps Repo Conditions status is false.",
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			}
+
+			// Update the status field
+			err = buildAndUpdateBindingStatusConditions(binding.Status, &binding)
+			Expect(err).To(Succeed())
+
+			Eventually(binding, "3m", "1s").Should(bindingFixture.HaveBindingConditions(
+				metav1.Condition{
+					Type:    ErrorOccurred,
+					Status:  metav1.ConditionTrue,
+					Reason:  ErrorOccurred,
+					Message: "Cannot Reconcile Binding '" + binding.Name + "', since GitOps Repo Conditions status is false.",
+				}))
+
+		})
+
+		It("test BindingConditions when GitOpsRepoConditions status is true", func() {
+			By("Create SnapshotEnvironmentBindingResource")
+			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
+			err = k8s.Create(&binding, k8sClient)
+			Expect(err).To(Succeed())
+
+			By("Update GitOpsRepoConditions")
+			binding.Status = appstudiosharedv1.SnapshotEnvironmentBindingStatus{
+				GitOpsRepoConditions: []metav1.Condition{
+					{
+						Type:               "Reconciled",
+						Status:             metav1.ConditionTrue,
+						Reason:             "Reconciled",
+						Message:            "",
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			}
+
+			// Update the status field
+			err = buildAndUpdateBindingStatusConditions(binding.Status, &binding)
+			Expect(err).To(Succeed())
+
+			Eventually(binding, "3m", "1s").Should(bindingFixture.HaveBindingConditions(
+				metav1.Condition{
+					Type:    ErrorOccurred,
+					Status:  metav1.ConditionFalse,
+					Reason:  ErrorOccurred,
+					Message: "",
+				}))
+
+		})
+
+		It("test BindingConditions when Components is empty", func() {
+			By("Create SnapshotEnvironmentBindingResource")
+			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
+			err = k8s.Create(&binding, k8sClient)
+			Expect(err).To(Succeed())
+
+			Eventually(binding, "3m", "1s").Should(bindingFixture.HaveBindingConditions(
+				metav1.Condition{
+					Type:   ErrorOccurred,
+					Status: metav1.ConditionTrue,
+					Reason: ErrorOccurred,
+					Message: "SnapshotEventBinding Component status is required to " +
+						"generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding '" + binding.Name + "'",
+					LastTransitionTime: metav1.Now(),
+				}))
+
+		})
+
+		It("test BindingConditions when duplicate component keys are found", func() {
+			By("Create SnapshotEnvironmentBindingResource")
+			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a", "component-a"})
+
+			err = k8s.Create(&binding, k8sClient)
+			Expect(err).To(Succeed())
+
+			// Update Status field
+			err = buildAndUpdateBindingStatus(binding.Spec.Components,
+				fixture.RepoURL, "main", "adcda66",
+				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/dev", "resources/test-data/component-based-gitops-repository/components/componentB/overlays/dev"}, &binding)
+			Expect(err).To(Succeed())
+
+			Eventually(binding, "3m", "1s").Should(bindingFixture.HaveBindingConditions(
+				metav1.Condition{
+					Type:    ErrorOccurred,
+					Status:  metav1.ConditionTrue,
+					Reason:  ErrorOccurred,
+					Message: "duplicate component keys found in status field in component-a",
+				}))
+
+		})
+
+		It("test BindingConditions for userDev error where DTC referenced by Environment does not exist", func() {
+			By("Create SnapshotEnvironmentBindingResource")
+			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&environment), &environment)
+			environment.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName = "dtc-doesnt-exist"
+
+			err = k8s.Update(&environment, k8sClient)
+			Expect(err).To(Succeed())
+
+			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", environment.Name, "my-snapshot", 3, []string{"component-a", "component-b"})
+
+			err = k8s.Create(&binding, k8sClient)
+			Expect(err).To(Succeed())
+
+			// Update Status field
+			err = buildAndUpdateBindingStatus(binding.Spec.Components,
+				fixture.RepoURL, "main", "adcda66",
+				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/dev", "resources/test-data/component-based-gitops-repository/components/componentB/overlays/dev"}, &binding)
+			Expect(err).To(Succeed())
+
+			Eventually(binding, "3m", "1s").Should(bindingFixture.HaveBindingConditions(
+				metav1.Condition{
+					Type:    ErrorOccurred,
+					Status:  metav1.ConditionTrue,
+					Reason:  ErrorOccurred,
+					Message: "DeploymentTargetClaim referenced by Environment does not exist.",
+				}))
+		})
 	})
 
 })
@@ -1058,6 +1193,18 @@ func buildAndUpdateBindingStatus(components []appstudiosharedv1.BindingComponent
 		// Update the binding status
 		*bindingStatus = buildSnapshotEnvironmentBindingStatus(components,
 			url, branch, commitID, path)
+
+	})
+}
+
+func buildAndUpdateBindingStatusConditions(status appstudiosharedv1.SnapshotEnvironmentBindingStatus, binding *appstudiosharedv1.SnapshotEnvironmentBinding) error {
+
+	By("updating Status field of SnapshotEnvironmentBindingResource")
+
+	return bindingFixture.UpdateStatusWithFunction(binding, func(bindingStatus *appstudiosharedv1.SnapshotEnvironmentBindingStatus) {
+
+		// Update the binding status
+		*bindingStatus = status
 
 	})
 }

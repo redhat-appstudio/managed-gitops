@@ -242,3 +242,35 @@ func HaveComponentDeploymentCondition(expected metav1.Condition) matcher.GomegaM
 
 	}, BeTrue())
 }
+
+func HaveBindingConditions(expected metav1.Condition) matcher.GomegaMatcher {
+	return WithTransform(func(binding appstudiosharedv1.SnapshotEnvironmentBinding) bool {
+
+		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+		Expect(err).ToNot(HaveOccurred())
+
+		k8sClient, err := fixture.GetKubeClient(config)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&binding), &binding)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		if len(binding.Status.BindingConditions) == 0 {
+			GinkgoWriter.Println("HaveBindingCondition: HaveBindingConditions is nil")
+			return false
+		}
+		actual := binding.Status.BindingConditions[0]
+		GinkgoWriter.Println("HaveBindingCondition:", "expected: ", expected, "actual: ", actual)
+		return actual.Type == expected.Type &&
+			actual.Status == expected.Status &&
+			actual.Reason == expected.Reason &&
+			actual.Message == expected.Message
+
+	}, BeTrue())
+}

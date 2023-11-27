@@ -26,6 +26,18 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 )
 
+const (
+	SNAPSHOT_NAME                              = "my-snapshot"
+	APP_NAME                                   = "new-demo-app"
+	COMPONENT_NAME_A                           = "component-a"
+	COMPONENT_NAME_B                           = "component-b"
+	APP_ENVIRONMENT                            = "appstudio.environment"
+	URL                                        = "https://github.com/redhat-appstudio/managed-gitops"
+	PATH_A                                     = "resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"
+	PATH_B                                     = "resources/test-data/sample-gitops-repository/components/componentB/overlays/staging"
+	ENSURING_UNRELATED_DEPLOYMENT_STILL_EXISTS = "Ensuring the unrelated deployment still exists"
+)
+
 var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 	threeReplicas := 3
@@ -65,7 +77,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					Namespace: apiNamespace.Name,
 				},
 				Spec: appstudiosharedv1.EnvironmentSpec{
-					DisplayName:        "my-environment",
+					DisplayName:        MY_ENV,
 					DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
 					ParentEnvironment:  "",
 					Tags:               []string{},
@@ -78,11 +90,11 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			// Create placeholder application
 			application = appstudiosharedv1.Application{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "new-demo-app",
+					Name:      APP_NAME,
 					Namespace: apiNamespace.Name,
 				},
 				Spec: appstudiosharedv1.ApplicationSpec{
-					DisplayName: "my-application",
+					DisplayName: APP_NAME,
 				},
 			}
 			err = k8sClient.Create(ctx, &application)
@@ -96,17 +108,17 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					Name:      "appa-staging-binding",
 					Namespace: apiNamespace.Name,
 					Labels: map[string]string{
-						"appstudio.application": "new-demo-app",
-						"appstudio.environment": "staging",
+						"appstudio.application": APP_NAME,
+						APP_ENVIRONMENT:         "staging",
 					},
 				},
 				Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
-					Application: "new-demo-app",
+					Application: APP_NAME,
 					Environment: "staging",
-					Snapshot:    "my-snapshot",
+					Snapshot:    SNAPSHOT_NAME,
 					Components: []appstudiosharedv1.BindingComponent{
 						{
-							Name: "component-a",
+							Name: COMPONENT_NAME_A,
 							Configuration: appstudiosharedv1.BindingComponentConfiguration{
 								Env: []appstudiosharedv1.EnvVarPair{
 									{Name: "My_STG_ENV", Value: "1000"},
@@ -119,11 +131,11 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				Status: appstudiosharedv1.SnapshotEnvironmentBindingStatus{
 					Components: []appstudiosharedv1.BindingComponentStatus{
 						{
-							Name: "component-a",
+							Name: COMPONENT_NAME_A,
 							GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{
-								URL:    "https://github.com/redhat-appstudio/managed-gitops",
+								URL:    URL,
 								Branch: "main",
-								Path:   "resources/test-data/sample-gitops-repository/components/componentA/overlays/staging",
+								Path:   PATH_A,
 							},
 						},
 					},
@@ -187,7 +199,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(bindingSecond.Status.GitOpsDeployments).NotTo(BeEmpty())
-			Expect(bindingSecond.Status.GitOpsDeployments[0].ComponentName).To(Equal("component-a"))
+			Expect(bindingSecond.Status.GitOpsDeployments[0].ComponentName).To(Equal(COMPONENT_NAME_A))
 			Expect(bindingSecond.Status.GitOpsDeployments[0].GitOpsDeployment).
 				To(Equal(binding.Name + "-" +
 					binding.Spec.Application + "-" +
@@ -272,7 +284,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			By("Creating a Binding with two components")
 			binding.Spec.Components = []appstudiosharedv1.BindingComponent{
 				{
-					Name: "component-a",
+					Name: COMPONENT_NAME_A,
 					Configuration: appstudiosharedv1.BindingComponentConfiguration{
 						Env: []appstudiosharedv1.EnvVarPair{
 							{Name: "My_STG_ENV", Value: "1000"},
@@ -281,7 +293,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					},
 				},
 				{
-					Name: "component-b",
+					Name: COMPONENT_NAME_B,
 					Configuration: appstudiosharedv1.BindingComponentConfiguration{
 						Env: []appstudiosharedv1.EnvVarPair{
 							{Name: "My_STG_ENV", Value: "1000"},
@@ -292,19 +304,19 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 			binding.Status.Components = []appstudiosharedv1.BindingComponentStatus{
 				{
-					Name: "component-a",
+					Name: COMPONENT_NAME_A,
 					GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{
-						URL:    "https://github.com/redhat-appstudio/managed-gitops",
+						URL:    URL,
 						Branch: "main",
-						Path:   "resources/test-data/sample-gitops-repository/components/componentA/overlays/staging",
+						Path:   PATH_A,
 					},
 				},
 				{
-					Name: "component-b",
+					Name: COMPONENT_NAME_B,
 					GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{
-						URL:    "https://github.com/redhat-appstudio/managed-gitops",
+						URL:    URL,
 						Branch: "main",
-						Path:   "resources/test-data/sample-gitops-repository/components/componentB/overlays/staging",
+						Path:   PATH_B,
 					},
 				},
 			}
@@ -351,7 +363,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			err = bindingReconciler.Get(ctx, gitopsDeploymentKey1, gitopsDeployment)
 			Expect(err).ToNot(HaveOccurred())
 
-			By("Ensuring the unrelated deployment still exists")
+			By(ENSURING_UNRELATED_DEPLOYMENT_STILL_EXISTS)
 			unrelatedDeploymentKey := client.ObjectKey{
 				Namespace: unrelatedDeployment.Namespace,
 				Name:      unrelatedDeployment.Name,
@@ -383,7 +395,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			err = bindingReconciler.Get(ctx, gitopsDeploymentKey1, gitopsDeployment)
 			Expect(err).ToNot(HaveOccurred())
 
-			By("Ensuring the unrelated deployment still exists")
+			By(ENSURING_UNRELATED_DEPLOYMENT_STILL_EXISTS)
 			gitopsDeployment = &apibackend.GitOpsDeployment{}
 			err = bindingReconciler.Get(ctx, unrelatedDeploymentKey, gitopsDeployment)
 			Expect(err).ToNot(HaveOccurred())
@@ -412,7 +424,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(apierr.IsNotFound(err)).To(BeTrue())
 
-			By("Ensuring the unrelated deployment still exists")
+			By(ENSURING_UNRELATED_DEPLOYMENT_STILL_EXISTS)
 			gitopsDeployment = &apibackend.GitOpsDeployment{}
 			err = bindingReconciler.Get(ctx, unrelatedDeploymentKey, gitopsDeployment)
 			Expect(err).ToNot(HaveOccurred())
@@ -429,7 +441,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					Namespace: binding.Namespace,
 				},
 				Spec: appstudiosharedv1.EnvironmentSpec{
-					DisplayName:        "my-environment",
+					DisplayName:        MY_ENV,
 					DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
 					ParentEnvironment:  "",
 					Tags:               []string{},
@@ -439,14 +451,14 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			err := bindingReconciler.Create(ctx, &environment)
 			Expect(err).ToNot(HaveOccurred())
 			binding.Spec.Environment = environment.Name
-			binding.ObjectMeta.Labels["appstudio.environment"] = environment.Name
+			binding.ObjectMeta.Labels[APP_ENVIRONMENT] = environment.Name
 			application = appstudiosharedv1.Application{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      strings.Repeat("a", 63),
 					Namespace: binding.Namespace,
 				},
 				Spec: appstudiosharedv1.ApplicationSpec{
-					DisplayName: "my-application",
+					DisplayName: APP_NAME,
 				},
 			}
 			err = bindingReconciler.Create(ctx, &application)
@@ -469,7 +481,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(binding.Status.GitOpsDeployments).NotTo(BeEmpty())
-			Expect(binding.Status.GitOpsDeployments[0].ComponentName).To(Equal("component-a"))
+			Expect(binding.Status.GitOpsDeployments[0].ComponentName).To(Equal(COMPONENT_NAME_A))
 
 			// GitOpsDeployment should have short name
 			Expect(binding.Status.GitOpsDeployments[0].GitOpsDeployment).
@@ -489,7 +501,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					Namespace: binding.Namespace,
 				},
 				Spec: appstudiosharedv1.ApplicationSpec{
-					DisplayName: "my-application",
+					DisplayName: APP_NAME,
 				},
 			}
 			err := bindingReconciler.Create(ctx, &application)
@@ -670,11 +682,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("creating an Environment that references the DTC")
-			environment.Spec.UnstableConfigurationFields = nil
-			environment.Spec.Configuration.Target = appstudiosharedv1.EnvironmentTarget{
-				DeploymentTargetClaim: appstudiosharedv1.DeploymentTargetClaimConfig{
-					ClaimName: dtc.Name,
-				},
+
+			environment.Spec.Target = &appstudiosharedv1.TargetConfiguration{
+				Claim: getTargetClaim(dtc.Name),
 			}
 			err = bindingReconciler.Client.Update(ctx, &environment)
 			Expect(err).ToNot(HaveOccurred())
@@ -708,7 +718,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 		It("should verify that if the Environment contains configuration information, that it is included in the generated GitOpsDeployment", func() {
 
 			By("creating an Environment with valid configuration fields")
-			environment.Spec.UnstableConfigurationFields = &appstudiosharedv1.UnstableEnvironmentConfiguration{
+			environment.Spec.Target = &appstudiosharedv1.TargetConfiguration{
 				KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
 					TargetNamespace:          "my-target-namespace",
 					APIURL:                   "my-api-url",
@@ -739,11 +749,11 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 			managedEnvironmentName := generateEmptyManagedEnvironment(environment.Name, environment.Namespace).Name
 
-			Expect(gitopsDeployment.Spec.Destination.Namespace).To(Equal(environment.Spec.UnstableConfigurationFields.TargetNamespace))
+			Expect(gitopsDeployment.Spec.Destination.Namespace).To(Equal(environment.Spec.Target.TargetNamespace))
 			Expect(gitopsDeployment.Spec.Destination.Environment).To(Equal(managedEnvironmentName))
 
 			By("removing the field from Environment, and ensuring the GitOpsDeployment is updated")
-			environment.Spec.UnstableConfigurationFields = nil
+			environment.Spec.Target = nil
 			err = bindingReconciler.Client.Update(ctx, &environment)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -757,7 +767,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(gitopsDeployment.Spec.Destination.Environment).To(Equal(""))
 
 			By("testing with a missing TargetNamespace, which should return an error")
-			environment.Spec.UnstableConfigurationFields = &appstudiosharedv1.UnstableEnvironmentConfiguration{
+			environment.Spec.Target = &appstudiosharedv1.TargetConfiguration{
 				KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
 					APIURL:                   "my-api-url",
 					ClusterCredentialsSecret: "secret",
@@ -1035,7 +1045,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 				binding.Spec.Components = []appstudiosharedv1.BindingComponent{
 					{
-						Name: "component-b",
+						Name: COMPONENT_NAME_B,
 						Configuration: appstudiosharedv1.BindingComponentConfiguration{
 							Env: []appstudiosharedv1.EnvVarPair{
 								{Name: "My_STG_ENV", Value: "1000"},
@@ -1044,7 +1054,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 						},
 					},
 					{
-						Name: "component-a",
+						Name: COMPONENT_NAME_A,
 						Configuration: appstudiosharedv1.BindingComponentConfiguration{
 							Env: []appstudiosharedv1.EnvVarPair{
 								{Name: "My_STG_ENV", Value: "1000"},
@@ -1057,19 +1067,19 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				binding.Status = appstudiosharedv1.SnapshotEnvironmentBindingStatus{
 					Components: []appstudiosharedv1.BindingComponentStatus{
 						{
-							Name: "component-b",
+							Name: COMPONENT_NAME_B,
 							GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{
-								URL:    "https://github.com/redhat-appstudio/managed-gitops",
+								URL:    URL,
 								Branch: "main",
-								Path:   "resources/test-data/sample-gitops-repository/components/componentB/overlays/staging",
+								Path:   PATH_B,
 							},
 						},
 						{
-							Name: "component-a",
+							Name: COMPONENT_NAME_A,
 							GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{
-								URL:    "https://github.com/redhat-appstudio/managed-gitops",
+								URL:    URL,
 								Branch: "main",
-								Path:   "resources/test-data/sample-gitops-repository/components/componentA/overlays/staging",
+								Path:   PATH_A,
 							},
 						},
 					},
@@ -1085,8 +1095,8 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				Expect(bindingReconciler.Get(ctx, client.ObjectKeyFromObject(binding), binding)).To(Succeed())
 
 				Expect(binding.Status.GitOpsDeployments).To(HaveLen(2))
-				Expect(binding.Status.GitOpsDeployments[0].ComponentName).To(Equal("component-a"))
-				Expect(binding.Status.GitOpsDeployments[1].ComponentName).To(Equal("component-b"))
+				Expect(binding.Status.GitOpsDeployments[0].ComponentName).To(Equal(COMPONENT_NAME_A))
+				Expect(binding.Status.GitOpsDeployments[1].ComponentName).To(Equal(COMPONENT_NAME_B))
 
 			})
 		})
@@ -1137,7 +1147,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 						Application: "my-app",
 						Environment: "some-other-env",
-						Snapshot:    "my-snapshot",
+						Snapshot:    SNAPSHOT_NAME,
 						Components:  []appstudiosharedv1.BindingComponent{},
 					},
 				}
@@ -1197,12 +1207,8 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					},
 					Spec: appstudiosharedv1.EnvironmentSpec{
 						DisplayName: "my-env",
-						Configuration: appstudiosharedv1.EnvironmentConfiguration{
-							Target: appstudiosharedv1.EnvironmentTarget{
-								DeploymentTargetClaim: appstudiosharedv1.DeploymentTargetClaimConfig{
-									ClaimName: dtc.Name,
-								},
-							},
+						Target: &appstudiosharedv1.TargetConfiguration{
+							Claim: getTargetClaim(dtc.Name),
 						},
 					},
 				}
@@ -1217,7 +1223,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 						Application: "my-app",
 						Environment: env.Name,
-						Snapshot:    "my-snapshot",
+						Snapshot:    SNAPSHOT_NAME,
 						Components:  []appstudiosharedv1.BindingComponent{},
 					},
 				}
@@ -1276,7 +1282,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 						Application: "my-app",
 						Environment: "some-other-env",
-						Snapshot:    "my-snapshot",
+						Snapshot:    SNAPSHOT_NAME,
 						Components:  []appstudiosharedv1.BindingComponent{},
 					},
 				}
@@ -1316,12 +1322,8 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					},
 					Spec: appstudiosharedv1.EnvironmentSpec{
 						DisplayName: "my-env",
-						Configuration: appstudiosharedv1.EnvironmentConfiguration{
-							Target: appstudiosharedv1.EnvironmentTarget{
-								DeploymentTargetClaim: appstudiosharedv1.DeploymentTargetClaimConfig{
-									ClaimName: dtc.Name,
-								},
-							},
+						Target: &appstudiosharedv1.TargetConfiguration{
+							Claim: getTargetClaim(dtc.Name),
 						},
 					},
 				}
@@ -1337,7 +1339,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 						Application: "my-app",
 						Environment: env.Name,
-						Snapshot:    "my-snapshot",
+						Snapshot:    SNAPSHOT_NAME,
 						Components:  []appstudiosharedv1.BindingComponent{},
 					},
 				}
@@ -1381,12 +1383,8 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					},
 					Spec: appstudiosharedv1.EnvironmentSpec{
 						DisplayName: "my-env",
-						Configuration: appstudiosharedv1.EnvironmentConfiguration{
-							Target: appstudiosharedv1.EnvironmentTarget{
-								DeploymentTargetClaim: appstudiosharedv1.DeploymentTargetClaimConfig{
-									ClaimName: dtc.Name,
-								},
-							},
+						Target: &appstudiosharedv1.TargetConfiguration{
+							Claim: getTargetClaim(dtc.Name),
 						},
 					},
 				}
@@ -1402,7 +1400,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 						Application: "my-app",
 						Environment: "some-other-environment",
-						Snapshot:    "my-snapshot",
+						Snapshot:    SNAPSHOT_NAME,
 						Components:  []appstudiosharedv1.BindingComponent{},
 					},
 				}
@@ -1461,7 +1459,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 						Application: "my-app",
 						Environment: "does-not-exist",
-						Snapshot:    "my-snapshot",
+						Snapshot:    SNAPSHOT_NAME,
 						Components:  []appstudiosharedv1.BindingComponent{},
 					},
 				}
@@ -1515,7 +1513,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 						Application: "my-app",
 						Environment: "some-other-env",
-						Snapshot:    "my-snapshot",
+						Snapshot:    SNAPSHOT_NAME,
 						Components:  []appstudiosharedv1.BindingComponent{},
 					},
 				}
@@ -1569,7 +1567,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 						Application: "my-app",
 						Environment: "some-other-env",
-						Snapshot:    "my-snapshot",
+						Snapshot:    SNAPSHOT_NAME,
 						Components:  []appstudiosharedv1.BindingComponent{},
 					},
 				}
@@ -1593,7 +1591,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 						Application: "my-app",
 						Environment: "some-other-env",
-						Snapshot:    "my-snapshot",
+						Snapshot:    SNAPSHOT_NAME,
 						Components:  []appstudiosharedv1.BindingComponent{},
 					},
 				}
@@ -1648,7 +1646,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 						Application: "does-not-exist",
 						Environment: "my-env",
-						Snapshot:    "my-snapshot",
+						Snapshot:    SNAPSHOT_NAME,
 						Components:  []appstudiosharedv1.BindingComponent{},
 					},
 				}
@@ -1700,7 +1698,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 						Application: "some-other-app",
 						Environment: "my-env",
-						Snapshot:    "my-snapshot",
+						Snapshot:    SNAPSHOT_NAME,
 						Components:  []appstudiosharedv1.BindingComponent{},
 					},
 				}
@@ -1752,7 +1750,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 						Application: "some-other-app",
 						Environment: "my-env",
-						Snapshot:    "my-snapshot",
+						Snapshot:    SNAPSHOT_NAME,
 						Components:  []appstudiosharedv1.BindingComponent{},
 					},
 				}
@@ -1775,7 +1773,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 						Application: "some-other-app",
 						Environment: "my-env",
-						Snapshot:    "my-snapshot",
+						Snapshot:    SNAPSHOT_NAME,
 						Components:  []appstudiosharedv1.BindingComponent{},
 					},
 				}
@@ -1821,7 +1819,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					Namespace: apiNamespace.Name,
 				},
 				Spec: appstudiosharedv1.EnvironmentSpec{
-					DisplayName:        "my-environment",
+					DisplayName:        MY_ENV,
 					DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
 					ParentEnvironment:  "",
 					Tags:               []string{},
@@ -1834,11 +1832,11 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			// Create placeholder application
 			application = appstudiosharedv1.Application{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "new-demo-app",
+					Name:      APP_NAME,
 					Namespace: apiNamespace.Name,
 				},
 				Spec: appstudiosharedv1.ApplicationSpec{
-					DisplayName: "my-application",
+					DisplayName: APP_NAME,
 				},
 			}
 			err = k8sClient.Create(ctx, &application)
@@ -1852,17 +1850,17 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					Name:      "appa-staging-binding",
 					Namespace: apiNamespace.Name,
 					Labels: map[string]string{
-						"appstudio.application": "new-demo-app",
-						"appstudio.environment": "staging",
+						"appstudio.application": APP_NAME,
+						APP_ENVIRONMENT:         "staging",
 					},
 				},
 				Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
-					Application: "new-demo-app",
+					Application: APP_NAME,
 					Environment: "staging",
-					Snapshot:    "my-snapshot",
+					Snapshot:    SNAPSHOT_NAME,
 					Components: []appstudiosharedv1.BindingComponent{
 						{
-							Name: "component-a",
+							Name: COMPONENT_NAME_A,
 							Configuration: appstudiosharedv1.BindingComponentConfiguration{
 								Env: []appstudiosharedv1.EnvVarPair{
 									{Name: "My_STG_ENV", Value: "1000"},
@@ -1871,7 +1869,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 							},
 						},
 						{
-							Name: "component-b",
+							Name: COMPONENT_NAME_B,
 							Configuration: appstudiosharedv1.BindingComponentConfiguration{
 								Env: []appstudiosharedv1.EnvVarPair{
 									{Name: "My_STG_ENV", Value: "1000"},
@@ -1884,19 +1882,19 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				Status: appstudiosharedv1.SnapshotEnvironmentBindingStatus{
 					Components: []appstudiosharedv1.BindingComponentStatus{
 						{
-							Name: "component-a",
+							Name: COMPONENT_NAME_A,
 							GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{
-								URL:    "https://github.com/redhat-appstudio/managed-gitops",
+								URL:    URL,
 								Branch: "main",
-								Path:   "resources/test-data/sample-gitops-repository/components/componentA/overlays/staging",
+								Path:   PATH_A,
 							},
 						},
 						{
-							Name: "component-b",
+							Name: COMPONENT_NAME_B,
 							GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{
-								URL:    "https://github.com/redhat-appstudio/managed-gitops",
+								URL:    URL,
 								Branch: "main",
-								Path:   "resources/test-data/sample-gitops-repository/components/componentB/overlays/staging",
+								Path:   PATH_B,
 							},
 						},
 					},
@@ -1992,7 +1990,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(binding.Status.GitOpsDeployments).To(HaveLen(2))
 			// We are not sure of the order
 			var indexOfComponentA, indexOfComponentB int
-			if binding.Status.GitOpsDeployments[0].ComponentName == "component-a" {
+			if binding.Status.GitOpsDeployments[0].ComponentName == COMPONENT_NAME_A {
 				indexOfComponentA = 0
 				indexOfComponentB = 1
 			} else { // There are only two components, so the indices are switched
@@ -2001,10 +1999,10 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 			// Check the deployment name too
 			// Eg. appa-staging-binding-new-demo-app-staging-component-a
-			componentADeploymentName := GenerateBindingGitOpsDeploymentName(*binding, "component-a")
+			componentADeploymentName := GenerateBindingGitOpsDeploymentName(*binding, COMPONENT_NAME_A)
 
 			// Eg. appa-staging-binding-new-demo-app-staging-component-b
-			componentBDeploymentName := GenerateBindingGitOpsDeploymentName(*binding, "component-b")
+			componentBDeploymentName := GenerateBindingGitOpsDeploymentName(*binding, COMPONENT_NAME_B)
 
 			Expect(binding.Status.GitOpsDeployments[indexOfComponentA].GitOpsDeployment).To(Equal(componentADeploymentName))
 			Expect(binding.Status.GitOpsDeployments[indexOfComponentB].GitOpsDeployment).To(Equal(componentBDeploymentName))
@@ -2060,7 +2058,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			for _, deployment := range binding.Status.GitOpsDeployments {
 				// For these unit test purposes, we can compare exactly the Commit IDs, although in the e2e tests,
 				// it is not deterministic.
-				if deployment.ComponentName == "component-a" {
+				if deployment.ComponentName == COMPONENT_NAME_A {
 					Expect(deployment.GitOpsDeploymentSyncStatus).To(Equal(string(apibackend.SyncStatusCodeSynced)))
 					Expect(deployment.GitOpsDeploymentHealthStatus).To(Equal(string(apibackend.HeathStatusCodeHealthy)))
 					Expect(deployment.GitOpsDeploymentCommitID).To(Equal(deployment1Revision))

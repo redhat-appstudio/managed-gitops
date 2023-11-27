@@ -89,7 +89,9 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 						Env: []appstudiosharedv1.EnvVarPair{
 							{Name: "e1", Value: "v1"},
 						},
-						Target: appstudiosharedv1.EnvironmentTarget{
+					},
+					Target: &appstudiosharedv1.TargetConfiguration{
+						Claim: appstudiosharedv1.TargetClaim{
 							DeploymentTargetClaim: appstudiosharedv1.DeploymentTargetClaimConfig{
 								ClaimName: dtc.Name,
 							},

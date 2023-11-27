@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"reflect"
 
 	"github.com/go-logr/logr"
 	appstudiov1alpha1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
@@ -92,7 +93,7 @@ func (r *EnvironmentWebhook) ValidateDelete(ctx context.Context, obj runtime.Obj
 // validateEnvironment validates the ingress domain and API URL
 func validateEnvironment(r *appstudiov1alpha1.Environment) error {
 
-	unstableConfig := r.Spec.UnstableConfigurationFields
+	unstableConfig := r.Spec.Target
 	if unstableConfig != nil {
 		// if cluster type is Kubernetes, then Ingress Domain should be set
 		if unstableConfig.ClusterType == appstudiov1alpha1.ConfigurationClusterType_Kubernetes && unstableConfig.IngressDomain == "" {
@@ -106,8 +107,8 @@ func validateEnvironment(r *appstudiov1alpha1.Environment) error {
 
 	}
 
-	if r.Spec.UnstableConfigurationFields != nil && r.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.APIURL != "" {
-		if _, err := url.ParseRequestURI(r.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.APIURL); err != nil {
+	if r.Spec.Target != nil && !reflect.ValueOf(r.Spec.Target.KubernetesClusterCredentials).IsZero() && r.Spec.Target.KubernetesClusterCredentials.APIURL != "" {
+		if _, err := url.ParseRequestURI(r.Spec.Target.KubernetesClusterCredentials.APIURL); err != nil {
 			return fmt.Errorf(err.Error() + appstudiov1alpha1.InvalidAPIURL)
 		}
 	}

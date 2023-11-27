@@ -564,12 +564,12 @@ func generateExpectedGitOpsDeployment(ctx context.Context, component appstudiosh
 	}
 
 	// If the Environment references a DeploymentTargetClaim...
-	if environment.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName != "" {
+	if environment.Spec.Target != nil && environment.Spec.Target.Claim.DeploymentTargetClaim.ClaimName != "" {
 
 		// Retrieve the DTC
 		dtc := appstudioshared.DeploymentTargetClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      environment.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName,
+				Name:      environment.Spec.Target.Claim.DeploymentTargetClaim.ClaimName,
 				Namespace: environment.Namespace,
 			},
 		}
@@ -600,10 +600,10 @@ func generateExpectedGitOpsDeployment(ctx context.Context, component appstudiosh
 			Namespace:   dt.Spec.KubernetesClusterCredentials.DefaultNamespace, // Note: this might be empty
 		}
 
-	} else if environment.Spec.UnstableConfigurationFields != nil {
+	} else if environment.Spec.Target != nil {
 		// If the environment has a target cluster field defined, then set the destination to that managed environment
 
-		if environment.Spec.UnstableConfigurationFields.TargetNamespace == "" {
+		if environment.Spec.Target.TargetNamespace == "" {
 			devErr := fmt.Errorf("invalid target namespace: %s: '%s'", errMissingTargetNamespace, environment.Name)
 			return apibackend.GitOpsDeployment{}, gitopserrors.NewUserDevError("Environment is missing a TargetNamespace field", devErr)
 		}
@@ -612,7 +612,7 @@ func generateExpectedGitOpsDeployment(ctx context.Context, component appstudiosh
 
 		res.Spec.Destination = apibackend.ApplicationDestination{
 			Environment: managedEnvironmentName,
-			Namespace:   environment.Spec.UnstableConfigurationFields.TargetNamespace,
+			Namespace:   environment.Spec.Target.TargetNamespace,
 		}
 	}
 	// Else if neither of the above is true, it's necessarily just an Environment with no credentials specified,
@@ -715,8 +715,10 @@ func (r *SnapshotEnvironmentBindingReconciler) findObjectsForDeploymentTargetCla
 	for _, env := range envList.Items {
 
 		// If the DTCs match the Environment's claim name, it's a match
-		if env.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName == dtcObj.Name {
-			environmentByName[env.Name] = true
+		if env.Spec.Target != nil && !reflect.ValueOf(env.Spec.Target.Claim).IsZero() && !reflect.ValueOf(env.Spec.Target.Claim.DeploymentTargetClaim).IsZero() {
+			if env.Spec.Target.Claim.DeploymentTargetClaim.ClaimName == dtcObj.Name {
+				environmentByName[env.Name] = true
+			}
 		}
 	}
 
@@ -780,9 +782,11 @@ func (r *SnapshotEnvironmentBindingReconciler) findObjectsForDeploymentTarget(dt
 		matchFound := false
 		for _, dtc := range dtcs {
 			// If at least one of the DTCs match the Environment's claim name, it's a match
-			if env.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName == dtc.Name {
-				matchFound = true
-				break
+			if env.Spec.Target != nil && !reflect.ValueOf(env.Spec.Target.Claim).IsZero() && !reflect.ValueOf(env.Spec.Target.Claim.DeploymentTargetClaim).IsZero() {
+				if env.Spec.Target.Claim.DeploymentTargetClaim.ClaimName == dtc.Name {
+					matchFound = true
+					break
+				}
 			}
 		}
 

@@ -189,7 +189,7 @@ func reconcileEnvironment(ctx context.Context, environment appstudioshared.Envir
 		errorConditionSet_false = false
 	)
 
-	if environment.GetDeploymentTargetClaimName() != "" && environment.Spec.UnstableConfigurationFields != nil {
+	if environment.Spec.Target != nil && !reflect.ValueOf(environment.Spec.Target.KubernetesClusterCredentials).IsZero() && environment.GetDeploymentTargetClaimNamev2() != "" {
 		log.Error(nil, "Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set")
 
 		// Update Status.Conditions field of Environment.
@@ -374,7 +374,7 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 	var managedEnvDetails managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec
 	// If the Environment has a reference to the DeploymentTargetClaim, use the credential secret
 	// from the bounded DeploymentTarget.
-	claimName := env.GetDeploymentTargetClaimName()
+	claimName := env.GetDeploymentTargetClaimNamev2()
 	if claimName != "" {
 		log.Info("Environment is configured with a DeploymentTargetClaim")
 		dtc := &appstudioshared.DeploymentTargetClaim{
@@ -474,12 +474,12 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 			Namespaces:                 namespacesField,
 		}
 
-	} else if env.Spec.UnstableConfigurationFields != nil {
+	} else if env.Spec.Target != nil {
 		log.Info("Using the cluster credentials specified in the Environment")
 		managedEnvDetails = managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
-			APIURL:                     env.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.APIURL,
-			ClusterCredentialsSecret:   env.Spec.UnstableConfigurationFields.ClusterCredentialsSecret,
-			AllowInsecureSkipTLSVerify: env.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify,
+			APIURL:                     env.Spec.Target.KubernetesClusterCredentials.APIURL,
+			ClusterCredentialsSecret:   env.Spec.Target.ClusterCredentialsSecret,
+			AllowInsecureSkipTLSVerify: env.Spec.Target.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify,
 		}
 	} else {
 		// Don't process the Environment configuration fields if they are empty:
@@ -488,12 +488,12 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 		return nil, errorConditionSet_false, nil
 	}
 
-	if env.Spec.UnstableConfigurationFields != nil {
-		managedEnvDetails.ClusterResources = env.Spec.UnstableConfigurationFields.ClusterResources
+	if !reflect.ValueOf(env.Spec.Target.KubernetesClusterCredentials).IsZero() {
+		managedEnvDetails.ClusterResources = env.Spec.Target.ClusterResources
 
 		// Make a copy of the Environment's namespaces field
-		size := len(env.Spec.UnstableConfigurationFields.Namespaces)
-		managedEnvDetails.Namespaces = append(make([]string, 0, size), env.Spec.UnstableConfigurationFields.Namespaces...)
+		size := len(env.Spec.Target.Namespaces)
+		managedEnvDetails.Namespaces = append(make([]string, 0, size), env.Spec.Target.Namespaces...)
 	}
 
 	// 1) Retrieve the secret that the Environment is pointing to
@@ -702,7 +702,7 @@ func (r *EnvironmentReconciler) findObjectsForDeploymentTargetClaim(dtc client.O
 	envRequests := []reconcile.Request{}
 	for i := 0; i < len(envList.Items); i++ {
 		env := envList.Items[i]
-		if env.GetDeploymentTargetClaimName() == dtc.GetName() {
+		if env.GetDeploymentTargetClaimNamev2() == dtc.GetName() {
 			envRequests = append(envRequests, reconcile.Request{
 				NamespacedName: client.ObjectKeyFromObject(&env),
 			})
@@ -753,7 +753,7 @@ func (r *EnvironmentReconciler) findObjectsForDeploymentTarget(dt client.Object)
 	for i := 0; i < len(envList.Items); i++ {
 		env := envList.Items[i]
 		for _, dtc := range dtcs {
-			if env.GetDeploymentTargetClaimName() == dtc.GetName() {
+			if env.GetDeploymentTargetClaimNamev2() == dtc.GetName() {
 				envRequests = append(envRequests, reconcile.Request{
 					NamespacedName: client.ObjectKeyFromObject(&env),
 				})
@@ -820,7 +820,7 @@ func (r *EnvironmentReconciler) findObjectsForSecret(secret client.Object) []rec
 		env := envList.Items[i]
 
 		// 1. Find the DTC that is associated with the Environment
-		dtcName := env.GetDeploymentTargetClaimName()
+		dtcName := env.GetDeploymentTargetClaimNamev2()
 		if dtcName == "" {
 			continue
 		}
@@ -854,4 +854,34 @@ func (r *EnvironmentReconciler) findObjectsForSecret(secret client.Object) []rec
 	}
 
 	return envRequests
+}
+
+func GetKubeClusterCredentials(ingressDomain, targetNamespace, apiUrl, clusterCredSecret string, namespaces []string, allowInsecureSkipTLSVerify, clusterResources bool) appstudioshared.KubernetesClusterCredentials {
+
+	kubernetesClusterCredentials := appstudioshared.KubernetesClusterCredentials{}
+
+	if ingressDomain != "" {
+		kubernetesClusterCredentials.IngressDomain = ingressDomain
+	}
+
+	if targetNamespace != "" {
+		kubernetesClusterCredentials.TargetNamespace = targetNamespace
+	}
+
+	if apiUrl != "" {
+		kubernetesClusterCredentials.APIURL = apiUrl
+	}
+
+	if clusterCredSecret != "" {
+		kubernetesClusterCredentials.ClusterCredentialsSecret = clusterCredSecret
+	}
+
+	if len(namespaces) > 0 {
+		kubernetesClusterCredentials.Namespaces = namespaces
+	}
+
+	kubernetesClusterCredentials.AllowInsecureSkipTLSVerify = allowInsecureSkipTLSVerify
+	kubernetesClusterCredentials.ClusterResources = clusterResources
+
+	return kubernetesClusterCredentials
 }

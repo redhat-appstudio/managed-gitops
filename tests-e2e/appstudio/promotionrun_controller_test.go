@@ -86,7 +86,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			// Staging environment must be in a different namespace from the production environment, else we get a
 			// problem with the same resource being owned by two different applications.
 			// See Jira issue https://issues.redhat.com/browse/GITOPSRVCE-544
-			environmentStage.Spec.UnstableConfigurationFields = &appstudiosharedv1.UnstableEnvironmentConfiguration{
+			environmentStage.Spec.Target = &appstudiosharedv1.TargetConfiguration{
 				KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
 					TargetNamespace:            secondNamespace,
 					APIURL:                     apiServerURL,

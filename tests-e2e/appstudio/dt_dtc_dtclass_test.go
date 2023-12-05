@@ -216,12 +216,19 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 
 			Eventually(&matchingDT).Should(k8s.HasFinalizers([]string{appstudiocontrollers.FinalizerDT}, k8sClient))
 
-			By("Step 8 - DTC should be bound")
+			By("Step 8 - DTC should be bound and condition should be true")
 
 			Eventually(dtc, "60s", "1s").Should(dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Bound))
 
 			Expect(&dtc).Should(k8s.HasAnnotation(appstudiosharedv1.AnnBindCompleted, appstudiosharedv1.AnnBinderValueTrue, k8sClient))
 			Expect(&dtc).Should(k8s.HasAnnotation(appstudiosharedv1.AnnBoundByController, appstudiosharedv1.AnnBinderValueTrue, k8sClient))
+			Eventually(dtc, "3m", "1s").Should(dtcfixture.HaveDeploymentTargetClaimCondition(
+				metav1.Condition{
+					Type:    appstudiocontrollers.DeploymentTargetClaimConditionTypeErrorOccurred,
+					Message: "",
+					Status:  metav1.ConditionTrue,
+					Reason:  appstudiocontrollers.DeploymentTargetClaimReasonBound,
+				}))
 
 			By("Step 9 - Ensure a managed environment exists and that it is owned by the environment")
 
@@ -428,6 +435,41 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 
 			// After the DeploymentTarget is deleted, the DeploymentTargetClaim should continue to exist
 			Consistently(&dtc, "30s", "1s").Should(k8s.ExistByName(k8sClient))
+		})
+	})
+
+	Context("Check for status conditions", func() {
+		It("should have expected conditions.", func() {
+
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			By("Create a DeploymentTargetClaim which is going to fail.")
+
+			dtc := appstudiosharedv1.DeploymentTargetClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "staging-dtc",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Spec: appstudiosharedv1.DeploymentTargetClaimSpec{
+					DeploymentTargetClassName: appstudiosharedv1.DeploymentTargetClassName("abc"),
+				},
+			}
+
+			err = k8s.Create(&dtc, k8sClient)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("DeploymentTargetClaim status condition should have expected condition.")
+
+			Eventually(dtc, "3m", "1s").Should(dtcfixture.HaveDeploymentTargetClaimCondition(
+				metav1.Condition{
+					Type:    appstudiocontrollers.DeploymentTargetClaimConditionTypeErrorOccurred,
+					Message: "unable to handle provisioning of space request for dynamic DTC",
+					Status:  metav1.ConditionFalse,
+					Reason:  appstudiocontrollers.DeploymentTargetClaimReasonErrorOccurred,
+				}))
 		})
 	})
 })

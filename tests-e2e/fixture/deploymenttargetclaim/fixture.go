@@ -154,3 +154,35 @@ func BuildDeploymentTargetAndDeploymentTargetClaim(kubeConfigContents, apiServer
 	}
 	return dt, dtc
 }
+
+func HaveDeploymentTargetClaimCondition(expected metav1.Condition) matcher.GomegaMatcher {
+	return WithTransform(func(dtc appstudiosharedv1.DeploymentTargetClaim) bool {
+
+		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+		Expect(err).ToNot(HaveOccurred())
+
+		k8sClient, err := fixture.GetKubeClient(config)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&dtc), &dtc)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		if len(dtc.Status.Conditions) == 0 {
+			fmt.Println("HaveDeploymentTargetClaimCondition: DeploymentTargetClaimCondition is nil")
+			return false
+		}
+		actual := dtc.Status.Conditions[0]
+		fmt.Println("HaveDeploymentTargetClaimCondition:", "expected: ", expected, "actual: ", actual)
+		return actual.Type == expected.Type &&
+			actual.Status == expected.Status &&
+			actual.Reason == expected.Reason &&
+			actual.Message == expected.Message
+
+	}, BeTrue())
+}

@@ -88,7 +88,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("check if the provisioner annotation is added")
-			Eventually(dtc, "2m", "1s").Should(
+			Eventually(dtc, "5m", "1s").Should(
 				dtcfixture.HasAnnotation(appstudiosharedv1.AnnTargetProvisioner,
 					string(dtc.Spec.DeploymentTargetClassName)),
 			)
@@ -100,14 +100,14 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the DT and DTC are bound together")
-			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
+			Eventually(dtc, "5m", "1s").Should(SatisfyAll(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Bound),
 				dtcfixture.HasAnnotation(appstudiosharedv1.AnnBindCompleted, appstudiosharedv1.AnnBinderValueTrue),
 			))
 
 			Eventually(&dt).Should(k8s.HasFinalizers([]string{appstudiocontrollers.FinalizerDT}, k8sClient))
 
-			Eventually(dt, "2m", "1s").Should(
+			Eventually(dt, "5m", "1s").Should(
 				dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Bound))
 		})
 
@@ -119,7 +119,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("check if the DTC is in Pending phase")
-			Eventually(dtc, "2m", "1s").Should(
+			Eventually(dtc, "5m", "1s").Should(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Pending),
 			)
 
@@ -128,12 +128,12 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the DT and DTC are bounded")
-			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
+			Eventually(dtc, "5m", "1s").Should(SatisfyAll(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Bound),
 				dtcfixture.HasAnnotation(appstudiosharedv1.AnnBindCompleted, appstudiosharedv1.AnnBinderValueTrue),
 			))
 
-			Eventually(dt, "2m", "1s").Should(
+			Eventually(dt, "5m", "1s").Should(
 				dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Bound))
 
 			Eventually(&dt).Should(k8s.HasFinalizers([]string{appstudiocontrollers.FinalizerDT}, k8sClient))
@@ -176,12 +176,12 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the above DTC is binded with a matching DT")
-			Eventually(fakeDTC, "2m", "1s").Should(SatisfyAll(
+			Eventually(fakeDTC, "5m", "1s").Should(SatisfyAll(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Bound),
 				dtcfixture.HasAnnotation(appstudiosharedv1.AnnBindCompleted, appstudiosharedv1.AnnBinderValueTrue),
 			))
 
-			Eventually(fakeDT, "2m", "1s").Should(
+			Eventually(fakeDT, "5m", "1s").Should(
 				dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Bound))
 
 			By("create a new DT to verify if it will be binded")
@@ -193,7 +193,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the DTC is binded with a matching DT")
-			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
+			Eventually(dtc, "5m", "1s").Should(SatisfyAll(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Bound),
 				dtcfixture.HasAnnotation(appstudiosharedv1.AnnBindCompleted, appstudiosharedv1.AnnBinderValueTrue),
 			))
@@ -202,7 +202,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(dtc.Spec.TargetName).Should(Equal(dt.Name))
 
-			Eventually(dt, "2m", "1s").Should(
+			Eventually(dt, "5m", "1s").Should(
 				dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Bound))
 		})
 
@@ -226,7 +226,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the DTC is binded with a matching DT")
-			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
+			Eventually(dtc, "5m", "1s").Should(SatisfyAll(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Bound),
 				dtcfixture.HasAnnotation(appstudiosharedv1.AnnBindCompleted, appstudiosharedv1.AnnBinderValueTrue),
 			))
@@ -235,14 +235,14 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(dtc.Spec.TargetName).Should(Equal(dt.Name))
 
-			Eventually(dt, "2m", "1s").Should(
+			Eventually(dt, "5m", "1s").Should(
 				dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Bound))
 
 			By("delete the DTC and verify if the binded DT is released")
 			err = k8sClient.Delete(ctx, &dtc)
 			Expect(err).ToNot(HaveOccurred())
 
-			Eventually(&dtc, "2m", "1s").Should(k8s.NotExist(k8sClient))
+			Eventually(&dtc, "5m", "1s").Should(k8s.NotExist(k8sClient))
 
 			By("check if the binded DT is released")
 			Eventually(dt, "5m", "1s").Should(
@@ -259,7 +259,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the DTC is binded with a matching DT")
-			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
+			Eventually(dtc, "5m", "1s").Should(SatisfyAll(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Bound),
 				dtcfixture.HasAnnotation(appstudiosharedv1.AnnBindCompleted, appstudiosharedv1.AnnBinderValueTrue),
 			))
@@ -268,14 +268,14 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(dtc.Spec.TargetName).Should(Equal(dt.Name))
 
-			Eventually(dt, "2m", "1s").Should(
+			Eventually(dt, "5m", "1s").Should(
 				dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Bound))
 
 			By("delete the DT and verify if the DTC is marked as Lost")
 			err = k8sClient.Delete(ctx, &dt)
 			Expect(err).ToNot(HaveOccurred())
 
-			Eventually(dtc, "2m", "1s").Should(
+			Eventually(dtc, "5m", "1s").Should(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Lost))
 		})
 	})

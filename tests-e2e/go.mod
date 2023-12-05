@@ -198,6 +198,7 @@ require (
 )
 
 replace (
+	github.com/redhat-appstudio/application-api => github.com/jparsai/application-api v0.0.0-20231204122745-31449b29f5d1
 	// Monorepo
 	github.com/redhat-appstudio/managed-gitops/appstudio-controller => ../appstudio-controller
 	github.com/redhat-appstudio/managed-gitops/backend => ../backend

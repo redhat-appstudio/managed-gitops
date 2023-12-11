@@ -1,6 +1,6 @@
 # Usage of a relational database, as described in the architecture document, rather than storing configuration/state in Kubernetes resources
 
-Written by: 
+### Written by
 - Jonathan West (@jgwest)
 
 

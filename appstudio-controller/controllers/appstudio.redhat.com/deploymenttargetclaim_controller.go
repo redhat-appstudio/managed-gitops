@@ -945,7 +945,7 @@ func createSpaceRequestForDTC(ctx context.Context, k8sClient client.Client, dtc 
 }
 
 // updateStatusConditionOfDeploymentTargetClaim calls SetCondition() with DeploymentTargetClaim conditions
-func updateStatusConditionOfDeploymentTargetClaim(ctx context.Context, client client.Client,
+func updateStatusConditionOfDeploymentTargetClaim(ctx context.Context, k8sClient client.Client,
 	message string, deploymentTargetClaim *applicationv1alpha1.DeploymentTargetClaim, conditionType string,
 	status metav1.ConditionStatus, reason string, log logr.Logger) error {
 
@@ -956,12 +956,17 @@ func updateStatusConditionOfDeploymentTargetClaim(ctx context.Context, client cl
 		Reason:  reason,
 	}
 
+	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(deploymentTargetClaim), deploymentTargetClaim); err != nil {
+		log.Error(err, "unable to fetch deploymentTargetClaim.")
+		return nil
+	}
+
 	changed, newConditions := insertOrUpdateConditionsInSlice(newCondition, deploymentTargetClaim.Status.Conditions)
 
 	if changed {
 		deploymentTargetClaim.Status.Conditions = newConditions
 
-		if err := client.Status().Update(ctx, deploymentTargetClaim); err != nil {
+		if err := k8sClient.Status().Update(ctx, deploymentTargetClaim); err != nil {
 			log.Error(err, "unable to update deploymentTargetClaim status condition.")
 			return err
 		}

@@ -956,17 +956,19 @@ func updateStatusConditionOfDeploymentTargetClaim(ctx context.Context, k8sClient
 		Reason:  reason,
 	}
 
-	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(deploymentTargetClaim), deploymentTargetClaim); err != nil {
+	dtc := deploymentTargetClaim
+
+	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dtc), dtc); err != nil {
 		log.Error(err, "unable to fetch deploymentTargetClaim.")
 		return nil
 	}
 
-	changed, newConditions := insertOrUpdateConditionsInSlice(newCondition, deploymentTargetClaim.Status.Conditions)
+	changed, newConditions := insertOrUpdateConditionsInSlice(newCondition, dtc.Status.Conditions)
 
 	if changed {
-		deploymentTargetClaim.Status.Conditions = newConditions
+		dtc.Status.Conditions = newConditions
 
-		if err := k8sClient.Status().Update(ctx, deploymentTargetClaim); err != nil {
+		if err := k8sClient.Status().Update(ctx, dtc); err != nil {
 			log.Error(err, "unable to update deploymentTargetClaim status condition.")
 			return err
 		}

@@ -379,7 +379,7 @@ func (r *DeploymentTargetReconciler) findDeploymentTargetsForSpaceRequests(sr cl
 }
 
 // updateStatusConditionOfDeploymentTarget calls SetCondition() with DeploymentTarget conditions
-func updateStatusConditionOfDeploymentTarget(ctx context.Context, client client.Client,
+func updateStatusConditionOfDeploymentTarget(ctx context.Context, k8sClient client.Client,
 	message string, deploymentTarget *applicationv1alpha1.DeploymentTarget, conditionType string,
 	status metav1.ConditionStatus, reason string, log logr.Logger) error {
 
@@ -390,12 +390,19 @@ func updateStatusConditionOfDeploymentTarget(ctx context.Context, client client.
 		Reason:  reason,
 	}
 
-	changed, newConditions := insertOrUpdateConditionsInSlice(newCondition, deploymentTarget.Status.Conditions)
+	dt := deploymentTarget
+
+	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dt), dt); err != nil {
+		log.Error(err, "unable to fetch deploymentTargetClaim.")
+		return nil
+	}
+
+	changed, newConditions := insertOrUpdateConditionsInSlice(newCondition, dt.Status.Conditions)
 
 	if changed {
-		deploymentTarget.Status.Conditions = newConditions
+		dt.Status.Conditions = newConditions
 
-		if err := client.Status().Update(ctx, deploymentTarget); err != nil {
+		if err := k8sClient.Status().Update(ctx, dt); err != nil {
 			log.Error(err, "unable to update deploymentTarget status condition.")
 			return err
 		}

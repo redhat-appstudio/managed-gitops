@@ -109,6 +109,14 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 
 			Eventually(dt, "5m", "1s").Should(
 				dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Bound))
+
+			Eventually(dtc, "3m", "1s").Should(dtcfixture.HaveDeploymentTargetClaimCondition(
+				metav1.Condition{
+					Type:    appstudiocontrollers.DeploymentTargetConditionTypeErrorOccurred,
+					Message: "",
+					Status:  metav1.ConditionTrue,
+					Reason:  appstudiocontrollers.DeploymentTargetReasonBound,
+				}))
 		})
 
 		It("should handle a DTC that targets a user created DT", func() {
@@ -137,6 +145,14 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 				dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Bound))
 
 			Eventually(&dt).Should(k8s.HasFinalizers([]string{appstudiocontrollers.FinalizerDT}, k8sClient))
+
+			Eventually(dtc, "3m", "1s").Should(dtcfixture.HaveDeploymentTargetClaimCondition(
+				metav1.Condition{
+					Type:    appstudiocontrollers.DeploymentTargetConditionTypeErrorOccurred,
+					Message: "",
+					Status:  metav1.ConditionTrue,
+					Reason:  appstudiocontrollers.DeploymentTargetReasonBound,
+				}))
 		})
 
 		It("should bind with a best match DT in the absence of provisioner/user created DT", func() {
@@ -204,6 +220,14 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 
 			Eventually(dt, "5m", "1s").Should(
 				dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Bound))
+
+			Eventually(dtc, "3m", "1s").Should(dtcfixture.HaveDeploymentTargetClaimCondition(
+				metav1.Condition{
+					Type:    appstudiocontrollers.DeploymentTargetConditionTypeErrorOccurred,
+					Message: "",
+					Status:  metav1.ConditionTrue,
+					Reason:  appstudiocontrollers.DeploymentTargetReasonBound,
+				}))
 		})
 
 		It("should handle deletion of DTC and release binded DT", func() {

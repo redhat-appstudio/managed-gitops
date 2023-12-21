@@ -222,12 +222,23 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 
 			Expect(&dtc).Should(k8s.HasAnnotation(appstudiosharedv1.AnnBindCompleted, appstudiosharedv1.AnnBinderValueTrue, k8sClient))
 			Expect(&dtc).Should(k8s.HasAnnotation(appstudiosharedv1.AnnBoundByController, appstudiosharedv1.AnnBinderValueTrue, k8sClient))
+
+			By("verify if the DT and DTC Status have expected Conditions")
+
 			Eventually(dtc, "3m", "1s").Should(dtcfixture.HaveDeploymentTargetClaimCondition(
 				metav1.Condition{
 					Type:    appstudiocontrollers.DeploymentTargetClaimConditionTypeErrorOccurred,
 					Message: "",
-					Status:  metav1.ConditionTrue,
-					Reason:  appstudiocontrollers.DeploymentTargetClaimReasonBound,
+					Status:  metav1.ConditionFalse,
+					Reason:  appstudiocontrollers.DeploymentTargetReasonSuccess,
+				}))
+
+			Eventually(matchingDT, "3m", "1s").Should(dtfixture.HaveDeploymentTargetCondition(
+				metav1.Condition{
+					Type:    appstudiocontrollers.DeploymentTargetConditionTypeErrorOccurred,
+					Message: "",
+					Status:  metav1.ConditionFalse,
+					Reason:  appstudiocontrollers.DeploymentTargetReasonSuccess,
 				}))
 
 			By("Step 9 - Ensure a managed environment exists and that it is owned by the environment")
@@ -466,8 +477,8 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 			Eventually(dtc, "3m", "1s").Should(dtcfixture.HaveDeploymentTargetClaimCondition(
 				metav1.Condition{
 					Type:    appstudiocontrollers.DeploymentTargetClaimConditionTypeErrorOccurred,
-					Message: "unable to handle provisioning of space request for dynamic DTC",
-					Status:  metav1.ConditionFalse,
+					Message: "unable to handle provisioning of SpaceRequest: DeploymentTargetClaim staging-dtc does not have a matching DeploymentTargetClass abc: the resource could not be found on the cluster",
+					Status:  metav1.ConditionTrue,
 					Reason:  appstudiocontrollers.DeploymentTargetClaimReasonErrorOccurred,
 				}))
 		})

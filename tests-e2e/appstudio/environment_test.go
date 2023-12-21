@@ -13,6 +13,7 @@ import (
 
 	appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	app "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
+	appstudiocontrollers "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	dtfixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/deploymenttarget"
@@ -366,7 +367,6 @@ var _ = Describe("Environment E2E tests", func() {
 		})
 
 		DescribeTable("create an Environment with DeploymentTargetClaim and verify if a valid ManagedEnvironment is created", func(defaultNamespaceFieldVal string) {
-
 			By("create a new DeploymentTarget and DeploymentTargetClaim with the secret credentials")
 			dt, dtc := dtcfixture.BuildDeploymentTargetAndDeploymentTargetClaim(kubeConfigContents, apiServerURL, secret.Name, secret.Namespace, defaultNamespaceFieldVal, fixture.DTName, fixture.DTCName, "test-class", true)
 			err := k8s.Create(&dt, k8sClient)
@@ -383,6 +383,16 @@ var _ = Describe("Environment E2E tests", func() {
 
 			Eventually(dt, "2m", "1s").Should(
 				dtfixture.HasStatusPhase(appstudioshared.DeploymentTargetPhase_Bound))
+
+			By("verify if the DT Status has expected Conditions")
+
+			Eventually(dt, "3m", "1s").Should(dtfixture.HaveDeploymentTargetCondition(
+				metav1.Condition{
+					Type:    appstudiocontrollers.DeploymentTargetConditionTypeErrorOccurred,
+					Message: "",
+					Status:  metav1.ConditionFalse,
+					Reason:  appstudiocontrollers.DeploymentTargetReasonSuccess,
+				}))
 
 			By("creating a new Environment refering the above DTC")
 			environment := appstudioshared.Environment{
@@ -469,6 +479,16 @@ var _ = Describe("Environment E2E tests", func() {
 
 			Eventually(dt, "2m", "1s").Should(
 				dtfixture.HasStatusPhase(appstudioshared.DeploymentTargetPhase_Bound))
+
+			By("verify if the DT Status has expected Conditions")
+
+			Eventually(dt, "3m", "1s").Should(dtfixture.HaveDeploymentTargetCondition(
+				metav1.Condition{
+					Type:    appstudiocontrollers.DeploymentTargetConditionTypeErrorOccurred,
+					Message: "",
+					Status:  metav1.ConditionFalse,
+					Reason:  appstudiocontrollers.DeploymentTargetReasonSuccess,
+				}))
 
 			By("creating a new Environment refering the above DTC")
 			environment := appstudioshared.Environment{
@@ -565,6 +585,16 @@ var _ = Describe("Environment E2E tests", func() {
 
 			Eventually(dt, "2m", "1s").Should(
 				dtfixture.HasStatusPhase(appstudioshared.DeploymentTargetPhase_Bound))
+
+			By("verify if the DT Status has expected Conditions")
+
+			Eventually(dt, "3m", "1s").Should(dtfixture.HaveDeploymentTargetCondition(
+				metav1.Condition{
+					Type:    appstudiocontrollers.DeploymentTargetConditionTypeErrorOccurred,
+					Message: "",
+					Status:  metav1.ConditionFalse,
+					Reason:  appstudiocontrollers.DeploymentTargetReasonSuccess,
+				}))
 
 			By("creating a new Environment refering the above DTC")
 			environment := appstudioshared.Environment{

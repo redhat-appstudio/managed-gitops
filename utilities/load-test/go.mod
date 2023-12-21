@@ -106,7 +106,7 @@ require (
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.42.0 // indirect
 	github.com/prometheus/procfs v0.10.1 // indirect
-	github.com/redhat-appstudio/application-api v0.0.0-20231025105224-2790bb451725 // indirect
+	github.com/redhat-appstudio/application-api v0.0.0-20240106104232-18f545e48a03 // indirect
 	github.com/redis/go-redis/v9 v9.0.5 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/russross/blackfriday v1.6.0 // indirect

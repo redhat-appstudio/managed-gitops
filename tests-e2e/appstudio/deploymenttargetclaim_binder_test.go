@@ -88,7 +88,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("check if the provisioner annotation is added")
-			Eventually(dtc, "5m", "1s").Should(
+			Eventually(dtc, "2m", "1s").Should(
 				dtcfixture.HasAnnotation(appstudiosharedv1.AnnTargetProvisioner,
 					string(dtc.Spec.DeploymentTargetClassName)),
 			)
@@ -100,23 +100,34 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the DT and DTC are bound together")
-			Eventually(dtc, "5m", "1s").Should(SatisfyAll(
+			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Bound),
 				dtcfixture.HasAnnotation(appstudiosharedv1.AnnBindCompleted, appstudiosharedv1.AnnBinderValueTrue),
 			))
 
 			Eventually(&dt).Should(k8s.HasFinalizers([]string{appstudiocontrollers.FinalizerDT}, k8sClient))
 
-			Eventually(dt, "5m", "1s").Should(
+			Eventually(dt, "2m", "1s").Should(
 				dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Bound))
+
+			By("verify if the DT and DTC Status have expected Conditions")
 
 			Eventually(dtc, "3m", "1s").Should(dtcfixture.HaveDeploymentTargetClaimCondition(
 				metav1.Condition{
+					Type:    appstudiocontrollers.DeploymentTargetClaimConditionTypeErrorOccurred,
+					Message: "",
+					Status:  metav1.ConditionFalse,
+					Reason:  appstudiocontrollers.DeploymentTargetClaimReasonSuccess,
+				}))
+
+			Eventually(dt, "3m", "1s").Should(dtfixture.HaveDeploymentTargetCondition(
+				metav1.Condition{
 					Type:    appstudiocontrollers.DeploymentTargetConditionTypeErrorOccurred,
 					Message: "",
-					Status:  metav1.ConditionTrue,
-					Reason:  appstudiocontrollers.DeploymentTargetReasonBound,
+					Status:  metav1.ConditionFalse,
+					Reason:  appstudiocontrollers.DeploymentTargetReasonSuccess,
 				}))
+
 		})
 
 		It("should handle a DTC that targets a user created DT", func() {
@@ -127,7 +138,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("check if the DTC is in Pending phase")
-			Eventually(dtc, "5m", "1s").Should(
+			Eventually(dtc, "2m", "1s").Should(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Pending),
 			)
 
@@ -136,22 +147,32 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the DT and DTC are bounded")
-			Eventually(dtc, "5m", "1s").Should(SatisfyAll(
+			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Bound),
 				dtcfixture.HasAnnotation(appstudiosharedv1.AnnBindCompleted, appstudiosharedv1.AnnBinderValueTrue),
 			))
 
-			Eventually(dt, "5m", "1s").Should(
+			Eventually(dt, "2m", "1s").Should(
 				dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Bound))
 
 			Eventually(&dt).Should(k8s.HasFinalizers([]string{appstudiocontrollers.FinalizerDT}, k8sClient))
 
+			By("verify if the DT and DTC Status have expected Conditions")
+
 			Eventually(dtc, "3m", "1s").Should(dtcfixture.HaveDeploymentTargetClaimCondition(
+				metav1.Condition{
+					Type:    appstudiocontrollers.DeploymentTargetClaimConditionTypeErrorOccurred,
+					Message: "",
+					Status:  metav1.ConditionFalse,
+					Reason:  appstudiocontrollers.DeploymentTargetClaimReasonSuccess,
+				}))
+
+			Eventually(dt, "3m", "1s").Should(dtfixture.HaveDeploymentTargetCondition(
 				metav1.Condition{
 					Type:    appstudiocontrollers.DeploymentTargetConditionTypeErrorOccurred,
 					Message: "",
-					Status:  metav1.ConditionTrue,
-					Reason:  appstudiocontrollers.DeploymentTargetReasonBound,
+					Status:  metav1.ConditionFalse,
+					Reason:  appstudiocontrollers.DeploymentTargetReasonSuccess,
 				}))
 		})
 
@@ -192,12 +213,12 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the above DTC is binded with a matching DT")
-			Eventually(fakeDTC, "5m", "1s").Should(SatisfyAll(
+			Eventually(fakeDTC, "2m", "1s").Should(SatisfyAll(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Bound),
 				dtcfixture.HasAnnotation(appstudiosharedv1.AnnBindCompleted, appstudiosharedv1.AnnBinderValueTrue),
 			))
 
-			Eventually(fakeDT, "5m", "1s").Should(
+			Eventually(fakeDT, "2m", "1s").Should(
 				dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Bound))
 
 			By("create a new DT to verify if it will be binded")
@@ -209,7 +230,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the DTC is binded with a matching DT")
-			Eventually(dtc, "5m", "1s").Should(SatisfyAll(
+			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Bound),
 				dtcfixture.HasAnnotation(appstudiosharedv1.AnnBindCompleted, appstudiosharedv1.AnnBinderValueTrue),
 			))
@@ -218,15 +239,25 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(dtc.Spec.TargetName).Should(Equal(dt.Name))
 
-			Eventually(dt, "5m", "1s").Should(
+			Eventually(dt, "2m", "1s").Should(
 				dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Bound))
+
+			By("verify if the DT and DTC Status have expected Conditions")
 
 			Eventually(dtc, "3m", "1s").Should(dtcfixture.HaveDeploymentTargetClaimCondition(
 				metav1.Condition{
+					Type:    appstudiocontrollers.DeploymentTargetClaimConditionTypeErrorOccurred,
+					Message: "",
+					Status:  metav1.ConditionFalse,
+					Reason:  appstudiocontrollers.DeploymentTargetClaimReasonSuccess,
+				}))
+
+			Eventually(dt, "3m", "1s").Should(dtfixture.HaveDeploymentTargetCondition(
+				metav1.Condition{
 					Type:    appstudiocontrollers.DeploymentTargetConditionTypeErrorOccurred,
 					Message: "",
-					Status:  metav1.ConditionTrue,
-					Reason:  appstudiocontrollers.DeploymentTargetReasonBound,
+					Status:  metav1.ConditionFalse,
+					Reason:  appstudiocontrollers.DeploymentTargetReasonSuccess,
 				}))
 		})
 
@@ -250,7 +281,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the DTC is binded with a matching DT")
-			Eventually(dtc, "5m", "1s").Should(SatisfyAll(
+			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Bound),
 				dtcfixture.HasAnnotation(appstudiosharedv1.AnnBindCompleted, appstudiosharedv1.AnnBinderValueTrue),
 			))
@@ -259,14 +290,32 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(dtc.Spec.TargetName).Should(Equal(dt.Name))
 
-			Eventually(dt, "5m", "1s").Should(
+			Eventually(dt, "2m", "1s").Should(
 				dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Bound))
+
+			By("verify if the DT and DTC Status have expected Conditions")
+
+			Eventually(dtc, "3m", "1s").Should(dtcfixture.HaveDeploymentTargetClaimCondition(
+				metav1.Condition{
+					Type:    appstudiocontrollers.DeploymentTargetClaimConditionTypeErrorOccurred,
+					Message: "",
+					Status:  metav1.ConditionFalse,
+					Reason:  appstudiocontrollers.DeploymentTargetClaimReasonSuccess,
+				}))
+
+			Eventually(dt, "3m", "1s").Should(dtfixture.HaveDeploymentTargetCondition(
+				metav1.Condition{
+					Type:    appstudiocontrollers.DeploymentTargetConditionTypeErrorOccurred,
+					Message: "",
+					Status:  metav1.ConditionFalse,
+					Reason:  appstudiocontrollers.DeploymentTargetReasonSuccess,
+				}))
 
 			By("delete the DTC and verify if the binded DT is released")
 			err = k8sClient.Delete(ctx, &dtc)
 			Expect(err).ToNot(HaveOccurred())
 
-			Eventually(&dtc, "5m", "1s").Should(k8s.NotExist(k8sClient))
+			Eventually(&dtc, "2m", "1s").Should(k8s.NotExist(k8sClient))
 
 			By("check if the binded DT is released")
 			Eventually(dt, "5m", "1s").Should(
@@ -283,7 +332,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the DTC is binded with a matching DT")
-			Eventually(dtc, "5m", "1s").Should(SatisfyAll(
+			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Bound),
 				dtcfixture.HasAnnotation(appstudiosharedv1.AnnBindCompleted, appstudiosharedv1.AnnBinderValueTrue),
 			))
@@ -292,14 +341,32 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(dtc.Spec.TargetName).Should(Equal(dt.Name))
 
-			Eventually(dt, "5m", "1s").Should(
+			Eventually(dt, "2m", "1s").Should(
 				dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Bound))
+
+			By("verify if the DT and DTC Status have expected Conditions")
+
+			Eventually(dtc, "3m", "1s").Should(dtcfixture.HaveDeploymentTargetClaimCondition(
+				metav1.Condition{
+					Type:    appstudiocontrollers.DeploymentTargetClaimConditionTypeErrorOccurred,
+					Message: "",
+					Status:  metav1.ConditionFalse,
+					Reason:  appstudiocontrollers.DeploymentTargetClaimReasonSuccess,
+				}))
+
+			Eventually(dt, "3m", "1s").Should(dtfixture.HaveDeploymentTargetCondition(
+				metav1.Condition{
+					Type:    appstudiocontrollers.DeploymentTargetConditionTypeErrorOccurred,
+					Message: "",
+					Status:  metav1.ConditionFalse,
+					Reason:  appstudiocontrollers.DeploymentTargetReasonSuccess,
+				}))
 
 			By("delete the DT and verify if the DTC is marked as Lost")
 			err = k8sClient.Delete(ctx, &dt)
 			Expect(err).ToNot(HaveOccurred())
 
-			Eventually(dtc, "5m", "1s").Should(
+			Eventually(dtc, "2m", "1s").Should(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Lost))
 		})
 	})
@@ -396,7 +463,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			}}
 			Expect(k8sClient.Status().Update(ctx, spaceRequest)).To(Succeed())
 
-			var dt *appstudiosharedv1.DeploymentTarget
+			var dt appstudiosharedv1.DeploymentTarget
 			Eventually(func() bool {
 
 				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc); err != nil {
@@ -408,13 +475,13 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 					return false
 				}
 
-				dt = &appstudiosharedv1.DeploymentTarget{
+				dt = appstudiosharedv1.DeploymentTarget{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      dtc.Spec.TargetName,
 						Namespace: dtc.Namespace,
 					},
 				}
-				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dt), dt); err != nil {
+				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt); err != nil {
 					fmt.Println(err)
 					return false
 				}
@@ -429,10 +496,28 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 				dtcfixture.HasAnnotation(appstudiosharedv1.AnnBindCompleted, appstudiosharedv1.AnnBinderValueTrue),
 			))
 
-			Eventually(dt, "30s", "1s").Should(k8s.HasFinalizers([]string{appstudiocontrollers.FinalizerDT}, k8sClient))
+			Eventually(&dt, "30s", "1s").Should(k8s.HasFinalizers([]string{appstudiocontrollers.FinalizerDT}, k8sClient))
 
-			Eventually(*dt, "30s", "1s").Should(
+			Eventually(dt, "30s", "1s").Should(
 				dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Bound))
+
+			By("verify if the DT and DTC Status have expected Conditions")
+
+			Eventually(dtc, "3m", "1s").Should(dtcfixture.HaveDeploymentTargetClaimCondition(
+				metav1.Condition{
+					Type:    appstudiocontrollers.DeploymentTargetClaimConditionTypeErrorOccurred,
+					Message: "",
+					Status:  metav1.ConditionFalse,
+					Reason:  appstudiocontrollers.DeploymentTargetClaimReasonSuccess,
+				}))
+
+			Eventually(dt, "3m", "1s").Should(dtfixture.HaveDeploymentTargetCondition(
+				metav1.Condition{
+					Type:    appstudiocontrollers.DeploymentTargetConditionTypeErrorOccurred,
+					Message: "",
+					Status:  metav1.ConditionFalse,
+					Reason:  appstudiocontrollers.DeploymentTargetReasonSuccess,
+				}))
 
 			Eventually(spaceRequest, "20s", "1s").Should(k8s.HasLabel(appstudiocontrollers.DeploymentTargetLabel, dt.Name, k8sClient))
 
@@ -440,7 +525,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Expect(k8sClient.Delete(ctx, &dtc)).To(Succeed())
 
 			Eventually(&dtc, "30s", "1s").ShouldNot(k8s.ExistByName(k8sClient))
-			Eventually(dt, "30s", "1s").Should(k8s.HasNonNilDeletionTimestamp(k8sClient))
+			Eventually(&dt, "30s", "1s").Should(k8s.HasNonNilDeletionTimestamp(k8sClient))
 			Eventually(spaceRequest, "30s", "1s").Should(k8s.HasNonNilDeletionTimestamp(k8sClient))
 
 			By("removing the finalizer from SpaceRequest, which should cause it to be deleted")
@@ -451,7 +536,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 
 			By("this should trigger both the DT and SpaceRequest to be deleted")
 
-			Eventually(dt, "30s", "1s").ShouldNot(k8s.ExistByName(k8sClient))
+			Eventually(&dt, "30s", "1s").ShouldNot(k8s.ExistByName(k8sClient))
 			Eventually(spaceRequest, "30s", "1s").ShouldNot(k8s.ExistByName(k8sClient))
 
 		})

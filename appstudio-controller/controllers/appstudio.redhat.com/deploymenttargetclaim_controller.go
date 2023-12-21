@@ -47,11 +47,11 @@ const (
 	// DeploymentTargetLabel is the label indicating the DeploymentTarget that's associated with the SpaceRequest
 	DeploymentTargetLabel = "appstudio.openshift.io/dt"
 
-	DeploymentTargetClaimConditionTypeErrorOccurred = "ValidDeploymentTargetClaim"
+	DeploymentTargetClaimConditionTypeErrorOccurred = "ErrorOccurred"
 
 	DeploymentTargetClaimReasonErrorOccurred = "ErrorOccurred"
 
-	DeploymentTargetClaimReasonBound = "Bound"
+	DeploymentTargetClaimReasonSuccess = "Success"
 )
 
 // DeploymentTargetClaimReconciler reconciles a DeploymentTargetClaim object
@@ -80,11 +80,69 @@ type DeploymentTargetClaimReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
 func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+
 	log := log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops).WithValues(
 		logutil.Log_K8s_Request_Namespace, req.Namespace,
 		logutil.Log_K8s_Request_Name, req.Name,
 		logutil.Log_Component, logutil.Log_Component_Appstudio_Controller)
+
+	res, condition, err := r.reconcileInternal(ctx, req, log)
+
+	if condition != nil {
+
+		// User error occurred
+		if err := updateStatusConditionOfDeploymentTargetClaim(ctx, *condition, &applicationv1alpha1.DeploymentTargetClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      req.Name,
+				Namespace: req.Namespace,
+			},
+		}, r.Client, log); err != nil {
+			log.Error(err, "unable to update status of DeploymentTargetClaim")
+			return ctrl.Result{}, err
+		}
+
+		return ctrl.Result{}, err
+
+	} else if err != nil {
+
+		// Generic error occurred
+
+		condition := createCondition(DeploymentTargetClaimConditionTypeErrorOccurred, metav1.ConditionTrue, DeploymentTargetClaimReasonErrorOccurred, "unexpected internal error occurred in DTC controller")
+
+		if err := updateStatusConditionOfDeploymentTargetClaim(ctx, *condition, &applicationv1alpha1.DeploymentTargetClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      req.Name,
+				Namespace: req.Namespace,
+			},
+		}, r.Client, log); err != nil {
+			log.Error(err, "unable to update status of DeploymentTargetClaim")
+			return ctrl.Result{}, err
+		}
+
+		return ctrl.Result{}, err
+
+	}
+
+	// No error occurred, and condition was empty, so set the condition to false
+
+	condition = createCondition(DeploymentTargetClaimConditionTypeErrorOccurred, metav1.ConditionFalse, DeploymentTargetClaimReasonSuccess, "")
+
+	if err := updateStatusConditionOfDeploymentTargetClaim(ctx, *condition, &applicationv1alpha1.DeploymentTargetClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      req.Name,
+			Namespace: req.Namespace,
+		},
+	}, r.Client, log); err != nil {
+		log.Error(err, "unable to update status of DeploymentTargetClaim")
+		return ctrl.Result{}, err
+	}
+
+	return res, err
+
+}
+
+func (r *DeploymentTargetClaimReconciler) reconcileInternal(ctx context.Context, req ctrl.Request, log logr.Logger) (ctrl.Result, *metav1.Condition, error) {
 
 	dtc := applicationv1alpha1.DeploymentTargetClaim{
 		ObjectMeta: metav1.ObjectMeta{
@@ -96,24 +154,18 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc); err != nil {
 		// Don't requeue if the requested object is not found/deleted.
 		if apierr.IsNotFound(err) {
-			return ctrl.Result{}, nil
+			return ctrl.Result{}, nil, nil
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{}, nil, err
 	}
 
 	// Add the deletion finalizer if it is absent.
 	if addFinalizer(&dtc, applicationv1alpha1.FinalizerBinder) {
 		if err := r.Client.Update(ctx, &dtc); err != nil {
 
-			// Update Status.Conditions field of DeploymentTargetClaim.
-			if err := updateStatusConditionOfDeploymentTargetClaim(ctx, r.Client,
-				fmt.Sprintf("failed to add finalizer %s to DeploymentTargetClaim", applicationv1alpha1.FinalizerBinder),
-				&dtc, DeploymentTargetClaimConditionTypeErrorOccurred, metav1.ConditionFalse, DeploymentTargetClaimReasonErrorOccurred, log); err != nil {
-				return ctrl.Result{}, fmt.Errorf("unable to update deployment target claim status condition. %v", err)
-			}
-
-			return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s to DeploymentTargetClaim %s in namespace %s: %v", applicationv1alpha1.FinalizerBinder, dtc.Name, dtc.Namespace, err)
+			return ctrl.Result{}, nil, fmt.Errorf("failed to add finalizer %s to DeploymentTargetClaim %s in namespace %s: %v", applicationv1alpha1.FinalizerBinder, dtc.Name, dtc.Namespace, err)
 		}
+
 		log.Info("Added finalizer to DeploymentTargetClaim", "finalizer", applicationv1alpha1.FinalizerBinder)
 	}
 
@@ -127,13 +179,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 		if err := handleProvisioningOfSpaceRequestForDTC(ctx, dtc, r.Client, log); err != nil {
 			log.Error(err, "unable to handle provisioning of space request for dynamic DTC")
 
-			// Update Status.Conditions field of DeploymentTargetClaim.
-			if err := updateStatusConditionOfDeploymentTargetClaim(ctx, r.Client, "unable to handle provisioning of space request for dynamic DTC",
-				&dtc, DeploymentTargetClaimConditionTypeErrorOccurred, metav1.ConditionFalse, DeploymentTargetClaimReasonErrorOccurred, log); err != nil {
-				return ctrl.Result{}, fmt.Errorf("unable to update deployment target claim status condition. %v", err)
-			}
-
-			return ctrl.Result{}, err
+			return ctrl.Result{}, createCondition(DeploymentTargetClaimConditionTypeErrorOccurred, metav1.ConditionTrue, DeploymentTargetClaimReasonErrorOccurred, "unable to handle provisioning of SpaceRequest: "+err.Error()), err
 		}
 	}
 
@@ -143,15 +189,10 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 		if err := handleBoundedDeploymentTargetClaim(ctx, r.Client, dtc, log); err != nil {
 			log.Error(err, "failed to process bounded DeploymentTargetClaim")
 
-			// Update Status.Conditions field of DeploymentTargetClaim.
-			if err := updateStatusConditionOfDeploymentTargetClaim(ctx, r.Client, "failed to process bounded DeploymentTargetClaim",
-				&dtc, DeploymentTargetClaimConditionTypeErrorOccurred, metav1.ConditionFalse, DeploymentTargetClaimReasonErrorOccurred, log); err != nil {
-				return ctrl.Result{}, fmt.Errorf("unable to update deployment target claim status condition. %v", err)
-			}
+			return ctrl.Result{}, createCondition(DeploymentTargetClaimConditionTypeErrorOccurred, metav1.ConditionTrue, DeploymentTargetClaimReasonErrorOccurred, "failed to process bound DeploymentTargetClaim: "+err.Error()), err
 
-			return ctrl.Result{}, err
 		}
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, nil, nil
 	}
 
 	// If the user doesn't set the DT, check if there is a matching DT available
@@ -161,13 +202,8 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 		if err != nil {
 			log.Error(err, "failed to find a DeploymentTarget that matches the DeploymentTargetClaim")
 
-			// Update Status.Conditions field of DeploymentTargetClaim.
-			if err := updateStatusConditionOfDeploymentTargetClaim(ctx, r.Client, "failed to find a DeploymentTarget that matches the DeploymentTargetClaim",
-				&dtc, DeploymentTargetClaimConditionTypeErrorOccurred, metav1.ConditionFalse, DeploymentTargetClaimReasonErrorOccurred, log); err != nil {
-				return ctrl.Result{}, fmt.Errorf("unable to update deployment target claim status condition. %v", err)
-			}
+			return ctrl.Result{}, createCondition(DeploymentTargetClaimConditionTypeErrorOccurred, metav1.ConditionTrue, DeploymentTargetClaimReasonErrorOccurred, "failed to find a DeploymentTarget that matches the DeploymentTargetClaim: "+err.Error()), err
 
-			return ctrl.Result{}, err
 		}
 
 		// If a best match DT is available bind it to the current DTC.
@@ -177,34 +213,21 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 			if err := bindDeploymentTargetClaimToTarget(ctx, r.Client, &dtc, dt, true, log); err != nil {
 				log.Error(err, "failed to bind DeploymentTargetClaim to the DeploymentTarget", "DeploymentTargetName", dt.Name, "Namespace", dt.Name)
 
-				// Update Status.Conditions field of DeploymentTargetClaim.
-				if err := updateStatusConditionOfDeploymentTargetClaim(ctx, r.Client, "failed to bind DeploymentTargetClaim to the DeploymentTarget",
-					&dtc, DeploymentTargetClaimConditionTypeErrorOccurred, metav1.ConditionFalse, DeploymentTargetClaimReasonErrorOccurred, log); err != nil {
-					return ctrl.Result{}, fmt.Errorf("unable to update deployment target claim status condition. %v", err)
-				}
-
-				return ctrl.Result{}, err
+				return ctrl.Result{}, nil, err
 			}
 
 			log.Info("DeploymentTargetClaim bound to DeploymentTarget", "DeploymentTargetName", dt.Name, "Namespace", dt.Namespace)
 
-			return ctrl.Result{}, nil
+			return ctrl.Result{}, nil, nil
 		}
 
 		if err := handleDynamicDTCProvisioning(ctx, r.Client, &dtc, log); err != nil {
 			log.Error(err, "failed to handle DeploymentTargetClaim for dynamic provisioning")
-
-			// Update Status.Conditions field of DeploymentTargetClaim.
-			if err := updateStatusConditionOfDeploymentTargetClaim(ctx, r.Client, "failed to handle DeploymentTargetClaim for dynamic provisioning",
-				&dtc, DeploymentTargetClaimConditionTypeErrorOccurred, metav1.ConditionFalse, DeploymentTargetClaimReasonErrorOccurred, log); err != nil {
-				return ctrl.Result{}, fmt.Errorf("unable to update deployment target claim status condition. %v", err)
-			}
-
-			return ctrl.Result{}, err
+			return ctrl.Result{}, createCondition(DeploymentTargetClaimConditionTypeErrorOccurred, metav1.ConditionTrue, DeploymentTargetClaimReasonErrorOccurred, "failed to handle DeploymentTargetClaim for dynamic provisioning: "+err.Error()), err
 		}
 		log.Info("Waiting for the DeploymentTarget to be dynamically created by the provisioner")
 
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, nil, nil
 	}
 
 	// Get the DT specified by the user in the DTC
@@ -218,17 +241,17 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&dt), &dt); err != nil {
 
 		if !apierr.IsNotFound(err) {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, nil, err
 		}
 
 		log.Info("Waiting for DeploymentTarget to be created", "DeploymentTarget", dt.Name, "Namespace", dt.Namespace)
 
 		// Update the DTC status as Pending and wait for DT to be created.
 		if err := updateDTCStatusPhase(ctx, r.Client, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Pending, log); err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, nil, err
 		}
 
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, nil, nil
 
 	}
 
@@ -238,75 +261,48 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 			if err := bindDeploymentTargetClaimToTarget(ctx, r.Client, &dtc, &dt, false, log); err != nil {
 				log.Error(err, "failed to bind DeploymentTargetClaim to the DeploymentTarget", "DeploymentTargetName", dt.Name, "Namespace", dt.Name)
 
-				// Update Status.Conditions field of DeploymentTargetClaim.
-				if err := updateStatusConditionOfDeploymentTargetClaim(ctx, r.Client, "failed to bind DeploymentTargetClaim to the DeploymentTarget",
-					&dtc, DeploymentTargetClaimConditionTypeErrorOccurred, metav1.ConditionFalse, DeploymentTargetClaimReasonErrorOccurred, log); err != nil {
-					return ctrl.Result{}, fmt.Errorf("unable to update deployment target claim status condition. %v", err)
-				}
-
-				return ctrl.Result{}, err
+				return ctrl.Result{}, nil, err
 			}
 		} else {
 			log.Error(nil, "DeploymentTargetClaim wants to claim a DeploymentTarget that is already claimed", "DeploymentTarget", dt.Name)
 
-			// Update Status.Conditions field of DeploymentTargetClaim.
-			if err := updateStatusConditionOfDeploymentTargetClaim(ctx, r.Client, "DeploymentTargetClaim wants to claim a DeploymentTarget that is already claimed",
-				&dtc, DeploymentTargetClaimConditionTypeErrorOccurred, metav1.ConditionFalse, DeploymentTargetClaimReasonErrorOccurred, log); err != nil {
-				return ctrl.Result{}, fmt.Errorf("unable to update deployment target claim status condition. %v", err)
-			}
+			condition := createCondition(DeploymentTargetClaimConditionTypeErrorOccurred, metav1.ConditionTrue, DeploymentTargetClaimReasonErrorOccurred, "DeploymentTargetClaim wants to claim a DeploymentTarget that is already claimed")
 
 			// Update the DTC status to Pending since the DT is not available
 			if err := updateDTCStatusPhase(ctx, r.Client, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Pending, log); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{}, nil, err
 			}
 
-			return ctrl.Result{}, nil
+			return ctrl.Result{}, condition, nil
 		}
 	} else {
 		// At this stage, DT isn't claimed by anyone. The current DTC can try to claim it.
 		if err := doesDTMatchDTC(dt, dtc); err != nil {
 			log.Error(err, "DeploymentTarget does not match the specified DeploymentTargetClaim")
 
-			// Update Status.Conditions field of DeploymentTargetClaim.
-			if err := updateStatusConditionOfDeploymentTargetClaim(ctx, r.Client, "DeploymentTarget does not match the specified DeploymentTargetClaim",
-				&dtc, DeploymentTargetClaimConditionTypeErrorOccurred, metav1.ConditionFalse, DeploymentTargetClaimReasonErrorOccurred, log); err != nil {
-				return ctrl.Result{}, fmt.Errorf("unable to update deployment target claim status condition. %v", err)
-			}
-
-			return ctrl.Result{}, err
+			return ctrl.Result{}, createCondition(DeploymentTargetClaimConditionTypeErrorOccurred, metav1.ConditionTrue, DeploymentTargetClaimReasonErrorOccurred, "DeploymentTarget does not match the specified DeploymentTargetClaim: "+err.Error()), err
 		}
 
 		err := bindDeploymentTargetClaimToTarget(ctx, r.Client, &dtc, &dt, false, log)
 		if err != nil {
 			log.Error(err, "failed to bind DeploymentTargetClaim to the DeploymentTarget", "DeploymentTargetName", dt.Name, "Namespace", dt.Name)
 
-			// Update Status.Conditions field of DeploymentTargetClaim.
-			if err := updateStatusConditionOfDeploymentTargetClaim(ctx, r.Client, "failed to bind DeploymentTargetClaim to the DeploymentTarget",
-				&dtc, DeploymentTargetClaimConditionTypeErrorOccurred, metav1.ConditionFalse, DeploymentTargetClaimReasonErrorOccurred, log); err != nil {
-				return ctrl.Result{}, fmt.Errorf("unable to update deployment target claim status condition. %v", err)
-			}
-
-			return ctrl.Result{}, err
+			return ctrl.Result{}, nil, err
 		}
 	}
 
 	log.Info("DeploymentTargetClaim bound to DeploymentTarget", "DeploymentTargetName", dt.Name, "Namespace", dt.Namespace)
 
-	// Update Status.Conditions field of DeploymentTargetClaim.
-	if err := updateStatusConditionOfDeploymentTargetClaim(ctx, r.Client, "",
-		&dtc, DeploymentTargetClaimConditionTypeErrorOccurred, metav1.ConditionTrue, DeploymentTargetClaimReasonBound, log); err != nil {
-		return ctrl.Result{}, fmt.Errorf("unable to update deployment target claim status condition. %v", err)
-	}
+	return ctrl.Result{}, nil, nil
 
-	return ctrl.Result{}, nil
 }
 
-func handleDTCDeletion(ctx context.Context, dtc applicationv1alpha1.DeploymentTargetClaim, k8sClient client.Client, log logr.Logger) (ctrl.Result, error) {
+func handleDTCDeletion(ctx context.Context, dtc applicationv1alpha1.DeploymentTargetClaim, k8sClient client.Client, log logr.Logger) (ctrl.Result, *metav1.Condition, error) {
 
 	// Sanity test that the DTC is in the process of being deleted
 	if dtc.GetDeletionTimestamp() == nil {
 		log.Error(nil, "SEVERE: handleDTCDeletion was asked to handle a DTC that wasn't already in deletion state")
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, nil, nil
 	}
 
 	log.Info("Handling a deleted DeploymentTargetClaim")
@@ -316,20 +312,21 @@ func handleDTCDeletion(ctx context.Context, dtc applicationv1alpha1.DeploymentTa
 		dt, err := getDTBoundByDTC(ctx, k8sClient, dtc)
 		if err != nil && !apierr.IsNotFound(err) {
 			log.Error(err, "unable to get DT bound by DTC")
-			return ctrl.Result{}, err
+			return ctrl.Result{}, createCondition(DeploymentTargetClaimConditionTypeErrorOccurred, metav1.ConditionTrue, DeploymentTargetClaimReasonErrorOccurred, err.Error()), err
 		}
 
 		if dt != nil {
 			var dtcls applicationv1alpha1.DeploymentTargetClass
 			if dtcls, err = findMatchingDTClassForDT(ctx, *dt, k8sClient); err != nil {
 				log.Error(err, "unable to locate matching DTClass for DT", "expectedDTClass", dt.Spec.DeploymentTargetClassName)
-				return ctrl.Result{}, err
+
+				return ctrl.Result{}, createCondition(DeploymentTargetClaimConditionTypeErrorOccurred, metav1.ConditionTrue, DeploymentTargetClaimReasonErrorOccurred, "unable to locate matching DTClass for DT"), err
 			}
 
 			// Add the deletion finalizer to the DT if it is absent.
 			if addFinalizer(dt, FinalizerDT) {
 				if err = k8sClient.Update(ctx, dt); err != nil {
-					return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s to DeploymentTarget %s in namespace %s: %v", FinalizerDT, dt.Name, dt.Namespace, err)
+					return ctrl.Result{}, nil, fmt.Errorf("failed to add finalizer %s to DeploymentTarget %s in namespace %s: %v", FinalizerDT, dt.Name, dt.Namespace, err)
 				}
 				log.Info("Added finalizer to DeploymentTarget", "finalizer", FinalizerDT)
 			}
@@ -337,7 +334,7 @@ func handleDTCDeletion(ctx context.Context, dtc applicationv1alpha1.DeploymentTa
 			if dtcls.Spec.ReclaimPolicy == applicationv1alpha1.ReclaimPolicy_Delete {
 				log.Info("ReclaimPolicy is ReclaimPolicy_Delete") // DTC is being deleted, so delete the DT too
 				if err := k8sClient.Delete(ctx, dt); err != nil {
-					return ctrl.Result{}, err
+					return ctrl.Result{}, nil, err
 				}
 				log.Info("DeploymentTarget is marked to Deleted", "DeploymentTarget", dt.Name)
 
@@ -354,28 +351,28 @@ func handleDTCDeletion(ctx context.Context, dtc applicationv1alpha1.DeploymentTa
 			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dt), dt); err != nil {
 
 				if apierr.IsNotFound(err) {
-					return ctrl.Result{Requeue: true}, nil // DT is deleted, so requeue again to remove the finalizers from DTC
+					return ctrl.Result{Requeue: true}, nil, nil // DT is deleted, so requeue again to remove the finalizers from DTC
 				}
 
-				return ctrl.Result{}, fmt.Errorf("failed to retrieve an updated copy of the DT: %v", err)
+				return ctrl.Result{}, nil, fmt.Errorf("failed to retrieve an updated copy of the DT: %v", err)
 			}
 
 			dt.Spec.ClaimRef = ""
 			if err := k8sClient.Update(ctx, dt); err != nil {
 				if apierr.IsNotFound(err) {
-					return ctrl.Result{Requeue: true}, nil // DT is deleted, so requeue again to remove the finalizers from DTC
+					return ctrl.Result{Requeue: true}, nil, nil // DT is deleted, so requeue again to remove the finalizers from DTC
 				}
 
-				return ctrl.Result{}, fmt.Errorf("failed to update the claimRef: %v", err)
+				return ctrl.Result{}, nil, fmt.Errorf("failed to update the claimRef: %v", err)
 			}
 			log.Info("ClaimRef of DeploymentTarget is unset since its corresponding DeploymentTargetClaim is already deleted", "DeploymentTarget", dt.Name)
 			logutil.LogAPIResourceChangeEvent(dt.Namespace, dt.Name, dt, logutil.ResourceModified, log)
 
 			if err := updateDTStatusPhase(ctx, k8sClient, dt, applicationv1alpha1.DeploymentTargetPhase_Released, log); err != nil {
 				if apierr.IsNotFound(err) {
-					return ctrl.Result{Requeue: true}, nil // DT is deleted, so requeue again to remove the finalizers from DTC
+					return ctrl.Result{Requeue: true}, nil, nil // DT is deleted, so requeue again to remove the finalizers from DTC
 				} else {
-					return ctrl.Result{}, fmt.Errorf("failed to update DeploymentTarget %s in namespace %s to Released status", dt.Name, dt.Namespace)
+					return ctrl.Result{}, nil, fmt.Errorf("failed to update DeploymentTarget %s in namespace %s to Released status", dt.Name, dt.Namespace)
 				}
 			}
 
@@ -387,12 +384,12 @@ func handleDTCDeletion(ctx context.Context, dtc applicationv1alpha1.DeploymentTa
 	// Finally, once the DT is fully handled (phase updated, claim ref updated, or deleted), remove the finalizer from the DTC
 	if removeFinalizer(&dtc, applicationv1alpha1.FinalizerBinder) {
 		if err := k8sClient.Update(ctx, &dtc); err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to remove finalizer %s from DeploymentTargetClaim %s in namespace %s: %v", applicationv1alpha1.FinalizerBinder, dtc.Name, dtc.Namespace, err)
+			return ctrl.Result{}, nil, fmt.Errorf("failed to remove finalizer %s from DeploymentTargetClaim %s in namespace %s: %v", applicationv1alpha1.FinalizerBinder, dtc.Name, dtc.Namespace, err)
 		}
 		log.Info("Removed finalizer from DeploymentTargetClaim", "finalizer", applicationv1alpha1.FinalizerBinder)
 	}
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{}, nil, nil
 }
 
 // bindDeploymentTargetClaimToTarget binds the given DeploymentTarget to a DeploymentTargetClaim by
@@ -945,18 +942,8 @@ func createSpaceRequestForDTC(ctx context.Context, k8sClient client.Client, dtc 
 }
 
 // updateStatusConditionOfDeploymentTargetClaim calls SetCondition() with DeploymentTargetClaim conditions
-func updateStatusConditionOfDeploymentTargetClaim(ctx context.Context, k8sClient client.Client,
-	message string, deploymentTargetClaim *applicationv1alpha1.DeploymentTargetClaim, conditionType string,
-	status metav1.ConditionStatus, reason string, log logr.Logger) error {
-
-	newCondition := metav1.Condition{
-		Type:    conditionType,
-		Message: message,
-		Status:  status,
-		Reason:  reason,
-	}
-
-	dtc := deploymentTargetClaim
+func updateStatusConditionOfDeploymentTargetClaim(ctx context.Context, newCondition metav1.Condition,
+	dtc *applicationv1alpha1.DeploymentTargetClaim, k8sClient client.Client, log logr.Logger) error {
 
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dtc), dtc); err != nil {
 		log.Error(err, "unable to fetch deploymentTargetClaim.")

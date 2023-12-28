@@ -19,6 +19,7 @@ package managedgitops
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,6 +35,8 @@ import (
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop"
+
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // GitOpsDeploymentManagedEnvironmentReconciler reconciles a GitOpsDeploymentManagedEnvironment object
@@ -55,34 +58,32 @@ type GitOpsDeploymentManagedEnvironmentReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.2/pkg/reconcile
 func (r *GitOpsDeploymentManagedEnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
+	if isFilteredOutNamespace(req) {
+		return ctrl.Result{}, nil
+	}
+
 	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 	_ = log.FromContext(ctx)
 
 	rClient := sharedutil.IfEnabledSimulateUnreliableClient(r.Client)
 
-	namespace := corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: req.Namespace,
-		},
-	}
-	if err := rClient.Get(ctx, client.ObjectKeyFromObject(&namespace), &namespace); err != nil {
-		return ctrl.Result{}, fmt.Errorf("unable to retrieve namespace: %v", err)
-	}
+	// The Reconcile function receives events for both ManagedEnv and Secrets.
+	// Since the 'req' object doesn't tell us the type resource type (ManagedEnv or Secret), we need to check both cases.
 
 	requestsToProcess := []ctrl.Request{}
 
-	// Attempt to retrieve the request as a Secret; if it's not a secret, just pass the event as is.
+	// 1) Attempt to retrieve the request as a Secret; if it's not a secret, continue.
 	secret := &corev1.Secret{}
-	if err := rClient.Get(ctx, req.NamespacedName, secret); err == nil && secret != nil {
+	if err := rClient.Get(ctx, req.NamespacedName, secret); err == nil {
 		if secret.Type == sharedutil.ManagedEnvironmentSecretType {
 
 			// Locate any managed environments that reference this Secret, in the same Namespace
 			managedEnvList, err := processSecret(ctx, *secret, rClient)
 			if err != nil {
-				return ctrl.Result{}, fmt.Errorf("unable to process secret resource: %v", err)
+				return ctrl.Result{}, fmt.Errorf("unable to process Secret resource of ManagedEnvironment: %v", err)
 			}
 
-			// For each GitOpsDeploymentManagedEnvironment that was found that references the Secret,
+			// For each ManagedEnvironment that was found that references the Secret,
 			// add the ManagedEnv to the list of requests to process.
 			for _, managedEnv := range managedEnvList {
 				newReq := ctrl.Request{
@@ -94,17 +95,36 @@ func (r *GitOpsDeploymentManagedEnvironmentReconciler) Reconcile(ctx context.Con
 				}
 				requestsToProcess = append(requestsToProcess, newReq)
 			}
-
 		}
-	} else {
-		// If it's not a Secret, it's a GitOpsDeploymentManagedEnvironment, so just add it to the request list
-		requestsToProcess = append(requestsToProcess, req)
+	} else if !apierr.IsNotFound(err) {
+		// For any other error besides 'not found', return and reconcile
+		return ctrl.Result{}, err
 	}
 
-	for idx := range requestsToProcess {
-		requestToProcess := requestsToProcess[idx]
-		r.PreprocessEventLoopProcessor.callPreprocessEventLoopForManagedEnvironment(requestToProcess, rClient, namespace)
+	// 2) Attempt to retrieve the request as a ManagedEnv. If it's not a managedenv, continue.
+	managedEnv := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{}
+	if err := rClient.Get(ctx, req.NamespacedName, managedEnv); err == nil {
+		requestsToProcess = append(requestsToProcess, req)
+	} else if !apierr.IsNotFound(err) {
+		// For any other error besides 'not found', return and reconcile
+		return ctrl.Result{}, err
+	}
 
+	// 3) If either Secret/ManagedEnv were found, process them
+	if len(requestsToProcess) > 0 {
+		namespace := corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: req.Namespace,
+			},
+		}
+		if err := rClient.Get(ctx, client.ObjectKeyFromObject(&namespace), &namespace); err != nil {
+			return ctrl.Result{}, fmt.Errorf("unable to retrieve namespace: %v", err)
+		}
+
+		for idx := range requestsToProcess {
+			requestToProcess := requestsToProcess[idx]
+			r.PreprocessEventLoopProcessor.callPreprocessEventLoopForManagedEnvironment(requestToProcess, rClient, namespace)
+		}
 	}
 
 	return ctrl.Result{}, nil
@@ -163,4 +183,20 @@ func (r *GitOpsDeploymentManagedEnvironmentReconciler) SetupWithManager(mgr ctrl
 		For(&managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
+}
+
+// isFilteredOutNamespace filters out a set of namepaces that are known not to contain
+// Secrets that are used/referenced by the ManagedEnvironment CR.
+// - This is not for security purposes, but rather to reduce the number of K8s API requests when running on OpenShift clusters.
+func isFilteredOutNamespace(req ctrl.Request) bool {
+
+	ns := req.Namespace
+
+	if strings.HasPrefix(ns, "openshift-") || strings.HasPrefix(ns, "gitops-service-") || ns == "gitops" || ns == "default" ||
+		ns == "kube-system" || ns == "kube-node-lease" {
+		return true
+	}
+
+	return false
+
 }

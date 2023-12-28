@@ -86,7 +86,7 @@ func operationEventLoopRouter(input chan operationEventLoopEvent) {
 
 	log.Info("controllerEventLoopRouter started")
 
-	dbQueries, err := db.NewSharedProductionPostgresDBQueries(true)
+	dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
 	if err != nil {
 		log.Error(err, "SEVERE: Controller event loop exited before startup.")
 		return

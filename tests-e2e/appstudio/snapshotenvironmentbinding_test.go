@@ -1054,7 +1054,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			binding.Status = appstudiosharedv1.SnapshotEnvironmentBindingStatus{
 				GitOpsRepoConditions: []metav1.Condition{
 					{
-						Type:               "GitOpsRepoNotReady",
+						Type:               "Reconciled",
 						Status:             metav1.ConditionFalse,
 						Reason:             "GitOpsRepoNotReady",
 						Message:            "Cannot Reconcile Binding '" + binding.Name + "', since GitOps Repo Conditions status is false.",

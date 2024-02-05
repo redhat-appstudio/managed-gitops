@@ -9,25 +9,31 @@ The Red Hat product/project that this is attached to has had many names: AppStud
 - For the purposes of this document, I will use 'Konflux', the latest name, as of this writing, February 2024.
 - However, the code/API referenced in this document has been deprecated, will no longer be used, and will be removed from the Konflux project.
 
-For more information on the Environment API, see this [long, detailed document I wrote](https://github.com/redhat-appstudio/managed-gitops/blob/main/docs/environment-api/environment-api-proposal-v3.md) which details the final cross-organization agreement on how this API would work within Konflux.
+For more information on the Environment API, see the [detailed document I wrote](https://github.com/redhat-appstudio/managed-gitops/blob/main/docs/environment-api/environment-api-proposal-v3.md) which details the final cross-organization agreement on how this API would work within Konflux.
 
 ## Big Picture
+- Konflux concepts (and K8s custom resources): `Application`, `Component`, `Environment`, `Snapshot`, `SnapshotEnvironmentBinding`
 
 - You define an `Application`. (e.g. `bank-loan-app`)
 	- **NOTE**: ZERO relation to Argo CD's Application custom resource (CR)/concept, put this out of your mind here in this context. They just happen share a name 😀
 	- In this document, I'll use "Argo CD Application" when I specifically mean that.
 - You define `Components`, which are the child components of that Application (e.g. `frontend` in Node, `backend` in Java, `database` in PSQL)
+    - A Component is a single version of a single container
 - You define `Environment`s, which are the K8s clusters that you wish to deploy that Application to (only K8s clusters are supported)
     - e.g. `test`, `staging`, `prod-eu`, `prod-us`
 	- A DAG, e.g. dev -> test -> staging -> prod. Can be single or multiple children (for example, see last deployment in this example.)
     - ![Relationships between resources](Stages.png)
-
+    - Automated/Manual promotion in this diagram refers to whether human intervention is required to promote from a parent Enviroment to a child Environment:
+        - Automated: Immediately promote to the next child on status of Healthy.
+        - Manual: Wait for a human to tell us to promote to the next child in the DAG.
 - You define a `Snapshot`, which is a particular version of your Application (and specifically, of its constituent Components). (e.g. `bank-loan-app-v2-(commit id)`)
+    - Snapshot defines container image for each component.
 - The actual deployment of a Snapshot (specific version of an Application) to an Environment (specific k8s cluster) is performed via a `SnapshotEnvironmentBinding`
-	- `SnapshotEnvironmentBinding` defines *(Application, Snapshot, Environment)* tuple
+	- `SnapshotEnvironmentBinding` (SEB) defines *(Application, Snapshot, Environment)* tuple
 	- tuple: Application A, of version S, should be deployed to Environment E
-- Finally, `SnapshotEnvironmentBinding` is translated (reconciled, via K8s controller) into 1 or more Argo CD Application
-- Thus, all of these abstractions **ultimately boil down into Argo CD Application CRs** (custom resources) deploying to K8s clusters.
+    - Multiple SEBs can target a single environment
+- Finally, `SnapshotEnvironmentBinding` is translated (reconciled, via K8s controller) into 1 or more Argo CD Applications
+- Thus, all of these abstractions **ultimately boil down into 1 or more Argo CD Application CRs** (custom resources) deploying to K8s clusters.
 
 
 
@@ -92,13 +98,15 @@ All concepts mentioned have a corresponding CR of the same name. I use the two i
     - A Snapshot is only useful in the context of the Application it references: a Snapshot is not shared between multiple Applications.
 - A Snapshot is a set of container images, one for each component of an Application.
 	- If an Application has 3 components, the Snapshot will have 3 container images.
-- Example Snapshot:
+- Example Snapshot 'v2':
     - Application: loan-app
-	- Component 'frontend': `quay.io/my-bank/loan-app-frontend:(version, git commit id, or date built, for example)`
+	- Component 'frontend': `quay.io/my-bank/loan-app-frontend:v2` (or tag could be, version, git commit id, or date built, for example)
 	- Component 'backend': `quay.io/my-bank/loan-app-backend:(version, git commit id or date built, for example)`
 	- Component 'database': `postgres:16.1`
 - Snapshots can be annotated with additional information, for example, whether or not the Snapshot passed integration tests (thus making the Snapshot ready for promotion to next child in the DAG).
-	- This ensures a particular version of an Application has necessarily been tested with a particular set of constituent container images
+    - Why have the version be an independent concept from the Application/Component itself? Why not set the version in `.spec`` of Component?
+	- Well, Snapshot ensures a particular version of an Application has necessarily been tested with a particular set of constituent container images
+    - And thus, when deployed together as an Application, those specific Component versions have necessarily been tested together.
 - Snapshots are not shared between different Applications. A Snapshot will have a single Application as a mandatory parent.
 - [API description](https://github.com/redhat-appstudio/managed-gitops/blob/main/docs/api.md#snapshot)
 - [Snapshot CR code](https://github.com/redhat-appstudio/application-api/blob/18f545e48a03cbc6df71fb0468dac9aa66209c4c/api/v1alpha1/snapshot_types.go#L25)
@@ -140,6 +148,7 @@ All concepts mentioned have a corresponding CR of the same name. I use the two i
 #### PromotionRun
 - A single use CR which will promote a particular Application/Snapshot to a particular Environment
 - For example: I could use a `PromotionRun` to promote Snapshot 'loan-app-v2' from 'staging NA' to 'prod NA'
+- This is the mechanism for manual promotion between Environments (versus 'automated promotion' which would trigger a new promotion once an Application between healthy in an Environment)
 - [API description](https://github.com/redhat-appstudio/application-api/blob/18f545e48a03cbc6df71fb0468dac9aa66209c4c/api/v1alpha1/promotionrun_types.go#L24)
 - [PromotionRun CR code](https://github.com/redhat-appstudio/application-api/blob/18f545e48a03cbc6df71fb0468dac9aa66209c4c/api/v1alpha1/promotionrun_types.go#L24)
 

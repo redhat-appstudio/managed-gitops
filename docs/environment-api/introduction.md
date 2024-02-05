@@ -9,9 +9,13 @@ The Red Hat product/project that this is attached to has had many names: AppStud
 - For the purposes of this document, I will use 'Konflux', the latest name, as of this writing, February 2024.
 - However, the code/API referenced in this document has been deprecated, will no longer be used, and will be removed from the Konflux project.
 
-For more information on the Environment API, see the [detailed document I wrote](https://github.com/redhat-appstudio/managed-gitops/blob/main/docs/environment-api/environment-api-proposal-v3.md) which details the final cross-organization agreement on how this API would work within Konflux.
+For more information on the Environment API, see the [detailed document I wrote](https://github.com/redhat-appstudio/managed-gitops/blob/main/docs/environment-api/environment-api-proposal-v3.md) which details the final cross-organization agreement on how this API would work within Konflux. (Be forewarned, parts of that document are very Konflux-jargon heavy.)
 
 ## Big Picture
+
+Within Konflux project, the need was identified to define a set of custom resources/concepts, that would allow users to progressively build/test/deploy different versions of their Applications across a set of Kubernetes Environments, with the deployment handled by Argo CD.
+
+Here's what those requirements became: 
 - Konflux concepts (and K8s custom resources): `Application`, `Component`, `Environment`, `Snapshot`, `SnapshotEnvironmentBinding`
 
 - You define an `Application`. (e.g. `bank-loan-app`)
@@ -67,7 +71,7 @@ All concepts mentioned have a corresponding CR (Kubernetes custom resource) of t
 - Example: a bank might have a 'loan-app' Application, whose job is to provide bank loans. The Components of that Application might be:
 	- Application 'loan-app'
 	    - Component 'frontend': React frontend, served into the browser via a lightweight HTTP server
-    	- Component 'backend': Java backend application
+    	- Component 'backend': Java-based backend application, containing business logic
 	    - Component 'database': Postgresql image
 - Application and Component are both CRs.
 - [Component CR code](https://github.com/redhat-appstudio/application-api/blob/18f545e48a03cbc6df71fb0468dac9aa66209c4c/api/v1alpha1/component_types.go#L75)
@@ -89,7 +93,7 @@ All concepts mentioned have a corresponding CR of the same name. I use the two i
 	- Once it passes some integration tests, Snapshot 'v2' would be promoted to run on Environment 'test NA'
     - Next, once successful, v2 would be promoted to 'staging NA' Environment. 
 	- And so on, dev -> test -> staging, along the DAG.
-- [API description](https://github.com/redhat-appstudio/managed-gitops/blob/main/docs/api.md#environment)
+- [API example/description](https://github.com/redhat-appstudio/managed-gitops/blob/main/docs/api.md#environment)
 - [Environment CR code](https://github.com/redhat-appstudio/application-api/blob/18f545e48a03cbc6df71fb0468dac9aa66209c4c/api/v1alpha1/environment_types.go#L24)
 
 #### Snapshot
@@ -101,14 +105,15 @@ All concepts mentioned have a corresponding CR of the same name. I use the two i
 - Example Snapshot 'v2':
     - Application: loan-app
 	- Component 'frontend': `quay.io/my-bank/loan-app-frontend:v2` (or tag could be, version, git commit id, or date built, for example)
-	- Component 'backend': `quay.io/my-bank/loan-app-backend:(version, git commit id or date built, for example)`
+	- Component 'backend': `quay.io/my-bank/loan-app-backend:v4`
 	- Component 'database': `postgres:16.1`
 - Snapshots can be annotated with additional information, for example, whether or not the Snapshot passed integration tests (thus making the Snapshot ready for promotion to next child in the DAG).
-    - Why have the version be an independent concept from the Application/Component itself? Why not set the version in `.spec`` of Component?
-	- Well, Snapshot ensures a particular version of an Application has necessarily been tested with a particular set of constituent container images
+- You might be thinking: Why have the version be an independent concept from the Application/Component itself? Why not jjust set the version in `.spec` of Component?
+	- Well, the `Snapshot` concept ensures a specific set of constituent container images have necessarily been tested together
+    - You want to avoid the case where, for example, you deploy a version of your Application where the backend is incompatible with a newer version of the database software, because they were not tested together.
     - And thus, when deployed together as an Application, those specific Component versions have necessarily been tested together.
 - Snapshots are not shared between different Applications. A Snapshot will have a single Application as a mandatory parent.
-- [API description](https://github.com/redhat-appstudio/managed-gitops/blob/main/docs/api.md#snapshot)
+- [API example/description](https://github.com/redhat-appstudio/managed-gitops/blob/main/docs/api.md#snapshot)
 - [Snapshot CR code](https://github.com/redhat-appstudio/application-api/blob/18f545e48a03cbc6df71fb0468dac9aa66209c4c/api/v1alpha1/snapshot_types.go#L25)
 
 #### SnapshotEnvironmentBinding
@@ -141,7 +146,7 @@ All concepts mentioned have a corresponding CR of the same name. I use the two i
             - Argo CD Application 'loan-app-prod-frontend': deploy v1 of 'frontend' component to prod
             - Argo CD Application 'loan-app-prod-backend': deploy v1 of 'backend' component to prod
             - Argo CD Application 'loan-app-prod-database': deploy v1 of 'database' component to prod
-- [API description](https://github.com/redhat-appstudio/managed-gitops/blob/main/docs/api.md#snapshotenvironmentbinding)
+- [API example/description](https://github.com/redhat-appstudio/managed-gitops/blob/main/docs/api.md#snapshotenvironmentbinding)
 - [SnapshotEnvironmentBinding CR code](https://github.com/redhat-appstudio/application-api/blob/18f545e48a03cbc6df71fb0468dac9aa66209c4c/api/v1alpha1/snapshotenvironmentbinding_types.go#L33)
 
 
@@ -149,7 +154,7 @@ All concepts mentioned have a corresponding CR of the same name. I use the two i
 - A single use CR which will promote a particular Application/Snapshot to a particular Environment
 - For example: I could use a `PromotionRun` to promote Snapshot 'loan-app-v2' from 'staging NA' to 'prod NA'
 - This is the mechanism for manual promotion between Environments (versus 'automated promotion' which would trigger a new promotion once an Application between healthy in an Environment)
-- [API description](https://github.com/redhat-appstudio/application-api/blob/18f545e48a03cbc6df71fb0468dac9aa66209c4c/api/v1alpha1/promotionrun_types.go#L24)
+- [API example/description](https://github.com/redhat-appstudio/application-api/blob/18f545e48a03cbc6df71fb0468dac9aa66209c4c/api/v1alpha1/promotionrun_types.go#L24)
 - [PromotionRun CR code](https://github.com/redhat-appstudio/application-api/blob/18f545e48a03cbc6df71fb0468dac9aa66209c4c/api/v1alpha1/promotionrun_types.go#L24)
 
 ## Similarity to others: Kargo

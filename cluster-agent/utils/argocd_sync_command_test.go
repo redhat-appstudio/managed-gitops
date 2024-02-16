@@ -59,6 +59,7 @@ var _ = Describe("ArgoCD AppSync Command", func() {
 						Name:      "openshift-gitops-cluster",
 						Namespace: "openshift-gitops",
 					},
+					Type: "Opaque",
 					Data: map[string][]byte{
 						"admin.password": []byte("a1Y4c0RvdkgxcHFPUTNJYWxSaDRubXlaZ3c3QUJGcmQ="),
 					},

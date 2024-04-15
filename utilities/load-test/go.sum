@@ -82,8 +82,8 @@ github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kd
 github.com/antlr/antlr4/runtime/Go/antlr v0.0.0-20210826220005-b48c857c3a0e/go.mod h1:F7bn7fEU90QkQ3tnmaTx3LTKLEDqnwWODIYppRQ5hnY=
 github.com/argoproj-labs/argocd-operator v0.5.0 h1:dJIjEL4uy/H5PKf75AqTkNQctfXESy6ctRTwMnokxIQ=
 github.com/argoproj-labs/argocd-operator v0.5.0/go.mod h1:/sMLNAq4teuLSbAx/+pMBZM7ENLsXxrLjsG7E8NcSGI=
-github.com/argoproj/argo-cd/v2 v2.8.8 h1:nqHLdAkx55W3W9JyugGvcQuTU/P47hXzogIZoS77AUI=
-github.com/argoproj/argo-cd/v2 v2.8.8/go.mod h1:3CwkG1Grwn5WPNnkPFmHhwpH1j3LIK64j4TUqFxzq+4=
+github.com/argoproj/argo-cd/v2 v2.8.16 h1:P2PtDx1OSzNYvaZIYPo/mnHotDS99G9Jwj6BVGZSpn8=
+github.com/argoproj/argo-cd/v2 v2.8.16/go.mod h1:3GmH9xEJtiWZNfZ5hx1qdzbF2t9gIS/3vNV5vJBmI/g=
 github.com/argoproj/gitops-engine v0.7.1-0.20230607163028-425d65e07695 h1:w8OPbqHyhWxLyC4LZgs5JBUe7AOkJpNZqFa92yy7Kmc=
 github.com/argoproj/gitops-engine v0.7.1-0.20230607163028-425d65e07695/go.mod h1:WpA/B7tgwfz+sdNE3LqrTrb7ArEY1FOPI2pAGI0hfPc=
 github.com/argoproj/pkg v0.13.7-0.20230627120311-a4dd357b057e h1:kuLQvJqwwRMQTheT4MFyKVM8Txncu21CHT4yBWUl1Mk=

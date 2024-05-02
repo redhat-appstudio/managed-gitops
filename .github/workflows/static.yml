@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: Setup Golang
-        uses: actions/setup-go@v5.0.0
+        uses: actions/setup-go@v5.0.1
         with:
           go-version-file: './backend/go.mod'
       - name: "Run make fmt and then 'git diff' to see if anything changed: to fix this check, run make fmt and then commit the changes."
@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: Setup Golang
-        uses: actions/setup-go@v5.0.0
+        uses: actions/setup-go@v5.0.1
         with:
           go-version-file: './backend/go.mod'
       - name: "Install dupimport"
@@ -58,7 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: Setup Golang
-        uses: actions/setup-go@v5.0.0
+        uses: actions/setup-go@v5.0.1
         with:
           go-version-file: './backend/go.mod'
       - name: "Install gosec"
@@ -120,7 +120,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Setup Golang
-        uses: actions/setup-go@v5.0.0
+        uses: actions/setup-go@v5.0.1
         with:
           go-version-file: './backend/go.mod'
 
@@ -171,7 +171,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Setup Golang
-        uses: actions/setup-go@v5.0.0
+        uses: actions/setup-go@v5.0.1
         with:
           go-version-file: './backend/go.mod'
       
@@ -207,7 +207,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Setup Golang
-        uses: actions/setup-go@v5.0.0
+        uses: actions/setup-go@v5.0.1
         with:
           go-version-file: './backend/go.mod'
       - name: "Install go modules for migration"
@@ -221,7 +221,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Setup Golang
-        uses: actions/setup-go@v5.0.0
+        uses: actions/setup-go@v5.0.1
         with:
           go-version-file: './backend/go.mod'
       - name: "Install go modules for migration"
@@ -235,7 +235,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Setup Golang
-        uses: actions/setup-go@v5.0.0
+        uses: actions/setup-go@v5.0.1
         with:
           go-version-file: './backend/go.mod'
       - name: "Start PostgreSQL"
@@ -268,7 +268,7 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: Setup Golang
-        uses: actions/setup-go@v5.0.0
+        uses: actions/setup-go@v5.0.1
         with:
           go-version-file: './backend/go.mod'
       - name: "Run 'make generate-manifests' and report any diff (to fix this if failing: run 'make clean' then 'make generate-manifests' at root, and check in changes)"
@@ -284,7 +284,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Setup Golang
-        uses: actions/setup-go@v5.0.0
+        uses: actions/setup-go@v5.0.1
         with:
           go-version-file: './backend/go.mod'
       - name: "Install mockgen and mockery for generating mocks"

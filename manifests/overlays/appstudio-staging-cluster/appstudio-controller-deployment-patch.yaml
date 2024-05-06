@@ -4,6 +4,7 @@ metadata:
   name: gitops-appstudio-service-controller-manager
   namespace: gitops
 spec:
+  replicas: 0
   template:
     spec:
       containers:

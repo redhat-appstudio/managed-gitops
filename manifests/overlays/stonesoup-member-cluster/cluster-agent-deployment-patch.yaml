@@ -6,6 +6,7 @@ metadata:
   name: gitops-service-agent-controller-manager
   namespace: gitops
 spec:
+  replicas: 0
   template:
     spec:
       containers:

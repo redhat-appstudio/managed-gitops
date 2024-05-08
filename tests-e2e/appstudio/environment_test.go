@@ -11,7 +11,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/managedenvironment"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	appstudioshared "github.com/github.com/konflux-ci/application-api/api/v1alpha1"
 	app "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 	appstudiocontrollers "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"

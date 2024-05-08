@@ -25,8 +25,8 @@ import (
 	"strings"
 	"time"
 
+	appstudioshared "github.com/github.com/konflux-ci/application-api/api/v1alpha1"
 	"github.com/go-logr/logr"
-	appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	apibackend "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"

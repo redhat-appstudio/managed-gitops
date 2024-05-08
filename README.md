@@ -11,7 +11,7 @@
 This repo is the home for all the Managed GitOps Service components.
 It contains various tools and services that you can use to deploy, as well as the libraries you can use to develop the GitOps Service that will be integrated with the Stonesoup project.
 
-This repository is closely associated with the [application-api](https://github.com/redhat-appstudio/application-api/) repository, which contains the public Stonesoup APIs exposed by the application-service and appstudio-controller components.
+This repository is closely associated with the [application-api](https://github.com/konflux-ci/application-api/) repository, which contains the public Stonesoup APIs exposed by the application-service and appstudio-controller components.
 
 ---
 

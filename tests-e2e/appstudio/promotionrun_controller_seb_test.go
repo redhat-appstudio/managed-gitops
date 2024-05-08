@@ -3,9 +3,9 @@ package appstudio
 import (
 	"strings"
 
+	appstudiosharedv1 "github.com/github.com/konflux-ci/application-api/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	promotionRunFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/promotionrun"

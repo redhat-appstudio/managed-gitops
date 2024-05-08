@@ -343,8 +343,8 @@ github.com/prometheus/procfs v0.6.0/go.mod h1:cz+aTbrPOrUb4q7XlbU9ygM+/jj0fzG6c1
 github.com/prometheus/procfs v0.7.3/go.mod h1:cz+aTbrPOrUb4q7XlbU9ygM+/jj0fzG6c1xBZuNvfVA=
 github.com/prometheus/procfs v0.8.0 h1:ODq8ZFEaYeCaZOJlZZdJA2AbQR98dSHSM1KW/You5mo=
 github.com/prometheus/procfs v0.8.0/go.mod h1:z7EfXMXOkbkqb9IINtpCn86r/to3BnA0uaxHdg830/4=
-github.com/redhat-appstudio/application-api v0.0.0-20240106104232-18f545e48a03 h1:UUgrEyvQJhEnvghkEaY9YlxeAk+D4cop+Bd3+8jh0eQ=
-github.com/redhat-appstudio/application-api v0.0.0-20240106104232-18f545e48a03/go.mod h1:YvckuKHe82eWloGk0/BpSw4YYG2owrGZAanztbOj3pQ=
+github.com/github.com/konflux-ci/application-api v0.0.0-20240106104232-18f545e48a03 h1:UUgrEyvQJhEnvghkEaY9YlxeAk+D4cop+Bd3+8jh0eQ=
+github.com/github.com/konflux-ci/application-api v0.0.0-20240106104232-18f545e48a03/go.mod h1:YvckuKHe82eWloGk0/BpSw4YYG2owrGZAanztbOj3pQ=
 github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6LYCDYWNEvQ=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.6.1/go.mod h1:xXDCJY+GAPziupqXw64V24skbSoqbTEfhy4qGm1nDQc=

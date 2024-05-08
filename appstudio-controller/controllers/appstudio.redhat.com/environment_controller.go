@@ -25,7 +25,7 @@ import (
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 
-	appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	appstudioshared "github.com/github.com/konflux-ci/application-api/api/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"

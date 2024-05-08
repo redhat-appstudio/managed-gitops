@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"net/url"
 
+	appstudiov1alpha1 "github.com/github.com/konflux-ci/application-api/api/v1alpha1"
 	"github.com/go-logr/logr"
-	appstudiov1alpha1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation"
 	ctrl "sigs.k8s.io/controller-runtime"

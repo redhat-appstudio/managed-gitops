@@ -8,6 +8,7 @@ There are 4 separated, tightly-coupled components:
 - [Backend Shared]: Contains code that is shared among the rest of the components. This is where shared utility code lives, such as GitOpsDeployment resource Go types, database Go types, and database access functionality. Including code within this component ensures it is not duplicated within the other components.
 
 There is also a fifth component, which lives in a separate GitHub repository:
+
 - [application-api]: defines the public API of GitOps Service 'appstudio-controller' component (e.g the Environment API), and the App Studio 'application-service' component.
 
 For detailed step-by-step guide on how each component works, check the `README` file of each individual component.
@@ -24,9 +25,10 @@ For detailed step-by-step guide on how each component works, check the `README` 
 Plus, within each of the components there is a `Makefile`, which can be used for local development of that component.
 
 ## Deprecated components
+
 - GitOps Service Frontend: The 'frontend' component of the GitOps Service was an early UI prototype for interfacing with the GitOps Service via a Web UI based on PatternFly. The contents of this prototype can be found [under this commit](https://github.com/redhat-appstudio/managed-gitops/tree/52696fbb48070bf43170687a6a775ff80dfb13be/frontend).
 
-[application-api]: https://github.com/redhat-appstudio/application-api/
+[application-api]: https://github.com/github.com/konflux-ci/application-api/
 [App Studio Controller]: https://github.com/redhat-appstudio/managed-gitops/tree/main/appstudio-controller
 [App Studio Shared]: https://github.com/redhat-appstudio/managed-gitops/tree/main/appstudio-shared
 [Backend Shared]: https://github.com/redhat-appstudio/managed-gitops/tree/main/backend-shared

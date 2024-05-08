@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"reflect"
 
+	appstudioshared "github.com/github.com/konflux-ci/application-api/api/v1alpha1"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1/mocks"

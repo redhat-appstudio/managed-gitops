@@ -11,8 +11,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	appstudiosharedv1 "github.com/github.com/konflux-ci/application-api/api/v1alpha1"
 	matcher "github.com/onsi/gomega/types"
-	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	k8sFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 )
 

@@ -21,7 +21,7 @@ import (
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 
-	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	appstudiosharedv1 "github.com/github.com/konflux-ci/application-api/api/v1alpha1"
 	apibackend "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 )

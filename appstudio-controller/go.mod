@@ -8,7 +8,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/onsi/ginkgo/v2 v2.6.0
 	github.com/onsi/gomega v1.24.1
-	github.com/redhat-appstudio/application-api v0.0.0-20240106104232-18f545e48a03
+	github.com/github.com/konflux-ci/application-api v0.0.0-20240106104232-18f545e48a03
 	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0
 	github.com/stretchr/testify v1.8.0
 	k8s.io/apimachinery v0.25.0

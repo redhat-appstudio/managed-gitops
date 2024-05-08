@@ -9,7 +9,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	appstudiosharedv1 "github.com/github.com/konflux-ci/application-api/api/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"

@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	crzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	applicationv1alpha1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	applicationv1alpha1 "github.com/github.com/konflux-ci/application-api/api/v1alpha1"
 	gitopsdeploymentv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 
 	appstudioredhatcomcontrollers "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"

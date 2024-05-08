@@ -3,9 +3,9 @@ package appstudio
 import (
 	"context"
 
+	appstudiosharedv1 "github.com/github.com/konflux-ci/application-api/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	appstudiocontroller "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"

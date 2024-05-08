@@ -6,10 +6,10 @@ import (
 
 	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
+	appstudiosharedv1 "github.com/github.com/konflux-ci/application-api/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	matcher "github.com/onsi/gomega/types"
-	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	appstudiocontrollers "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 

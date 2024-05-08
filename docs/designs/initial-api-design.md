@@ -187,7 +187,7 @@ The contents of this CR roughly translates into an [Argo CD repository secret](h
 
 ## Workflow: when an Application CR is first created (from the GitOps service perspective)
 
-The _Application_ CR definition can be found in [GitHub](https://github.com/redhat-appstudio/application-service/blob/main/api/v1alpha1/hasapplication_types.go). From the Application Service, the contents of the _‘gitOpsRepository_’ field are used.
+The _Application_ CR definition can be found in [GitHub](https://github.com/konflux-ci/application-service/blob/main/api/v1alpha1/hasapplication_types.go). From the Application Service, the contents of the _‘gitOpsRepository_’ field are used.
 
 The AppStudio GitOps service watches for creation/update/deletion of an Application CR, and creates a corresponding _GitOpsDeployment_ CR and _GitOpsDeploymentRepositoryCredentials_ CR.
 

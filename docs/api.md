@@ -8,7 +8,7 @@ The K8s resource *Go structs* defined in the `managed-gitops` repository, the `a
 ## Core vs App Studio Environment APIs
 
 The App Studio Environment APIs implement (opinionated) concepts and APIs that are specific to App Studio, including `Environment`s, `Application`s, and `Component`s.
-- Applications and Components are examples of App-Studio-specific concepts that relate to how an application is composed, and are primarily reconciled by the [application-service](https://github.com/redhat-appstudio/application-service) component.
+- Applications and Components are examples of App-Studio-specific concepts that relate to how an application is composed, and are primarily reconciled by the [application-service](https://github.com/konflux-ci/application-service) component.
 - App Studio Environment APIs implement promotion of application versions between environments, via APIs such as `Environment`, `Snapshot`, and `SnapshotEnvironmentBinding`.
 - App Studio API resources are translated by the AppStudio GitOps Service controllers into one or more Core GitOps Service API resources. For example:
     - A `SnapshotEnvironmentBinding` is reconciled into one or more `GitOpsDeployments`.
@@ -354,7 +354,7 @@ See the [GitOpsDeploymentSyncRun API reference](https://redhat-appstudio.github.
 
 ## GitOps Service: App Studio Environment APIs
 
-The App Studio Environment API is based on the [Application](https://redhat-appstudio.github.io/book/ref/application-environment-api.html#application), and [Component](https://redhat-appstudio.github.io/book/ref/application-environment-api.html#component) APIs, which are primarily handled by the [application-service](https://github.com/redhat-appstudio/application-service) component. 
+The App Studio Environment API is based on the [Application](https://redhat-appstudio.github.io/book/ref/application-environment-api.html#application), and [Component](https://redhat-appstudio.github.io/book/ref/application-environment-api.html#component) APIs, which are primarily handled by the [application-service](https://github.com/konflux-ci/application-service) component. 
 - These APIs are opinionated representations of the constituent parts of a user's application: a application (e.g. a loan application of a bank) contains multiple components (e.g. Node frontend, Java backend, Postgresql database).
 
 The App Studio Environment APIs -- which are simultaneously reconciled by multiple App Studio components -- are all related to provisioning or deploying K8s resources to external environments, such as external K8s clusters/namespaces or local namespaces.

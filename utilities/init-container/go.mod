@@ -1,6 +1,8 @@
 module github.com/redhat-appstudio/managed-gitops/utilities/init-container
 
-go 1.19
+go 1.22
+
+toolchain go1.22.5
 
 require (
 	github.com/onsi/ginkgo/v2 v2.6.0

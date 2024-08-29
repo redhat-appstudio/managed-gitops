@@ -1,6 +1,8 @@
 module github.com/redhat-appstudio/managed-gitops/tests-e2e
 
-go 1.19
+go 1.22
+
+toolchain go1.22.5
 
 require (
 	github.com/argoproj-labs/argocd-operator v0.5.0

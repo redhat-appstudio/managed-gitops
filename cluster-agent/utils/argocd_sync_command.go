@@ -55,7 +55,7 @@ func AppSync(ctx context.Context, appName string, revision string, namespaceName
 }
 
 func appSync(ctx context.Context, acdClient argocdclient.Client, appName string, dryRun bool, replace bool, revision string, prune bool,
-	strategy string, force bool, async bool, timeout uint, retryLimit int64, retryBackoffDuration time.Duration,
+	strategy string, force bool, async bool, timeout int, retryLimit int64, retryBackoffDuration time.Duration,
 	retryBackoffMaxDuration time.Duration, retryBackoffFactor int64) error {
 
 	conn, appIf, err := acdClient.NewApplicationClient()
@@ -173,7 +173,7 @@ func (rs *resourceState) merge(newState *resourceState) bool {
 	return updated
 }
 
-func waitOnApplicationStatus(parentContext context.Context, acdClient argocdclient.Client, appName string, timeout uint, watchSync bool,
+func waitOnApplicationStatus(parentContext context.Context, acdClient argocdclient.Client, appName string, timeout int, watchSync bool,
 	watchHealth bool, watchOperation bool, watchSuspended bool,
 	selectedResources []argoappv1.SyncOperationResource) (*argoappv1.Application, error) {
 

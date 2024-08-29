@@ -1,6 +1,6 @@
 module github.com/redhat-appstudio/managed-gitops/backend
 
-go 1.19
+go 1.22
 
 require (
 	github.com/go-git/go-git/v5 v5.11.0

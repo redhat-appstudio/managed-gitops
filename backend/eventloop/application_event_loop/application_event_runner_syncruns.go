@@ -2,6 +2,7 @@ package application_event_loop
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -290,7 +291,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		// return an error if 'Automated' sync policy is enabled. Argo CD doesn't allow syncing an Application with automated sync policy.
 		if gitopsDepl.Spec.Type != managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual {
 			userErr := fmt.Sprintf("invalid GitOpsDeploymentSyncRun '%s'. Syncing a GitOpsDeployment with Automated sync policy is not allowed", syncRunCR.Name)
-			devErr := fmt.Errorf(userErr)
+			devErr := errors.New(userErr)
 			log.Error(devErr, "failed to process GitOpsDeploymentSyncRun")
 			return gitopserrors.NewUserDevError(userErr, devErr)
 		}
@@ -635,13 +636,13 @@ func (a *applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplSyncRunEvent(
 	log.Info("Received GitOpsDeploymentSyncRun event for an existing GitOpsDeploymentSyncRun resource")
 
 	if syncOperation.DeploymentNameField != syncRunCR.Spec.GitopsDeploymentName {
-		err := fmt.Errorf(ErrDeploymentNameIsImmutable)
+		err := errors.New(ErrDeploymentNameIsImmutable)
 		log.Error(err, ErrDeploymentNameIsImmutable)
 		return gitopserrors.NewUserDevError(ErrDeploymentNameIsImmutable, err)
 	}
 
 	if syncOperation.Revision != syncRunCR.Spec.RevisionID {
-		err := fmt.Errorf(ErrRevisionIsImmutable)
+		err := errors.New(ErrRevisionIsImmutable)
 		log.Error(err, ErrRevisionIsImmutable)
 		return gitopserrors.NewUserDevError(ErrRevisionIsImmutable, err)
 	}

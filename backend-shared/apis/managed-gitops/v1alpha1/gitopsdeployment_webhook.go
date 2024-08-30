@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"errors"
 	"fmt"
 
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
@@ -100,7 +101,7 @@ func (r *GitOpsDeployment) validateGitOpsDeployment() error {
 
 	// Check whether Type is manual or automated
 	if !(r.Spec.Type == GitOpsDeploymentSpecType_Automated || r.Spec.Type == GitOpsDeploymentSpecType_Manual) {
-		return fmt.Errorf(error_invalid_spec_type)
+		return errors.New(error_invalid_spec_type)
 	}
 
 	// Check whether sync options are valid
@@ -109,14 +110,14 @@ func (r *GitOpsDeployment) validateGitOpsDeployment() error {
 
 			if !(syncOptionString == SyncOptions_CreateNamespace_true ||
 				syncOptionString == SyncOptions_CreateNamespace_false) {
-				return fmt.Errorf(error_invalid_sync_option)
+				return errors.New(error_invalid_sync_option)
 			}
 
 		}
 	}
 
 	if r.Spec.Destination.Environment == "" && r.Spec.Destination.Namespace != "" {
-		return fmt.Errorf(error_nonempty_namespace_empty_environment)
+		return errors.New(error_nonempty_namespace_empty_environment)
 	}
 
 	return nil

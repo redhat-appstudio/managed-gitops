@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"errors"
 	"fmt"
 
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
@@ -66,7 +67,7 @@ func (r *GitOpsDeploymentSyncRun) ValidateCreate() error {
 	log.V(logutil.LogLevel_Debug).Info("validate create")
 
 	if r.Name == invalid_name {
-		err := fmt.Errorf(error_invalid_name)
+		err := errors.New(error_invalid_name)
 		log.Info("webhook rejected invalid create", "error", fmt.Sprintf("%v", err))
 		return err
 	}

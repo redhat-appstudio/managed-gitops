@@ -1094,7 +1094,7 @@ func cleanOrphanedEntriesfromTable_Operation(ctx context.Context, dbQueries db.D
 				}
 
 				if err := dbQueries.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstance); err != nil {
-					log.Error(err, fmt.Sprintf("error occurred in cleanOrphanedEntriesfromTable_Operation while fetching gitopsEngineInstance: "+gitopsEngineInstance.Gitopsengineinstance_id))
+					log.Error(err, fmt.Sprintf("error occurred in cleanOrphanedEntriesfromTable_Operation while fetching gitopsEngineInstance: %s", gitopsEngineInstance.Gitopsengineinstance_id))
 
 					if res == nil {
 						res = fmt.Errorf("error occurred in cleanOrphanedEntriesfromTable_Operation while fetching gitopsEngineInstance: %w", err)

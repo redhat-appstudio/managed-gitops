@@ -41,7 +41,7 @@ var _ = Describe("ConditionManager", func() {
 			obj = getFirst(sut)
 
 			Expect((sut)).To(HaveLen(1))
-			Expect(obj.LastProbeTime).NotTo(Equal(probe))
+			Expect(obj.LastProbeTime).NotTo(Equal(*probe))
 			Expect(obj.LastTransitionTime).To(Equal(transition))
 			Expect(obj.Message).To(Equal(message))
 			Expect(obj.Reason).To(Equal(reason))
@@ -71,7 +71,7 @@ var _ = Describe("ConditionManager", func() {
 			Expect(obj.Reason).To(Equal(gitopsv1alpha1.GitOpsDeploymentReasonType("DummyResolved")))
 			Expect(obj.Status).To(Equal(status))
 			Expect(obj.LastProbeTime).NotTo(Equal(now))
-			Expect(obj.LastTransitionTime).NotTo(Equal(now))
+			Expect(*obj.LastTransitionTime).NotTo(Equal(now))
 		})
 	})
 

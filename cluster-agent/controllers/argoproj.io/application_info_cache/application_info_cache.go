@@ -2,6 +2,7 @@ package application_info_cache
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"time"
@@ -344,7 +345,7 @@ func processGetAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfo
 	}
 
 	if db.IsEmpty(req.primaryKey) {
-		err := fmt.Errorf("SEVERE: PrimaryKey should not be nil: " + req.primaryKey + " not found")
+		err := errors.New("SEVERE: PrimaryKey should not be nil: " + req.primaryKey + " not found")
 		log.Error(err, "")
 		req.responseChannel <- applicationInfoCacheResponse{
 			applicationState: db.ApplicationState{},
@@ -406,7 +407,7 @@ func processGetAppMessage(dbQueries db.DatabaseQueries, req applicationInfoCache
 	}
 
 	if db.IsEmpty(req.primaryKey) {
-		err := fmt.Errorf("SEVERE: PrimaryKey should not be nil: " + req.primaryKey + " not found")
+		err := errors.New("SEVERE: PrimaryKey should not be nil: " + req.primaryKey + " not found")
 		log.Error(err, "")
 		req.responseChannel <- applicationInfoCacheResponse{
 			application:    db.Application{},

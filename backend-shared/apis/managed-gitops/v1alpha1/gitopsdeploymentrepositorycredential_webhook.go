@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 
@@ -98,11 +99,11 @@ func (r *GitOpsDeploymentRepositoryCredential) ValidateGitOpsDeploymentRepoCred(
 	if r.Spec.Repository != "" {
 		apiURL, err := url.ParseRequestURI(r.Spec.Repository)
 		if err != nil {
-			return fmt.Errorf(err.Error())
+			return err
 		}
 
 		if !(apiURL.Scheme == "https" || apiURL.Scheme == "ssh") {
-			return fmt.Errorf(error_invalid_repository)
+			return errors.New(error_invalid_repository)
 		}
 	}
 

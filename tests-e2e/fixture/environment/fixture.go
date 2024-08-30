@@ -47,7 +47,7 @@ func HaveEmptyEnvironmentConditions() matcher.GomegaMatcher {
 
 		fmt.Println("EmptyEnvironmentConditions, env.Status.Conditions is:", env.Status.Conditions)
 
-		return env.Status.Conditions == nil || len(env.Status.Conditions) == 0
+		return len(env.Status.Conditions) == 0
 	})
 }
 

@@ -556,7 +556,7 @@ func cleanOrphanedCRsfromCluster_Operation(ctx context.Context, dbQueries db.Dat
 				// Delete the CR since it doesn't point to a DB entry, hence it is an orphaned CR.
 				deleteCr = true
 			} else {
-				log.Error(err, fmt.Sprintf("error occurred in cleanOrphanedCRsfromCluster_Operation while fetching Operation: "+dbOperation.Operation_id+" from DB."))
+				log.Error(err, "error occurred in cleanOrphanedCRsfromCluster_Operation while fetching Operation: "+dbOperation.Operation_id+" from DB.")
 				if res == nil {
 					res = fmt.Errorf("error occurred in cleanOrphanedCRsfromCluster_Operation while fetching Operation: %w", err)
 				}

@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -114,7 +115,7 @@ func createOperationInternal(ctx context.Context, waitForOperation bool, dbOpera
 
 	if operationNamespace != gitopsEngineInstance.Namespace_name {
 		mismatchedNamespace := "OperationNS: " + operationNamespace + " " + "GitopsEngineInstanceNS: " + gitopsEngineInstance.Namespace_name
-		return nil, nil, fmt.Errorf("namespace mismatched in given OperationCR and existing GitopsEngineInstance " + mismatchedNamespace)
+		return nil, nil, errors.New("namespace mismatched in given OperationCR and existing GitopsEngineInstance " + mismatchedNamespace)
 	}
 
 	var dbOperationList []db.Operation

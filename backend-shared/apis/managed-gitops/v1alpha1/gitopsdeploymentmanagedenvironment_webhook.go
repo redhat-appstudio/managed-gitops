@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 
@@ -99,11 +100,11 @@ func (r *GitOpsDeploymentManagedEnvironment) ValidateGitOpsDeploymentManagedEnv(
 	if r.Spec.APIURL != "" {
 		apiURL, err := url.ParseRequestURI(r.Spec.APIURL)
 		if err != nil {
-			return fmt.Errorf(err.Error())
+			return errors.New(err.Error())
 		}
 
 		if apiURL.Scheme != "https" {
-			return fmt.Errorf(error_invalid_cluster_api_url)
+			return errors.New(error_invalid_cluster_api_url)
 		}
 	}
 

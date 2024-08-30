@@ -235,7 +235,7 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 
 				By("Verifying that the API CR to database mapping has been removed.")
 				for _, mapping := range mappings {
-					Expect(mapping.APIResourceUID).ToNot(Equal(managedEnv.UID))
+					Expect(mapping.APIResourceUID).ToNot(Equal(string(managedEnv.UID)))
 				}
 
 			},

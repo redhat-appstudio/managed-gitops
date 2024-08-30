@@ -3,6 +3,7 @@ package eventloop
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -607,7 +608,7 @@ var _ = Describe("Operation Controller", func() {
 			By("'kube-system' namespace has a UID that is not found in a corresponding row in GitOpsEngineCluster database")
 			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(kubesystemNamespace.UID).ToNot(Equal(gitopsEngineInstance.Namespace_uid))
+			Expect(string(kubesystemNamespace.UID)).ToNot(Equal(gitopsEngineInstance.Namespace_uid))
 
 			By("creating Operation row in database")
 			operationDB := &db.Operation{
@@ -2365,7 +2366,7 @@ var _ = Describe("Operation Controller", func() {
 				expectedErr := "sync failed due to xyz reason"
 				task.syncFuncs = &syncFuncs{
 					appSync: func(ctx context.Context, s1, s2, s3 string, c client.Client, cs *utils.CredentialService, b bool) error {
-						return fmt.Errorf(expectedErr)
+						return errors.New(expectedErr)
 					},
 					refreshApp: refreshApplication,
 				}
@@ -2550,7 +2551,7 @@ var _ = Describe("Operation Controller", func() {
 				expectedErr := "unable to terminate sync due to xyz reason"
 				task.syncFuncs = &syncFuncs{
 					terminateOperation: func(ctx context.Context, s string, n corev1.Namespace, cs *utils.CredentialService, c client.Client, d time.Duration, l logr.Logger) error {
-						return fmt.Errorf(expectedErr)
+						return errors.New(expectedErr)
 					},
 				}
 

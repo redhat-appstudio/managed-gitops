@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -241,7 +242,7 @@ func (event *mockTestTaskEvent) PerformTask(taskContext context.Context) (bool, 
 
 	if event.shouldReturnError {
 		wg.Done()
-		return false, fmt.Errorf(event.errorReturned)
+		return false, errors.New(event.errorReturned)
 	}
 
 	time.Sleep(1 * time.Millisecond)

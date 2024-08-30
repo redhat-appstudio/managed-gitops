@@ -18,6 +18,7 @@ package webhooks
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 
@@ -108,7 +109,7 @@ func validateEnvironment(r *appstudiov1alpha1.Environment) error {
 
 	if r.Spec.UnstableConfigurationFields != nil && r.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.APIURL != "" {
 		if _, err := url.ParseRequestURI(r.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.APIURL); err != nil {
-			return fmt.Errorf(err.Error() + appstudiov1alpha1.InvalidAPIURL)
+			return errors.New(err.Error() + appstudiov1alpha1.InvalidAPIURL)
 		}
 	}
 

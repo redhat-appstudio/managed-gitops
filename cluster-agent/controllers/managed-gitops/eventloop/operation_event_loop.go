@@ -3,6 +3,7 @@ package eventloop
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -352,7 +353,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 	if operationCR.Namespace != dbGitopsEngineInstance.Namespace_name {
 		mismatchedNamespace := "OperationNS: " + operationCR.Namespace + " " + "GitopsEngineInstanceNS: " + dbGitopsEngineInstance.Namespace_name
-		err := fmt.Errorf("OperationCR namespace did not match with existing namespace of GitopsEngineInstance " + mismatchedNamespace)
+		err := errors.New("OperationCR namespace did not match with existing namespace of GitopsEngineInstance " + mismatchedNamespace)
 		log.Error(err, "Invalid Operation Detected")
 		return nil, shouldRetryFalse, err
 	}
@@ -517,7 +518,7 @@ func processOperation_SyncOperation(ctx context.Context, dbOperation db.Operatio
 
 	// Sanity checks
 	if dbOperation.Resource_id == "" {
-		return shouldRetryFalse, fmt.Errorf("resource id was nil while processing operation: " + crOperation.Name)
+		return shouldRetryFalse, errors.New("resource id was nil while processing operation: " + crOperation.Name)
 	}
 
 	// 1) Retrieve the SyncOperation DB entry pointed to by the Operation DB entry
@@ -835,7 +836,7 @@ const (
 func processOperation_Application(ctx context.Context, dbOperation db.Operation, crOperation operation.Operation, opConfig operationConfig) (bool, error) {
 	// Sanity check
 	if dbOperation.Resource_id == "" {
-		return shouldRetryTrue, fmt.Errorf("resource id was nil while processing operation: " + crOperation.Name)
+		return shouldRetryTrue, errors.New("resource id was nil while processing operation: " + crOperation.Name)
 	}
 
 	dbApplication := &db.Application{
@@ -1126,7 +1127,7 @@ func createOrUpdateAppProjectWithValidation(ctx context.Context, dbOperation db.
 func processOperation_GitOpsEngineInstance(ctx context.Context, dbOperation db.Operation, crOperation operation.Operation, opConfig operationConfig) (bool, error) {
 
 	if dbOperation.Resource_id == "" {
-		return shouldRetryTrue, fmt.Errorf("resource id was nil while processing operation: " + crOperation.Name)
+		return shouldRetryTrue, errors.New("resource id was nil while processing operation: " + crOperation.Name)
 	}
 
 	dbGitopsEngineInstance := &db.GitopsEngineInstance{

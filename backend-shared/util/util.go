@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -108,7 +109,7 @@ outer:
 		// We only return if the context was cancelled.
 		select {
 		case <-ctx.Done():
-			err = fmt.Errorf(taskDescription + ": context cancelled")
+			err = errors.New(taskDescription + ": context cancelled")
 			break outer
 		default:
 		}

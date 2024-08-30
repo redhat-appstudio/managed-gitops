@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -217,7 +218,7 @@ func (cs *CredentialService) getCredentialsFromNamespace(req credentialRequest, 
 	}
 
 	if len(argoCDAdminPasswords) == 0 {
-		return nil, nil, fmt.Errorf("no Argo CD admin passwords found in " + req.namespaceName)
+		return nil, nil, errors.New("no Argo CD admin passwords found in " + req.namespaceName)
 	}
 
 	// Retrieve the Argo CD host name from the Route
@@ -249,7 +250,7 @@ func (cs *CredentialService) getCredentialsFromNamespace(req credentialRequest, 
 		}
 	}
 	if serverHostName == "" {
-		return nil, nil, fmt.Errorf("Unable to locate Route in " + req.namespaceName)
+		return nil, nil, errors.New("Unable to locate Route in " + req.namespaceName)
 	}
 
 	acdClient, err := cs.acdClientGenerator.generateClientForServerAddress(serverHostName, "", skipTLSTest)
@@ -258,7 +259,7 @@ func (cs *CredentialService) getCredentialsFromNamespace(req credentialRequest, 
 	}
 
 	if acdClient == nil {
-		return nil, nil, fmt.Errorf("argo CD client was nil")
+		return nil, nil, errors.New("argo CD client was nil")
 	}
 
 	// Attempt to login with every password we found, skipping failures
@@ -288,7 +289,7 @@ func (cs *CredentialService) getCredentialsFromNamespace(req credentialRequest, 
 		}
 	}
 
-	return nil, nil, fmt.Errorf("unable to log in to Argo CD instance in " + req.namespaceName)
+	return nil, nil, errors.New("unable to log in to Argo CD instance in " + req.namespaceName)
 
 }
 

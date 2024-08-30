@@ -3,6 +3,7 @@ package application_event_loop
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -115,12 +116,12 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 		if gitopsDeployment.Spec.Source.Path == "" {
 			userError := managedgitopsv1alpha1.GitOpsDeploymentUserError_PathIsRequired
 			return signalledShutdown_false, nil, nil, deploymentModifiedResult_Failed,
-				gitopserrors.NewUserDevError(userError, fmt.Errorf(userError))
+				gitopserrors.NewUserDevError(userError, errors.New(userError))
 
 		} else if gitopsDeployment.Spec.Source.Path == "/" {
 			userError := managedgitopsv1alpha1.GitOpsDeploymentUserError_InvalidPathSlash
 			return signalledShutdown_false, nil, nil, deploymentModifiedResult_Failed,
-				gitopserrors.NewUserDevError(userError, fmt.Errorf(userError))
+				gitopserrors.NewUserDevError(userError, errors.New(userError))
 
 		}
 	}

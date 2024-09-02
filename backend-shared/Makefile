@@ -58,7 +58,7 @@ clean:
 	rm -rf vendor/ bin/
 
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.21
+ENVTEST_K8S_VERSION = 1.28
 
 ENVTEST = $(shell pwd)/bin/setup-envtest
 envtest: ## Download envtest-setup locally if necessary.

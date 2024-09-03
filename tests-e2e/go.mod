@@ -203,7 +203,6 @@ replace (
 )
 
 replace (
-
 	// All the rest replacements are related to ArgoCD
 	// See: https://github.com/argoproj/argo-cd/blob/ec195adad84c61c6151d553b9fdce3c258b1325d/go.mod#L261)
 	//

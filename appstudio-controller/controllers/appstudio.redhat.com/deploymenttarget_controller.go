@@ -35,7 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // DeploymentTargetReconciler reconciles a DeploymentTarget object
@@ -378,13 +377,13 @@ func (r *DeploymentTargetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	manager := ctrl.NewControllerManagedBy(mgr).
 		For(&applicationv1alpha1.DeploymentTarget{}).
 		Watches(
-			&source.Kind{Type: &codereadytoolchainv1alpha1.SpaceRequest{}},
+			&codereadytoolchainv1alpha1.SpaceRequest{},
 			handler.EnqueueRequestsFromMapFunc(r.findDeploymentTargetsForSpaceRequests))
 
 	return manager.Complete(r)
 }
 
-func (r *DeploymentTargetReconciler) findDeploymentTargetsForSpaceRequests(sr client.Object) []reconcile.Request {
+func (r *DeploymentTargetReconciler) findDeploymentTargetsForSpaceRequests(ctx context.Context, sr client.Object) []reconcile.Request {
 
 	srObj, isOk := sr.(*codereadytoolchainv1alpha1.SpaceRequest)
 	if !isOk {
@@ -392,7 +391,7 @@ func (r *DeploymentTargetReconciler) findDeploymentTargetsForSpaceRequests(sr cl
 		return []reconcile.Request{}
 	}
 
-	dt, err := findMatchingDTForSpaceRequest(context.Background(), r.Client, *srObj)
+	dt, err := findMatchingDTForSpaceRequest(ctx, r.Client, *srObj)
 	if err != nil {
 		ctrl.Log.Error(err, "unable to find matching DT for space request", "spacerequest", srObj.Name, "namespace", srObj.Namespace)
 		return []reconcile.Request{}

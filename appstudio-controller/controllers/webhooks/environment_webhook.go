@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // Webhook describes the data structure for the release webhook
@@ -35,6 +36,8 @@ type EnvironmentWebhook struct {
 	client client.Client
 	log    logr.Logger
 }
+
+var _ admission.CustomValidator = &EnvironmentWebhook{}
 
 // change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-appstudio-redhat-com-v1alpha1-environment,mutating=false,failurePolicy=fail,sideEffects=None,groups=appstudio.redhat.com,resources=environments,verbs=create;update,versions=v1alpha1,name=venvironment.kb.io,admissionReviewVersions={v1,v1beta1}
@@ -51,7 +54,7 @@ func (w *EnvironmentWebhook) Register(mgr ctrl.Manager, log *logr.Logger) error 
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *EnvironmentWebhook) ValidateCreate(ctx context.Context, obj runtime.Object) error {
+func (r *EnvironmentWebhook) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 
 	app := obj.(*appstudiov1alpha1.Environment)
 
@@ -64,14 +67,14 @@ func (r *EnvironmentWebhook) ValidateCreate(ctx context.Context, obj runtime.Obj
 
 	// We use the DNS-1123 format for environment names, so ensure it conforms to that specification
 	if len(validation.IsDNS1123Label(app.Name)) != 0 {
-		return fmt.Errorf("invalid environment name: %s, an environment resource name must start with a lower case alphabetical character, be under 63 characters, and can only consist of lower case alphanumeric characters or ‘-’", app.Name)
+		return nil, fmt.Errorf("invalid environment name: %s, an environment resource name must start with a lower case alphabetical character, be under 63 characters, and can only consist of lower case alphanumeric characters or ‘-’", app.Name)
 	}
 
-	return validateEnvironment(app)
+	return nil, validateEnvironment(app)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *EnvironmentWebhook) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) error {
+func (r *EnvironmentWebhook) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
 
 	newApp := newObj.(*appstudiov1alpha1.Environment)
 
@@ -82,12 +85,12 @@ func (r *EnvironmentWebhook) ValidateUpdate(ctx context.Context, oldObj, newObj 
 
 	log.Info("validating the update request")
 
-	return validateEnvironment(newApp)
+	return nil, validateEnvironment(newApp)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *EnvironmentWebhook) ValidateDelete(ctx context.Context, obj runtime.Object) error {
-	return nil
+func (r *EnvironmentWebhook) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+	return nil, nil
 }
 
 // validateEnvironment validates the ingress domain and API URL

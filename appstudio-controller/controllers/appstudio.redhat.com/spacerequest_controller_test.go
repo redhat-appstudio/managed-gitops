@@ -66,7 +66,7 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 				},
 			}
 
-			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testNS).Build()
+			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testNS).WithStatusSubresource(&appstudiosharedv1.DeploymentTarget{}, &codereadytoolchainv1alpha1.SpaceRequest{}).Build()
 
 			reconciler = SpaceRequestReconciler{
 				Client: k8sClient,

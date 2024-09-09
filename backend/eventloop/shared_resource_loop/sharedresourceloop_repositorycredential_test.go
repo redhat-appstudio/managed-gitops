@@ -73,7 +73,7 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 				},
 			}
 
-			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDeploymentRepositoryCredentialCR).Build()
+			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDeploymentRepositoryCredentialCR).WithStatusSubresource(gitopsDeploymentRepositoryCredentialCR).Build()
 
 		})
 
@@ -151,7 +151,7 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 			}
 
 			gitopsDeploymentRepositoryCredentialCR.Status = repoCredStatus
-			Expect(k8sClient.Status().Update(ctx, gitopsDeploymentRepositoryCredentialCR)).To(Succeed())
+			Expect(k8sClient.Update(ctx, gitopsDeploymentRepositoryCredentialCR)).To(Succeed())
 
 			expectedRepoCredStatus := managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialStatus{
 				Conditions: []metav1.Condition{
@@ -220,7 +220,7 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 			}
 
 			gitopsDeploymentRepositoryCredentialCR.Status = expectedRepoCredStatus
-			Expect(k8sClient.Status().Update(ctx, gitopsDeploymentRepositoryCredentialCR)).To(Succeed())
+			Expect(k8sClient.Update(ctx, gitopsDeploymentRepositoryCredentialCR)).To(Succeed())
 
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{

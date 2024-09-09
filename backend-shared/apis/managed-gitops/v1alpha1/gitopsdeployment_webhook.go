@@ -25,6 +25,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 const (
@@ -58,7 +59,7 @@ func (r *GitOpsDeployment) Default() {
 var _ webhook.Validator = &GitOpsDeployment{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *GitOpsDeployment) ValidateCreate() error {
+func (r *GitOpsDeployment) ValidateCreate() (admission.Warnings, error) {
 
 	log := gitopsdeploymentlog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeployment")
 
@@ -66,14 +67,14 @@ func (r *GitOpsDeployment) ValidateCreate() error {
 
 	if err := r.validateGitOpsDeployment(); err != nil {
 		log.Info("webhook rejected invalid create", "error", fmt.Sprintf("%v", err))
-		return err
+		return nil, err
 	}
 
-	return nil
+	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *GitOpsDeployment) ValidateUpdate(old runtime.Object) error {
+func (r *GitOpsDeployment) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 
 	log := gitopsdeploymentlog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeployment")
 
@@ -81,20 +82,20 @@ func (r *GitOpsDeployment) ValidateUpdate(old runtime.Object) error {
 
 	if err := r.validateGitOpsDeployment(); err != nil {
 		log.Info("webhook rejected invalid update", "error", fmt.Sprintf("%v", err))
-		return err
+		return nil, err
 	}
 
-	return nil
+	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *GitOpsDeployment) ValidateDelete() error {
+func (r *GitOpsDeployment) ValidateDelete() (admission.Warnings, error) {
 
 	log := gitopsdeploymentlog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeployment")
 
 	log.V(logutil.LogLevel_Debug).Info("validate delete")
 
-	return nil
+	return nil, nil
 }
 
 func (r *GitOpsDeployment) validateGitOpsDeployment() error {

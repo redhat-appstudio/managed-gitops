@@ -29,7 +29,7 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,7 +41,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // EnvironmentReconciler reconciles a Environment object
@@ -517,8 +516,8 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 					Kind:               env.Kind,
 					Name:               env.Name,
 					UID:                env.UID,
-					BlockOwnerDeletion: pointer.Bool(true),
-					Controller:         pointer.Bool(true),
+					BlockOwnerDeletion: ptr.To(true),
+					Controller:         ptr.To(true),
 				},
 			},
 		},
@@ -629,22 +628,22 @@ func (r *EnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&appstudioshared.Environment{}).
 		Watches(
-			&source.Kind{Type: &corev1.Secret{}},
+			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSecret),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}), // secret doesn't have a generation, so we use RV
 		).
 		Watches(
-			&source.Kind{Type: &appstudioshared.DeploymentTargetClaim{}},
+			&appstudioshared.DeploymentTargetClaim{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForDeploymentTargetClaim),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Watches(
-			&source.Kind{Type: &appstudioshared.DeploymentTarget{}},
+			&appstudioshared.DeploymentTarget{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForDeploymentTarget),
 			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
 		).
 		Watches(
-			&source.Kind{Type: &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{}},
+			&managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForGitOpsDeploymentManagedEnvironment),
 			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
 		).
@@ -653,8 +652,8 @@ func (r *EnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // findObjectsForGitOpsDeploymentManagedEnvironment maps an incoming GitOpsDeploymentManagedEnvironment event to the
 // corresponding Environment request.
-func (r *EnvironmentReconciler) findObjectsForGitOpsDeploymentManagedEnvironment(managedEnv client.Object) []reconcile.Request {
-	ctx := context.Background()
+func (r *EnvironmentReconciler) findObjectsForGitOpsDeploymentManagedEnvironment(ctx context.Context, managedEnv client.Object) []reconcile.Request {
+
 	handlerLog := log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops)
 
@@ -682,8 +681,8 @@ func (r *EnvironmentReconciler) findObjectsForGitOpsDeploymentManagedEnvironment
 }
 
 // findObjectsForDeploymentTargetClaim maps an incoming DTC event to the corresponding Environment request.
-func (r *EnvironmentReconciler) findObjectsForDeploymentTargetClaim(dtc client.Object) []reconcile.Request {
-	ctx := context.Background()
+func (r *EnvironmentReconciler) findObjectsForDeploymentTargetClaim(ctx context.Context, dtc client.Object) []reconcile.Request {
+
 	handlerLog := log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops)
 
@@ -713,8 +712,8 @@ func (r *EnvironmentReconciler) findObjectsForDeploymentTargetClaim(dtc client.O
 
 // findObjectsForDeploymentTarget maps an incoming DT event to the corresponding Environment request.
 // We should reconcile Environments if the DT credentials get updated.
-func (r *EnvironmentReconciler) findObjectsForDeploymentTarget(dt client.Object) []reconcile.Request {
-	ctx := context.Background()
+func (r *EnvironmentReconciler) findObjectsForDeploymentTarget(ctx context.Context, dt client.Object) []reconcile.Request {
+
 	handlerLog := log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops)
 
@@ -768,8 +767,8 @@ func (r *EnvironmentReconciler) findObjectsForDeploymentTarget(dt client.Object)
 // There are two types of secrets that we want to reconcile:
 // 1. Secret created by the SpaceRequest controller
 // 2. Secret created for the managed Environment
-func (r *EnvironmentReconciler) findObjectsForSecret(secret client.Object) []reconcile.Request {
-	ctx := context.Background()
+func (r *EnvironmentReconciler) findObjectsForSecret(ctx context.Context, secret client.Object) []reconcile.Request {
+
 	handlerLog := log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops)
 

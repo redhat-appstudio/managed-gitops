@@ -55,7 +55,7 @@ var _ = Describe("Test Workspace Resource Loop", func() {
 			k8sClient = fake.NewClientBuilder().
 				WithScheme(scheme).
 				WithObjects(apiNamespace, argocdNamespace, kubesystemNamespace).
-				Build()
+				WithStatusSubresource(&managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{}).Build()
 
 			sharedResourceLoop := shared_resource_loop.NewSharedResourceLoopWithCustomFuncs(mockValidRepositoryCredentialsFunction)
 

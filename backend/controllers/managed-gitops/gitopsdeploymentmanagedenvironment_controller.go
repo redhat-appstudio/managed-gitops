@@ -22,7 +22,6 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -107,14 +106,13 @@ func (r *GitOpsDeploymentManagedEnvironmentReconciler) SetupWithManager(mgr ctrl
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{}).
 		Watches(
-			&source.Kind{Type: &corev1.Secret{}},
+			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findSecretsForManagedEnvironment),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{})).
 		Complete(r)
 }
 
-func (r *GitOpsDeploymentManagedEnvironmentReconciler) findSecretsForManagedEnvironment(secret client.Object) []reconcile.Request {
-	ctx := context.Background()
+func (r *GitOpsDeploymentManagedEnvironmentReconciler) findSecretsForManagedEnvironment(ctx context.Context, secret client.Object) []reconcile.Request {
 	handlerLog := log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops)
 

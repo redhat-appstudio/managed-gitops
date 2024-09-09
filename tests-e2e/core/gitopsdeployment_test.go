@@ -1411,7 +1411,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				return err
 			}
 
-			if err := wait.PollImmediate(time.Second*1, time.Minute*10, func() (done bool, err error) {
+			if err := wait.PollUntilContextTimeout(context.Background(), time.Second*1, time.Minute*10, true, func(ctx context.Context) (done bool, err error) {
 
 				if !gitopsDeplFixture.HaveSyncStatusCodeFunc(managedgitopsv1alpha1.SyncStatusCodeSynced, *gitOpsDeploymentResource) {
 					return false, nil
@@ -1447,7 +1447,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			expectedResourceStatusList = append(expectedResourceStatusList,
 				getResourceStatusList_deploymentPermutations("deployment-permutations-b-brancha-pathb")...)
 
-			if err := wait.PollImmediate(time.Second*1, time.Minute*10, func() (done bool, err error) {
+			if err := wait.PollUntilContextTimeout(context.Background(), time.Second*1, time.Minute*10, true, func(ctx context.Context) (done bool, err error) {
 
 				if !gitopsDeplFixture.HaveSyncStatusCodeFunc(managedgitopsv1alpha1.SyncStatusCodeSynced, *gitOpsDeploymentResource) {
 					return false, nil

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/gitopserrors"
 
 	"github.com/golang/mock/gomock"
@@ -16,7 +17,6 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventloop_test_util"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
-	"github.com/redhat-appstudio/managed-gitops/backend/util"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -82,13 +82,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				},
 			}
 
-			informer := sharedutil.ListEventReceiver{}
-
-			k8sClientOuter := fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, gitopsDeplSyncRun, workspace, argocdNamespace, kubesystemNamespace).Build()
-			k8sClient := &sharedutil.ProxyClient{
-				InnerClient: k8sClientOuter,
-				Informer:    &informer,
-			}
+			k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, gitopsDeplSyncRun, workspace, argocdNamespace, kubesystemNamespace).WithStatusSubresource(gitopsDeplSyncRun).Build()
 
 			dbQueries, err := db.NewUnsafePostgresDBQueries(true, false)
 			Expect(err).ToNot(HaveOccurred())
@@ -165,10 +159,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				},
 			}
 
-			k8sClientOuter := fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, gitopsDeplSyncRun, workspace, argocdNamespace, kubesystemNamespace).Build()
-			k8sClient := &sharedutil.ProxyClient{
-				InnerClient: k8sClientOuter,
-			}
+			k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, gitopsDeplSyncRun, workspace, argocdNamespace, kubesystemNamespace).Build()
 
 			dbQueries, err := db.NewUnsafePostgresDBQueries(true, false)
 			Expect(err).ToNot(HaveOccurred())
@@ -263,7 +254,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			k8sClient := fake.
 				NewClientBuilder().
 				WithScheme(scheme).
-				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).
+				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).WithStatusSubresource(gitopsDepl).
 				Build()
 
 			a := applicationEventLoopRunner_Action{
@@ -587,7 +578,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			k8sClient := fake.
 				NewClientBuilder().
 				WithScheme(scheme).
-				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).
+				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).WithStatusSubresource(gitopsDepl).
 				Build()
 
 			// ----------------------------------------------------------------------------
@@ -893,14 +884,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				},
 			}
 
-			k8sClientOuter := fake.
+			k8sClient := fake.
 				NewClientBuilder().
 				WithScheme(scheme).
 				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).
 				Build()
-			k8sClient := &sharedutil.ProxyClient{
-				InnerClient: k8sClientOuter,
-			}
 
 			a := applicationEventLoopRunner_Action{
 				eventResourceName:           gitopsDepl.Name,
@@ -957,14 +945,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				},
 			}
 
-			k8sClientOuter := fake.
+			k8sClient := fake.
 				NewClientBuilder().
 				WithScheme(scheme).
 				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).
 				Build()
-			k8sClient := &sharedutil.ProxyClient{
-				InnerClient: k8sClientOuter,
-			}
 
 			a := applicationEventLoopRunner_Action{
 				eventResourceName:           gitopsDepl.Name,
@@ -1276,8 +1261,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			k8sClient = fake.
 				NewClientBuilder().
 				WithScheme(scheme).
-				WithObjects(namespace, argocdNamespace, kubesystemNamespace).
-				Build()
+				WithObjects(namespace, argocdNamespace, kubesystemNamespace).WithStatusSubresource(&managedgitopsv1alpha1.GitOpsDeploymentSyncRun{}, &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{}, &managedgitopsv1alpha1.GitOpsDeployment{}).Build()
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(false, false)
 			Expect(err).ToNot(HaveOccurred())
@@ -2037,7 +2021,9 @@ type OperationCheck struct {
 	operationEvents []managedgitopsv1alpha1.Operation
 }
 
-func (oc *OperationCheck) ReceiveEvent(event util.ProxyClientEvent) {
+var _ sharedutil.ProxyClientEventReceiver = &OperationCheck{}
+
+func (oc *OperationCheck) ReceiveEvent(event sharedutil.ProxyClientEvent) {
 
 	if event.Obj == nil {
 		return
@@ -2047,6 +2033,9 @@ func (oc *OperationCheck) ReceiveEvent(event util.ProxyClientEvent) {
 	if ok {
 		oc.operationEvents = append(oc.operationEvents, *operation)
 	}
+}
+
+func (oc *OperationCheck) ReceiveSubResourceEvent(event sharedutil.ProxyClientSubResourceEvent) {
 }
 
 var _ = Describe("application_event_runner_deployments.go Tests", func() {

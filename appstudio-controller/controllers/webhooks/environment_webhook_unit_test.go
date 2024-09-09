@@ -223,7 +223,7 @@ func TestEnvironmentCreateValidatingWebhook(t *testing.T) {
 				})),
 			}
 
-			err := envWebhook.ValidateCreate(context.Background(), &test.newEnv)
+			_, err := envWebhook.ValidateCreate(context.Background(), &test.newEnv)
 
 			if test.err == "" {
 				assert.Nil(t, err)
@@ -363,7 +363,7 @@ func TestEnvironmentUpdateValidatingWebhook(t *testing.T) {
 				})),
 			}
 
-			err := envWebhook.ValidateUpdate(context.Background(), &appstudiov1alpha1.Environment{}, &test.newEnv)
+			_, err := envWebhook.ValidateUpdate(context.Background(), &appstudiov1alpha1.Environment{}, &test.newEnv)
 
 			if test.err == "" {
 				assert.Nil(t, err)

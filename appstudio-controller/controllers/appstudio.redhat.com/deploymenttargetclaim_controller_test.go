@@ -49,7 +49,7 @@ var _ = Describe("Test DeploymentTargetClaimController", func() {
 				},
 			}
 
-			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testNS).Build()
+			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testNS).WithStatusSubresource(&appstudiosharedv1.DeploymentTarget{}, &appstudiosharedv1.DeploymentTargetClaim{}).Build()
 
 			reconciler = DeploymentTargetClaimReconciler{
 				Client: k8sClient,
@@ -1107,7 +1107,7 @@ var _ = Describe("Test DeploymentTargetClaimController", func() {
 
 				dt := generateDeploymentTarget()
 
-				reqs := reconciler.findObjectsForDeploymentTarget(&dt)
+				reqs := reconciler.findObjectsForDeploymentTarget(ctx, &dt)
 				Expect(reqs).To(Equal([]reconcile.Request{}))
 			})
 
@@ -1120,7 +1120,7 @@ var _ = Describe("Test DeploymentTargetClaimController", func() {
 					dt.Spec.ClaimRef = dtc.Name
 				})
 
-				reqs := reconciler.findObjectsForDeploymentTarget(&dt)
+				reqs := reconciler.findObjectsForDeploymentTarget(ctx, &dt)
 				Expect(reqs).To(Equal([]reconcile.Request{
 					newRequest(dtc.Namespace, dtc.Name),
 				}))
@@ -1135,7 +1135,7 @@ var _ = Describe("Test DeploymentTargetClaimController", func() {
 				err := k8sClient.Create(ctx, &dtc)
 				Expect(err).ToNot(HaveOccurred())
 
-				reqs := reconciler.findObjectsForDeploymentTarget(&dt)
+				reqs := reconciler.findObjectsForDeploymentTarget(ctx, &dt)
 				Expect(reqs).To(Equal([]reconcile.Request{
 					newRequest(dtc.Namespace, dtc.Name),
 				}))
@@ -1144,14 +1144,14 @@ var _ = Describe("Test DeploymentTargetClaimController", func() {
 			It("shouldn't return any request if no DTC was found while handling the DT event", func() {
 				dt := generateDeploymentTarget()
 
-				reqs := reconciler.findObjectsForDeploymentTarget(&dt)
+				reqs := reconciler.findObjectsForDeploymentTarget(ctx, &dt)
 				Expect(reqs).To(Equal([]reconcile.Request{}))
 			})
 
 			It("shouldn't return any request if an object of different type is passed", func() {
 				dtc := generateDeploymentTargetClaim()
 
-				reqs := reconciler.findObjectsForDeploymentTarget(&dtc)
+				reqs := reconciler.findObjectsForDeploymentTarget(ctx, &dtc)
 				Expect(reqs).To(Equal([]reconcile.Request{}))
 			})
 		})
@@ -1187,7 +1187,7 @@ var _ = Describe("Test DeploymentTargetClaimController", func() {
 				},
 			}
 
-			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testNS).Build()
+			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testNS).WithStatusSubresource(&appstudiosharedv1.DeploymentTarget{}, &appstudiosharedv1.DeploymentTargetClaim{}).Build()
 
 			reconciler = DeploymentTargetClaimReconciler{
 				Client: k8sClient,

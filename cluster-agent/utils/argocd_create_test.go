@@ -318,7 +318,7 @@ var _ = Describe("Test SetupArgoCD()", func() {
 
 func startSecretUpdater(ctx context.Context, k8sClient client.Client) {
 	go func() {
-		err := wait.PollImmediate(time.Second*1, time.Second*120, func() (bool, error) {
+		err := wait.PollUntilContextTimeout(ctx, time.Second*1, time.Second*120, true, func(ctx context.Context) (bool, error) {
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      ArgoCDManagerSecretName,

@@ -8,7 +8,6 @@ import (
 	. "github.com/onsi/gomega"
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
-	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -52,9 +51,7 @@ var _ = Describe("Testing CreateOperation function", func() {
 				WithObjects(workspace, argocdNamespace, kubesystemNamespace).
 				Build()
 
-			k8sClient := &sharedutil.ProxyClient{
-				InnerClient: k8sClientOuter,
-			}
+			k8sClient := k8sClientOuter
 
 			dbq, err = db.NewUnsafePostgresDBQueries(false, true)
 			Expect(err).ToNot(HaveOccurred())

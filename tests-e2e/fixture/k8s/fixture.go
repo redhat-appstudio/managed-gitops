@@ -122,7 +122,7 @@ func Delete(obj client.Object, k8sClient client.Client) error {
 // UntilSuccess will keep trying a K8s operation until it succeeds, or times out.
 func UntilSuccess(k8sClient client.Client, f func(k8sClient client.Client) error) error {
 
-	err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.Background(), time.Second*1, time.Minute*2, true, func(ctx context.Context) (done bool, err error) {
 		funcError := f(k8sClient)
 		return funcError == nil, nil
 	})
@@ -202,7 +202,7 @@ func CreateServiceAccountBearerToken(ctx context.Context, k8sClient client.Clien
 		return "", fmt.Errorf("failed to create a token secret for service account %s: %w", serviceAccountName, err)
 	}
 
-	if err := wait.PollImmediate(time.Second*1, time.Second*120, func() (bool, error) {
+	if err := wait.PollUntilContextTimeout(ctx, time.Second*1, time.Second*120, true, func(ctx context.Context) (bool, error) {
 
 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(tokenSecret), tokenSecret); err != nil {
 			fmt.Println("waiting for ServiceAccountTokenSecret to exist: ", err)

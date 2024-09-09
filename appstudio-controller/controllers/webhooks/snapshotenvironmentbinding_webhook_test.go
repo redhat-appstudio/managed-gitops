@@ -108,7 +108,7 @@ func TestSnapshotEnvironmentBindingValidateCreateWebhook(t *testing.T) {
 				})),
 			}
 
-			err = sebWebhook.ValidateCreate(context.Background(), &test.testData)
+			_, err = sebWebhook.ValidateCreate(context.Background(), &test.testData)
 
 			if test.expectedError == "" {
 				assert.Nil(t, err)
@@ -219,7 +219,7 @@ func TestSnapshotEnvironmentBindingValidateUpdateWebhook(t *testing.T) {
 				})),
 			}
 
-			err := sebWebhook.ValidateUpdate(context.Background(), &originalBinding, &test.testData)
+			_, err := sebWebhook.ValidateUpdate(context.Background(), &originalBinding, &test.testData)
 
 			if test.expectedError == "" {
 				assert.Nil(t, err)

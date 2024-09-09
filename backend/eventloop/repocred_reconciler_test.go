@@ -42,7 +42,7 @@ var _ = Describe("RepoCred Reconcile Function Tests", func() {
 			k8sClient = fake.NewClientBuilder().
 				WithScheme(scheme).
 				WithObjects(apiNamespace, argocdNamespace, kubesystemNamespace).
-				Build()
+				WithStatusSubresource(&managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{}).Build()
 
 			err = db.SetupForTestingDBGinkgo()
 			Expect(err).ToNot(HaveOccurred())
@@ -127,7 +127,7 @@ var _ = Describe("RepoCred Reconcile Function Tests", func() {
 			By("calling the Reconcile function.")
 			reconcileRepositoryCredentials(ctx, dbq, k8sClient, log)
 
-			By("verifing that status is updated for GitopsDeploymentRepositoryCredentialCR.")
+			By("verifying that status is updated for GitopsDeploymentRepositoryCredentialCR.")
 			objectMeta := metav1.ObjectMeta{
 				Name:      apiCRToDatabaseMappingDb.APIResourceName,
 				Namespace: apiCRToDatabaseMappingDb.APIResourceNamespace,

@@ -102,7 +102,7 @@ func getOrCreateServiceAccountBearerToken(ctx context.Context, k8sClient client.
 		return "", fmt.Errorf("failed to create a token secret for service account %s: %w", serviceAccountName, err)
 	}
 
-	if err := wait.PollImmediate(time.Second*1, time.Second*120, func() (bool, error) {
+	if err := wait.PollUntilContextTimeout(ctx, time.Second*1, time.Second*120, true, func(ctx context.Context) (bool, error) {
 
 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(tokenSecret), tokenSecret); err != nil {
 			log.Error(err, "unable to retrieve token secret for service account", "serviceAccountName", serviceAccountName)

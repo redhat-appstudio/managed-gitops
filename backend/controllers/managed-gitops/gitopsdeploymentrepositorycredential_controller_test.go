@@ -81,7 +81,7 @@ var _ = Describe("GitOpsDeploymentRepositoryCredential Controller Test", func() 
 
 					repoCred := createRepositoryCredentialTargetingSecret("testRepoCred", secret, namespace, k8sClient)
 
-					Expect(reconciler.findSecretsForRepositoryCredential(&secret)).To(Equal([]reconcile.Request{{NamespacedName: client.ObjectKeyFromObject(&repoCred)}}))
+					Expect(reconciler.findSecretsForRepositoryCredential(context.Background(), &secret)).To(Equal([]reconcile.Request{{NamespacedName: client.ObjectKeyFromObject(&repoCred)}}))
 				})
 			})
 
@@ -90,7 +90,7 @@ var _ = Describe("GitOpsDeploymentRepositoryCredential Controller Test", func() 
 				It("should return an empty request slice", func() {
 
 					invalidObj := corev1.Namespace{}
-					Expect(reconciler.findSecretsForRepositoryCredential(&invalidObj)).To(BeEmpty())
+					Expect(reconciler.findSecretsForRepositoryCredential(context.Background(), &invalidObj)).To(BeEmpty())
 				})
 			})
 
@@ -105,7 +105,7 @@ var _ = Describe("GitOpsDeploymentRepositoryCredential Controller Test", func() 
 
 					_ = createRepositoryCredentialTargetingSecret("testRepoCred", secret, namespace, k8sClient)
 
-					Expect(reconciler.findSecretsForRepositoryCredential(&secret)).To(BeEmpty())
+					Expect(reconciler.findSecretsForRepositoryCredential(context.Background(), &secret)).To(BeEmpty())
 
 				})
 			})
@@ -129,7 +129,7 @@ var _ = Describe("GitOpsDeploymentRepositoryCredential Controller Test", func() 
 
 					_ = createRepositoryCredentialTargetingSecret("testRepoCred", secret, namespace, k8sClient)
 
-					Expect(reconciler.findSecretsForRepositoryCredential(&secret)).To(BeEmpty())
+					Expect(reconciler.findSecretsForRepositoryCredential(context.Background(), &secret)).To(BeEmpty())
 
 				})
 			})

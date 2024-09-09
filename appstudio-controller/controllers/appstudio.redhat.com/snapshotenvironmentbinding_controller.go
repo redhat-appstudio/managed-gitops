@@ -37,7 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/gitopserrors"
 
@@ -48,7 +48,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
@@ -551,8 +550,8 @@ func generateExpectedGitOpsDeployment(ctx context.Context, component appstudiosh
 					Kind:               binding.Kind,
 					Name:               binding.Name,
 					UID:                binding.UID,
-					BlockOwnerDeletion: pointer.Bool(true),
-					Controller:         pointer.Bool(true),
+					BlockOwnerDeletion: ptr.To(true),
+					Controller:         ptr.To(true),
 				},
 			},
 		},
@@ -672,23 +671,23 @@ func (r *SnapshotEnvironmentBindingReconciler) SetupWithManager(mgr ctrl.Manager
 		For(&appstudioshared.SnapshotEnvironmentBinding{}).
 		Owns(&apibackend.GitOpsDeployment{}).
 		Watches(
-			&source.Kind{Type: &appstudioshared.Environment{}},
+			&appstudioshared.Environment{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForEnvironment),
 			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
 		).
 		Watches(
-			&source.Kind{Type: &appstudioshared.DeploymentTarget{}},
+			&appstudioshared.DeploymentTarget{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForDeploymentTarget),
 			// When/if we start using DT's .status field, switch this ResourceVersionChangedPredicate:
 			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
 		).
 		Watches(
-			&source.Kind{Type: &appstudioshared.DeploymentTargetClaim{}},
+			&appstudioshared.DeploymentTargetClaim{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForDeploymentTargetClaim),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Watches(
-			&source.Kind{Type: &appstudioshared.Application{}},
+			&appstudioshared.Application{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForApplication),
 			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
 		).
@@ -697,8 +696,8 @@ func (r *SnapshotEnvironmentBindingReconciler) SetupWithManager(mgr ctrl.Manager
 
 // findObjectsForDeploymentTarget maps an incoming DT event to the corresponding Environment request.
 // We should reconcile Environments if the DT credentials get updated.
-func (r *SnapshotEnvironmentBindingReconciler) findObjectsForDeploymentTargetClaim(dtc client.Object) []reconcile.Request {
-	ctx := context.Background()
+func (r *SnapshotEnvironmentBindingReconciler) findObjectsForDeploymentTargetClaim(ctx context.Context, dtc client.Object) []reconcile.Request {
+
 	handlerLog := log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops)
 
@@ -746,8 +745,8 @@ func (r *SnapshotEnvironmentBindingReconciler) findObjectsForDeploymentTargetCla
 
 // findObjectsForDeploymentTarget maps an incoming DT event to the corresponding Environment request.
 // We should reconcile Environments if the DT credentials get updated.
-func (r *SnapshotEnvironmentBindingReconciler) findObjectsForDeploymentTarget(dt client.Object) []reconcile.Request {
-	ctx := context.Background()
+func (r *SnapshotEnvironmentBindingReconciler) findObjectsForDeploymentTarget(ctx context.Context, dt client.Object) []reconcile.Request {
+
 	handlerLog := log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops)
 
@@ -816,8 +815,8 @@ func (r *SnapshotEnvironmentBindingReconciler) findObjectsForDeploymentTarget(dt
 }
 
 // findObjectsForManagedEnvironment will reconcile on any ManagedEnvironments that are (indirectly) referenced by SEBs
-func (r *SnapshotEnvironmentBindingReconciler) findObjectsForEnvironment(envParam client.Object) []reconcile.Request {
-	ctx := context.Background()
+func (r *SnapshotEnvironmentBindingReconciler) findObjectsForEnvironment(ctx context.Context, envParam client.Object) []reconcile.Request {
+
 	handlerLog := log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops)
 
@@ -850,8 +849,8 @@ func (r *SnapshotEnvironmentBindingReconciler) findObjectsForEnvironment(envPara
 }
 
 // findObjectsForApplication will reconcile on any Applications that are referenced by SEBs
-func (r *SnapshotEnvironmentBindingReconciler) findObjectsForApplication(appParam client.Object) []reconcile.Request {
-	ctx := context.Background()
+func (r *SnapshotEnvironmentBindingReconciler) findObjectsForApplication(ctx context.Context, appParam client.Object) []reconcile.Request {
+
 	handlerLog := log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops)
 

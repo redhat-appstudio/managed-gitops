@@ -49,7 +49,7 @@ var _ = Describe("PromotionRunController Reconciler Tests", func() {
 			By("Create fake client.")
 			k8sClient := fake.NewClientBuilder().
 				WithScheme(scheme).
-				WithObjects(apiNamespace, argocdNamespace, kubesystemNamespace).
+				WithObjects(apiNamespace, argocdNamespace, kubesystemNamespace).WithStatusSubresource(&appstudiosharedv1.PromotionRun{}).
 				Build()
 
 			By("Create placeholder environment.")

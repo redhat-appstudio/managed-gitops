@@ -29,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
@@ -83,14 +82,13 @@ func (r *GitOpsDeploymentRepositoryCredentialReconciler) SetupWithManager(mgr ct
 		For(&managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{},
 			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
-			&source.Kind{Type: &corev1.Secret{}},
+			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findSecretsForRepositoryCredential),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{})).
 		Complete(r)
 }
 
-func (r *GitOpsDeploymentRepositoryCredentialReconciler) findSecretsForRepositoryCredential(secret client.Object) []reconcile.Request {
-	ctx := context.Background()
+func (r *GitOpsDeploymentRepositoryCredentialReconciler) findSecretsForRepositoryCredential(ctx context.Context, secret client.Object) []reconcile.Request {
 	handlerLog := log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops)
 

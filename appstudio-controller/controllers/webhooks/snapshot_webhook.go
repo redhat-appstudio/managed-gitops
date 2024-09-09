@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // Webhook describes the data structure for the release webhook
@@ -49,7 +50,7 @@ func (w *SnapshotWebhook) Register(mgr ctrl.Manager, log *logr.Logger) error {
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *SnapshotWebhook) ValidateCreate(ctx context.Context, obj runtime.Object) error {
+func (r *SnapshotWebhook) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 
 	app := obj.(*appstudiov1alpha1.Snapshot)
 
@@ -60,11 +61,11 @@ func (r *SnapshotWebhook) ValidateCreate(ctx context.Context, obj runtime.Object
 
 	log.Info("validating the create request")
 
-	return nil
+	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *SnapshotWebhook) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) error {
+func (r *SnapshotWebhook) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
 
 	oldApp := oldObj.(*appstudiov1alpha1.Snapshot)
 	newApp := newObj.(*appstudiov1alpha1.Snapshot)
@@ -77,17 +78,17 @@ func (r *SnapshotWebhook) ValidateUpdate(ctx context.Context, oldObj, newObj run
 	log.Info("validating the update request")
 
 	if !reflect.DeepEqual(newApp.Spec.Application, oldApp.Spec.Application) {
-		return fmt.Errorf("application field cannot be updated to %+v", newApp.Spec.Application)
+		return nil, fmt.Errorf("application field cannot be updated to %+v", newApp.Spec.Application)
 	}
 
 	if !reflect.DeepEqual(newApp.Spec.Components, oldApp.Spec.Components) {
-		return fmt.Errorf("components cannot be updated to %+v", newApp.Spec.Components)
+		return nil, fmt.Errorf("components cannot be updated to %+v", newApp.Spec.Components)
 	}
 
-	return nil
+	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *SnapshotWebhook) ValidateDelete(ctx context.Context, obj runtime.Object) error {
-	return nil
+func (r *SnapshotWebhook) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+	return nil, nil
 }

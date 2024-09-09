@@ -136,11 +136,11 @@ func cleanUpOldArgoCDApplications(namespaceParam string, destNamespace string, c
 	}
 
 	// Delete (and remove finalizers) from any Argo CD Applications in this Namespace
-	if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
+	if err := wait.PollUntilContextTimeout(context.Background(), time.Second*1, time.Minute*2, true, func(ctx context.Context) (done bool, err error) {
 
 		// List all the Argo CD Applications in 'namespaceParam' namespace
 		argoCDApplicationList := appv1alpha1.ApplicationList{}
-		if err = k8sClient.List(context.Background(), &argoCDApplicationList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
+		if err = k8sClient.List(ctx, &argoCDApplicationList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
 			return false, fmt.Errorf("unable to list '%s': %v . Verify that Argo CD is installed on the cluster", namespaceParam, err)
 		}
 
@@ -157,14 +157,14 @@ func cleanUpOldArgoCDApplications(namespaceParam string, destNamespace string, c
 				// Remove any finalizers on the Application, so they can be deleted
 				if len(app.Finalizers) > 0 {
 					app.Finalizers = []string{}
-					if err := k8sClient.Update(context.Background(), &app); err != nil {
+					if err := k8sClient.Update(ctx, &app); err != nil {
 						GinkgoWriter.Println("an error occurred on removing finalizer", err)
 						return false, nil
 					}
 				}
 
 				GinkgoWriter.Println("Deleting Argo CD Application:", app.Name)
-				if err := k8sClient.Delete(context.Background(), &app); err != nil {
+				if err := k8sClient.Delete(ctx, &app); err != nil {
 					if !apierr.IsNotFound(err) {
 						return false, fmt.Errorf("unable to delete '%s': %v", namespaceParam, err)
 					}
@@ -507,9 +507,9 @@ func waitForArgoCDToProcessNamespace(namespaceParam string, argoCDNamespaceParam
 	// - This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
 	//   set up proper roles for it.
 
-	if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
+	if err := wait.PollUntilContextTimeout(context.Background(), time.Second*1, time.Minute*2, true, func(ctx context.Context) (done bool, err error) {
 		var roleBindings *rbacv1.RoleBindingList
-		roleBindings, err = kubeClientSet.RbacV1().RoleBindings(namespaceParam).List(context.Background(), metav1.ListOptions{})
+		roleBindings, err = kubeClientSet.RbacV1().RoleBindings(namespaceParam).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			return false, err
 		}
@@ -534,9 +534,9 @@ func waitForArgoCDToProcessNamespace(namespaceParam string, argoCDNamespaceParam
 		return fmt.Errorf("PollImmediate waiting for Argo CD role in namespace '%s', failed: %v", namespaceParam, err)
 	}
 
-	if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
+	if err := wait.PollUntilContextTimeout(context.Background(), time.Second*1, time.Minute*2, true, func(ctx context.Context) (done bool, err error) {
 		var roles *rbacv1.RoleList
-		roles, err = kubeClientSet.RbacV1().Roles(namespaceParam).List(context.Background(), metav1.ListOptions{})
+		roles, err = kubeClientSet.RbacV1().Roles(namespaceParam).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			return false, err
 		}
@@ -577,7 +577,7 @@ func DeleteNamespace(namespaceParam string, clientConfig *rest.Config) error {
 	//   can be successfully clean.ed
 	// - Next, we issue a request to Delete the namespace
 	// - Finally, we check if it has been deleted.
-	if err := wait.PollImmediate(time.Second*5, time.Minute*6, func() (done bool, err error) {
+	if err := wait.PollUntilContextTimeout(context.Background(), time.Second*5, time.Minute*6, true, func(ctx context.Context) (done bool, err error) {
 
 		// Deletes old HAS Application APIs in this namespace
 		if emptyList, err := cleanUpOldHASApplicationAPIs(namespaceParam, k8sClient); err != nil {
@@ -650,10 +650,10 @@ func DeleteNamespace(namespaceParam string, clientConfig *rest.Config) error {
 		}
 
 		// Remove finalizers from any Argo CD Applications in this Namespace
-		if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
+		if err := wait.PollUntilContextTimeout(ctx, time.Second*1, time.Minute*2, true, func(ctx context.Context) (done bool, err error) {
 
 			argoCDApplicationList := appv1alpha1.ApplicationList{}
-			if err = k8sClient.List(context.Background(), &argoCDApplicationList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
+			if err = k8sClient.List(ctx, &argoCDApplicationList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
 				GinkgoWriter.Println("unable to list Argo CD Applications in '"+namespaceParam+"'", err)
 				return false, nil
 			}
@@ -662,13 +662,13 @@ func DeleteNamespace(namespaceParam string, clientConfig *rest.Config) error {
 
 				app := argoCDApplicationList.Items[idx]
 				if len(app.Finalizers) > 0 {
-					err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&app), &app)
+					err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&app), &app)
 					if err != nil {
 						GinkgoWriter.Println("unable to get Application '"+app.Name+"'", err)
 						return false, nil
 					}
 					app.Finalizers = []string{}
-					err = k8sClient.Update(context.Background(), &app)
+					err = k8sClient.Update(ctx, &app)
 					if err != nil {
 						GinkgoWriter.Println("unable to update Application '"+app.Name+"'", err)
 						return false, nil

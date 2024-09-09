@@ -137,7 +137,7 @@ func TestSnapshotValidatingWebhook(t *testing.T) {
 				})),
 			}
 
-			err := snapshotWebhook.ValidateUpdate(context.Background(), &originalSnapshot, &test.testData)
+			_, err := snapshotWebhook.ValidateUpdate(context.Background(), &originalSnapshot, &test.testData)
 
 			if test.expectedError == "" {
 				assert.Nil(t, err)

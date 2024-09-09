@@ -19,6 +19,7 @@ package managedgitops
 import (
 	"context"
 	"fmt"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
@@ -103,7 +104,7 @@ var _ = Describe("GitOpsDeploymentManagedEnvironment Controller Test", func() {
 
 					managedEnv := createManagedEnvTargetingSecret("testManagedEnv", secret, *namespace, k8sClient)
 
-					Expect(reconciler.findSecretsForManagedEnvironment(&secret)).To(Equal([]reconcile.Request{{NamespacedName: client.ObjectKeyFromObject(&managedEnv)}}))
+					Expect(reconciler.findSecretsForManagedEnvironment(context.Background(), &secret)).To(Equal([]reconcile.Request{{NamespacedName: client.ObjectKeyFromObject(&managedEnv)}}))
 				})
 			})
 
@@ -119,7 +120,7 @@ var _ = Describe("GitOpsDeploymentManagedEnvironment Controller Test", func() {
 
 					// Now pass the managedEnv (anything other than a secret) and there should be no managed environments returned
 					By("check that a non-secret is passed and the code handles it properly")
-					Expect(reconciler.findSecretsForManagedEnvironment(&managedEnv)).To(BeEmpty())
+					Expect(reconciler.findSecretsForManagedEnvironment(context.Background(), &managedEnv)).To(BeEmpty())
 				})
 			})
 
@@ -133,7 +134,7 @@ var _ = Describe("GitOpsDeploymentManagedEnvironment Controller Test", func() {
 
 					createManagedEnvTargetingSecret("testManagedEnv", secret, *namespace, k8sClient)
 
-					Expect(reconciler.findSecretsForManagedEnvironment(&secret)).To(BeEmpty())
+					Expect(reconciler.findSecretsForManagedEnvironment(context.Background(), &secret)).To(BeEmpty())
 				})
 			})
 
@@ -149,7 +150,7 @@ var _ = Describe("GitOpsDeploymentManagedEnvironment Controller Test", func() {
 						Expect(managedEnvCR).ToNot(BeNil())
 					}
 
-					Expect(reconciler.findSecretsForManagedEnvironment(&secret)).To(HaveLen(5))
+					Expect(reconciler.findSecretsForManagedEnvironment(context.Background(), &secret)).To(HaveLen(5))
 
 					expectedArray := []reconcile.Request{
 						{
@@ -183,7 +184,7 @@ var _ = Describe("GitOpsDeploymentManagedEnvironment Controller Test", func() {
 							},
 						},
 					}
-					Expect(reconciler.findSecretsForManagedEnvironment(&secret)).To(ContainElements(expectedArray))
+					Expect(reconciler.findSecretsForManagedEnvironment(context.Background(), &secret)).To(ContainElements(expectedArray))
 				})
 			})
 		})

@@ -123,7 +123,7 @@ func TestPromotionRunValidatingWebhook(t *testing.T) {
 				})),
 			}
 
-			err := promotionRunWebhook.ValidateUpdate(context.Background(), &originalPromotionRun, &test.testData)
+			_, err := promotionRunWebhook.ValidateUpdate(context.Background(), &originalPromotionRun, &test.testData)
 
 			if test.expectedError == "" {
 				assert.Nil(t, err)

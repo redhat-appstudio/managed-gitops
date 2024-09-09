@@ -884,10 +884,7 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 				},
 			}
 
-			k8sClientOuter := fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).Build()
-			k8sClient := &sharedutil.ProxyClient{
-				InnerClient: k8sClientOuter,
-			}
+			k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).Build()
 
 			workspaceID := string(workspace.UID)
 
@@ -941,9 +938,11 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 		It("should not create a new GitOpsDeployment if the Namespace of the GitOpsDeployment is being deleted", func() {
 
 			By("simulating the start of deletion of the Namespace of the existing GitOpsDeployment")
-			workspace.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+			// workspace.DeletionTimestamp = &metav1.Time{Time: time.Now()}
 			workspace.Finalizers = []string{"my-finalizer"}
 			err := k8sClient.Update(ctx, workspace)
+			Expect(err).ToNot(HaveOccurred())
+			err = k8sClient.Delete(ctx, workspace)
 			Expect(err).ToNot(HaveOccurred())
 
 			appEventLoopRunnerAction = applicationEventLoopRunner_Action{

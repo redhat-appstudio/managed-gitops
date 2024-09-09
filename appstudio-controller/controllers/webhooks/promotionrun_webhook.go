@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // Webhook describes the data structure for the release webhook
@@ -49,7 +50,7 @@ func (w *PromotionRunWebhook) Register(mgr ctrl.Manager, log *logr.Logger) error
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *PromotionRunWebhook) ValidateCreate(ctx context.Context, obj runtime.Object) error {
+func (r *PromotionRunWebhook) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 
 	app := obj.(*appstudiov1alpha1.PromotionRun)
 
@@ -60,11 +61,11 @@ func (r *PromotionRunWebhook) ValidateCreate(ctx context.Context, obj runtime.Ob
 
 	log.Info("validating the create request")
 
-	return nil
+	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *PromotionRunWebhook) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) error {
+func (r *PromotionRunWebhook) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
 
 	oldApp := oldObj.(*appstudiov1alpha1.PromotionRun)
 	newApp := newObj.(*appstudiov1alpha1.PromotionRun)
@@ -77,13 +78,13 @@ func (r *PromotionRunWebhook) ValidateUpdate(ctx context.Context, oldObj, newObj
 	log.Info("validating the update request")
 
 	if !reflect.DeepEqual(newApp.Spec, oldApp.Spec) {
-		return fmt.Errorf("spec cannot be updated to %+v", newApp.Spec)
+		return nil, fmt.Errorf("spec cannot be updated to %+v", newApp.Spec)
 	}
 
-	return nil
+	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *PromotionRunWebhook) ValidateDelete(ctx context.Context, obj runtime.Object) error {
-	return nil
+func (r *PromotionRunWebhook) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+	return nil, nil
 }

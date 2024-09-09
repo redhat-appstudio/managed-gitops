@@ -64,7 +64,7 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 
 			k8sClient = fake.NewClientBuilder().
 				WithScheme(scheme).
-				WithObjects(namespace, argocdNamespace, kubesystemNamespace).
+				WithObjects(namespace, argocdNamespace, kubesystemNamespace).WithStatusSubresource(&managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{}).
 				Build()
 
 			mockFactory = MockSRLK8sClientFactory{

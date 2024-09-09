@@ -69,7 +69,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			k8sClientOuter := fake.NewClientBuilder().
 				WithScheme(scheme).
-				WithObjects(gitopsDepl, namespace, argocdNamespace, kubesystemNamespace).
+				WithObjects(gitopsDepl, namespace, argocdNamespace, kubesystemNamespace).WithStatusSubresource(&managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{}).
 				Build()
 
 			k8sClient = &sharedutil.ProxyClient{

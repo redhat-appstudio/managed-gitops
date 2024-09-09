@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // Webhook describes the data structure for the release webhook
@@ -53,7 +54,7 @@ func (w *SnapshotEnvironmentBindingWebhook) Register(mgr ctrl.Manager, log *logr
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *SnapshotEnvironmentBindingWebhook) ValidateCreate(ctx context.Context, obj runtime.Object) error {
+func (r *SnapshotEnvironmentBindingWebhook) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 
 	app := obj.(*appstudiov1alpha1.SnapshotEnvironmentBinding)
 
@@ -65,14 +66,14 @@ func (r *SnapshotEnvironmentBindingWebhook) ValidateCreate(ctx context.Context, 
 	log.Info("validating the create request")
 
 	if err := validateSEB(app); err != nil {
-		return fmt.Errorf("invalid SnapshotEnvironmentBinding: %v", err)
+		return nil, fmt.Errorf("invalid SnapshotEnvironmentBinding: %v", err)
 	}
 
-	return nil
+	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *SnapshotEnvironmentBindingWebhook) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) error {
+func (r *SnapshotEnvironmentBindingWebhook) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
 
 	oldApp := oldObj.(*appstudiov1alpha1.SnapshotEnvironmentBinding)
 	newApp := newObj.(*appstudiov1alpha1.SnapshotEnvironmentBinding)
@@ -85,19 +86,19 @@ func (r *SnapshotEnvironmentBindingWebhook) ValidateUpdate(ctx context.Context, 
 	log.Info("validating the update request")
 
 	if !reflect.DeepEqual(oldApp.Spec.Application, newApp.Spec.Application) {
-		return fmt.Errorf("application field cannot be updated to %+v", newApp.Spec.Application)
+		return nil, fmt.Errorf("application field cannot be updated to %+v", newApp.Spec.Application)
 	}
 
 	if !reflect.DeepEqual(oldApp.Spec.Environment, newApp.Spec.Environment) {
-		return fmt.Errorf("environment field cannot be updated to %+v", newApp.Spec.Environment)
+		return nil, fmt.Errorf("environment field cannot be updated to %+v", newApp.Spec.Environment)
 	}
 
-	return nil
+	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *SnapshotEnvironmentBindingWebhook) ValidateDelete(ctx context.Context, obj runtime.Object) error {
-	return nil
+func (r *SnapshotEnvironmentBindingWebhook) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+	return nil, nil
 }
 
 func validateSEB(newBinding *appstudiov1alpha1.SnapshotEnvironmentBinding) error {

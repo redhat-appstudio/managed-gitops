@@ -123,6 +123,8 @@ var _ = Describe("Terminate Operation on Argo CD Application", func() {
 						mockAppServiceClient.On("TerminateOperation", mock.Anything, &applicationpkg.OperationTerminateRequest{Name: &application.Name}).Return(nil, nil)
 
 						go func() {
+							defer GinkgoRecover()
+
 							time.Sleep(time.Second * 2)
 							application.Status.OperationState.Phase = testCase.finalPhase
 
@@ -181,6 +183,7 @@ var _ = Describe("Terminate Operation on Argo CD Application", func() {
 				&applicationpkg.OperationTerminateRequest{Name: &application.Name}).Return(nil, nil)
 
 			go func() {
+				defer GinkgoRecover()
 				time.Sleep(time.Second * 2)
 				err := k8sClient.Delete(context.Background(), application)
 				Expect(err).ToNot(HaveOccurred())
@@ -222,7 +225,7 @@ func generateFakeK8sClient(initObjs ...client.Object) (client.WithWatch, error) 
 		return nil, err
 	}
 
-	k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+	k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithStatusSubresource(&appv1.Application{}).Build()
 
 	return k8sClient, nil
 

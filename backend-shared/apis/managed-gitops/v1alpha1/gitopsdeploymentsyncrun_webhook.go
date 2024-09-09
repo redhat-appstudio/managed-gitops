@@ -25,6 +25,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 const (
@@ -60,7 +61,7 @@ func (r *GitOpsDeploymentSyncRun) Default() {
 var _ webhook.Validator = &GitOpsDeploymentSyncRun{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *GitOpsDeploymentSyncRun) ValidateCreate() error {
+func (r *GitOpsDeploymentSyncRun) ValidateCreate() (admission.Warnings, error) {
 
 	log := gitopsdeploymentsyncrunlog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeploymentSyncRun")
 
@@ -69,28 +70,28 @@ func (r *GitOpsDeploymentSyncRun) ValidateCreate() error {
 	if r.Name == invalid_name {
 		err := errors.New(error_invalid_name)
 		log.Info("webhook rejected invalid create", "error", fmt.Sprintf("%v", err))
-		return err
+		return nil, err
 	}
 
-	return nil
+	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *GitOpsDeploymentSyncRun) ValidateUpdate(old runtime.Object) error {
+func (r *GitOpsDeploymentSyncRun) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 
 	log := gitopsdeploymentsyncrunlog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeploymentSyncRun")
 
 	log.V(logutil.LogLevel_Debug).Info("validate update")
 
-	return nil
+	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *GitOpsDeploymentSyncRun) ValidateDelete() error {
+func (r *GitOpsDeploymentSyncRun) ValidateDelete() (admission.Warnings, error) {
 
 	log := gitopsdeploymentsyncrunlog.WithValues(logutil.Log_K8s_Request_Name, r.Name, logutil.Log_K8s_Request_Namespace, r.Namespace, "kind", "GitOpsDeploymentSyncRun")
 
 	log.V(logutil.LogLevel_Debug).Info("validate delete")
 
-	return nil
+	return nil, nil
 }

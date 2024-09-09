@@ -10,6 +10,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -26,6 +27,60 @@ type ProxyClient struct {
 	Informer    ProxyClientEventReceiver
 }
 
+// GroupVersionKindFor implements client.Client.
+func (pc *ProxyClient) GroupVersionKindFor(obj runtime.Object) (schema.GroupVersionKind, error) {
+	return pc.InnerClient.GroupVersionKindFor(obj)
+}
+
+// IsObjectNamespaced implements client.Client.
+func (pc *ProxyClient) IsObjectNamespaced(obj runtime.Object) (bool, error) {
+	return pc.InnerClient.IsObjectNamespaced(obj)
+}
+
+// SubResource implements client.Client.
+func (pc *ProxyClient) SubResource(subResource string) client.SubResourceClient {
+	panic("unimplemented")
+}
+
+var (
+	_ client.SubResourceClient = ProxySubResourceClient{}
+)
+
+type ProxySubResourceClient struct {
+}
+
+// Create implements client.SubResourceClient.
+func (p ProxySubResourceClient) Create(ctx context.Context, obj client.Object, subResource client.Object, opts ...client.SubResourceCreateOption) error {
+	panic("unimplemented")
+}
+
+// Get implements client.SubResourceClient.
+func (p ProxySubResourceClient) Get(ctx context.Context, obj client.Object, subResource client.Object, opts ...client.SubResourceGetOption) error {
+	panic("unimplemented")
+}
+
+// Patch implements client.SubResourceClient.
+func (p ProxySubResourceClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error {
+	panic("unimplemented")
+}
+
+// Update implements client.SubResourceClient.
+func (p ProxySubResourceClient) Update(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
+	panic("unimplemented")
+}
+
+type ProxyClientSubResourceEvent struct {
+	Action   ClientAction
+	Ctx      context.Context
+	Key      *client.ObjectKey
+	Obj      *client.Object
+	Patch    *client.Patch
+	List     *client.ObjectList
+	Options  *ProxyClientSubResourceEventOptions
+	ErrorRes error
+	ExitTime time.Time
+}
+
 type ProxyClientEvent struct {
 	Action   ClientAction
 	Ctx      context.Context
@@ -36,6 +91,15 @@ type ProxyClientEvent struct {
 	Options  *ProxyClientEventOptions
 	ErrorRes error
 	ExitTime time.Time
+}
+type ProxyClientSubResourceEventOptions struct {
+	List        []client.ListOption
+	Create      []client.CreateOption
+	Delete      []client.DeleteOption
+	Update      []client.SubResourceUpdateOption
+	Patch       []client.SubResourcePatchOption
+	DeleteAllOf []client.DeleteAllOfOption
+	Get         []client.GetOption
 }
 
 type ProxyClientEventOptions struct {
@@ -221,7 +285,7 @@ func (pc *ProxyClient) DeleteAllOf(ctx context.Context, obj client.Object, opts 
 }
 
 // StatusWriter knows how to update status subresource of a Kubernetes object.
-func (pc *ProxyClient) Status() client.StatusWriter {
+func (pc *ProxyClient) Status() client.SubResourceWriter {
 
 	wrapper := ProxyClientStatusWrapper{
 		innerWriter: pc.InnerClient.Status(),
@@ -246,31 +310,41 @@ func (pc *ProxyClient) RESTMapper() meta.RESTMapper {
 
 type ProxyClientEventReceiver interface {
 	ReceiveEvent(event ProxyClientEvent)
+	ReceiveSubResourceEvent(event ProxyClientSubResourceEvent)
 }
+
+var (
+	_ client.SubResourceWriter = ProxyClientStatusWrapper{}
+)
 
 type ProxyClientStatusWrapper struct {
 	innerWriter client.StatusWriter
 	parent      *ProxyClient
 }
 
+// Create implements client.SubResourceWriter.
+func (pcsw ProxyClientStatusWrapper) Create(ctx context.Context, obj client.Object, subResource client.Object, opts ...client.SubResourceCreateOption) error {
+	panic("unimplemented")
+}
+
 // Update updates the fields corresponding to the status subresource for the
 // given obj. obj must be a struct pointer so that obj can be updated
 // with the content returned by the Server.
-func (pcsw *ProxyClientStatusWrapper) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+func (pcsw ProxyClientStatusWrapper) Update(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
 
 	res := (pcsw.innerWriter).Update(ctx, obj, opts...)
 
 	if pcsw.parent.Informer != nil {
-		event := ProxyClientEvent{
+		event := ProxyClientSubResourceEvent{
 			Action: StatusUpdate,
 			Ctx:    ctx,
 			Obj:    &obj,
-			Options: &ProxyClientEventOptions{
+			Options: &ProxyClientSubResourceEventOptions{
 				Update: opts,
 			},
 			ErrorRes: res,
 		}
-		pcsw.parent.Informer.ReceiveEvent(event)
+		pcsw.parent.Informer.ReceiveSubResourceEvent(event)
 	}
 
 	return res
@@ -280,22 +354,22 @@ func (pcsw *ProxyClientStatusWrapper) Update(ctx context.Context, obj client.Obj
 // Patch patches the given object's subresource. obj must be a struct
 // pointer so that obj can be updated with the content returned by the
 // Server.
-func (pcsw *ProxyClientStatusWrapper) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+func (pcsw ProxyClientStatusWrapper) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error {
 
 	res := (pcsw.innerWriter).Patch(ctx, obj, patch, opts...)
 
 	if pcsw.parent.Informer != nil {
-		event := ProxyClientEvent{
+		event := ProxyClientSubResourceEvent{
 			Action: StatusPatch,
 			Ctx:    ctx,
 			Obj:    &obj,
 			Patch:  &patch,
-			Options: &ProxyClientEventOptions{
+			Options: &ProxyClientSubResourceEventOptions{
 				Patch: opts,
 			},
 			ErrorRes: res,
 		}
-		pcsw.parent.Informer.ReceiveEvent(event)
+		pcsw.parent.Informer.ReceiveSubResourceEvent(event)
 	}
 
 	return res
@@ -339,9 +413,17 @@ func (event ProxyClientEvent) ObjectTypeOf() string {
 	return res
 }
 
+var _ ProxyClientEventReceiver = &ListEventReceiver{}
+
 // ListEventReceiver is a simple event receiver implementation that logs all events to a slice.
 type ListEventReceiver struct {
-	Events []ProxyClientEvent
+	Events            []ProxyClientEvent
+	SubResourceEvents []ProxyClientSubResourceEvent
+}
+
+// ReceiveSubResourceEvent implements ProxyClientEventReceiver.
+func (li *ListEventReceiver) ReceiveSubResourceEvent(event ProxyClientSubResourceEvent) {
+	li.SubResourceEvents = append(li.SubResourceEvents, event)
 }
 
 func (li *ListEventReceiver) ReceiveEvent(event ProxyClientEvent) {

@@ -398,7 +398,7 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 				},
 			}
 
-			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(syncRunCR).Build()
+			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(syncRunCR).WithStatusSubresource(syncRunCR).Build()
 
 			conditionType = managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred
 		})

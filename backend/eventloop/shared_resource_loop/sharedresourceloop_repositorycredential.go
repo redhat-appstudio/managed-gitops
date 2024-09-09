@@ -480,7 +480,7 @@ func UpdateGitopsDeploymentRepositoryCredentialStatus(ctx context.Context, repos
 		repositoryCredential.Status.SetConditions(newConditions)
 		// Update the GitOpsDeploymentRepositoryCredential CR
 		if err := k8sClient.Status().Update(ctx, repositoryCredential); err != nil {
-			log.Error(err, "updating repository credential CR's status condition")
+			log.Error(err, "updating repository credential CR's status condition", "ns", repositoryCredential.Namespace, "name", repositoryCredential.Name)
 			return false, fmt.Errorf("updating repository credential CR's status condition: %w", err)
 		}
 	}

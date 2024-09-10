@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/gitopserrors"
 
 	"github.com/golang/mock/gomock"
@@ -2053,7 +2052,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 
 		operationCheck := &OperationCheck{}
 
-		k8sClient := &util.ProxyClient{
+		k8sClient := &sharedutil.ProxyClient{
 			Informer: operationCheck,
 		}
 

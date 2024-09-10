@@ -18,12 +18,8 @@ package v1alpha1
 
 import (
 	"context"
-	"crypto/tls"
-	"fmt"
-	"net"
 	"path/filepath"
 	"testing"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -38,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
@@ -103,8 +100,11 @@ var _ = BeforeSuite(func() {
 	webhookServer := webhook.NewServer(webhookServerOptions)
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:         scheme,
-		WebhookServer:  webhookServer,
+		Scheme:        scheme,
+		WebhookServer: webhookServer,
+		Metrics: server.Options{
+			BindAddress: "0",
+		},
 		LeaderElection: false,
 	})
 	Expect(err).NotTo(HaveOccurred())
@@ -129,17 +129,18 @@ var _ = BeforeSuite(func() {
 		Expect(err).NotTo(HaveOccurred())
 	}()
 
-	// wait for the webhook server to get ready
-	dialer := &net.Dialer{Timeout: time.Second}
-	addrPort := fmt.Sprintf("%s:%d", webhookInstallOptions.LocalServingHost, webhookInstallOptions.LocalServingPort)
-	Eventually(func() error {
-		conn, err := tls.DialWithDialer(dialer, "tcp", addrPort, &tls.Config{InsecureSkipVerify: true})
-		if err != nil {
-			return err
-		}
-		conn.Close()
-		return nil
-	}).Should(Succeed())
+	// TODO: Re-enable webhook server
+	// // wait for the webhook server to get ready
+	// dialer := &net.Dialer{Timeout: time.Second}
+	// addrPort := fmt.Sprintf("%s:%d", webhookInstallOptions.LocalServingHost, webhookInstallOptions.LocalServingPort)
+	// Eventually(func() error {
+	// 	conn, err := tls.DialWithDialer(dialer, "tcp", addrPort, &tls.Config{InsecureSkipVerify: true})
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	conn.Close()
+	// 	return nil
+	// }).Should(Succeed())
 
 })
 

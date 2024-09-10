@@ -45,6 +45,9 @@ var _ = Describe("GitOpsDeploymentRepositoryCredential validation webhook", func
 	Context("Create GitOpsDeploymentRepositoryCredential CR with invalid Repository URL", func() {
 		It("Should fail with error saying repository must begin with ssh:// or https://", func() {
 
+			// TODO: Re-enable webhook tests
+			Skip("webhook ports are conflicting")
+
 			err := k8sClient.Create(ctx, namespace)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -59,6 +62,8 @@ var _ = Describe("GitOpsDeploymentRepositoryCredential validation webhook", func
 
 	Context("Update GitOpsDeploymentRepositoryCredential CR with invalid Repository API URL", func() {
 		It("Should fail with error saying repository must begin with ssh:// or https://", func() {
+
+			Skip("webhook ports are conflicting")
 
 			repoCredentialCr.Spec.Repository = "https://test-private-url"
 

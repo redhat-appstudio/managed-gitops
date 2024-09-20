@@ -2,8 +2,6 @@ package core
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -14,7 +12,6 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
-	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -183,7 +180,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			By("creating the GitOpsDeploymentManagedEnvironment and Secret")
 
-			_, apiServerURL, err := extractKubeConfigValues()
+			_, apiServerURL, err := fixture.ExtractKubeConfigValues()
 			Expect(err).ToNot(HaveOccurred())
 
 			kubeConfigContents := k8s.GenerateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, tokenSecret)
@@ -319,7 +316,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			By("creating the GitOpsDeploymentManagedEnvironment")
 
-			_, apiServerURL, err := extractKubeConfigValues()
+			_, apiServerURL, err := fixture.ExtractKubeConfigValues()
 			Expect(err).ToNot(HaveOccurred())
 
 			// Set the tokenSecret to be "" to intentionally fail
@@ -407,7 +404,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			By("creating the GitOpsDeploymentManagedEnvironment")
 
-			_, apiServerURL, err := extractKubeConfigValues()
+			_, apiServerURL, err := fixture.ExtractKubeConfigValues()
 			Expect(err).ToNot(HaveOccurred())
 
 			kubeConfigContents := k8s.GenerateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, tokenSecret)
@@ -524,7 +521,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			By("creating the GitOpsDeploymentManagedEnvironment and its Secret, using that service account token")
 
-			_, apiServerURL, err := extractKubeConfigValues()
+			_, apiServerURL, err := fixture.ExtractKubeConfigValues()
 			Expect(err).ToNot(HaveOccurred())
 
 			kubeConfigContents := k8s.GenerateKubeConfig(apiServerURL, newNamespace.Name, tokenSecret)
@@ -981,61 +978,3 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 	})
 })
-
-// extractKubeConfigValues returns contents of k8s config from $KUBE_CONFIG, plus server api url (and error)
-func extractKubeConfigValues() (string, string, error) {
-
-	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-
-	config, err := loadingRules.Load()
-	if err != nil {
-		return "", "", err
-	}
-
-	context, ok := config.Contexts[config.CurrentContext]
-	if !ok || context == nil {
-		return "", "", fmt.Errorf("no context")
-	}
-
-	cluster, ok := config.Clusters[context.Cluster]
-	if !ok || cluster == nil {
-		return "", "", fmt.Errorf("no cluster")
-	}
-
-	var kubeConfigDefault string
-
-	paths := loadingRules.Precedence
-	{
-
-		for _, path := range paths {
-
-			GinkgoWriter.Println("Attempting to read kube config from", path)
-
-			// homeDir, err := os.UserHomeDir()
-			// if err != nil {
-			// 	return "", "", err
-			// }
-
-			_, err = os.Stat(path)
-			if err != nil {
-				GinkgoWriter.Println("Unable to resolve path", path, err)
-			} else {
-				// Success
-				kubeConfigDefault = path
-				break
-			}
-
-		}
-
-		if kubeConfigDefault == "" {
-			return "", "", fmt.Errorf("unable to retrieve kube config path")
-		}
-	}
-
-	kubeConfigContents, err := os.ReadFile(kubeConfigDefault)
-	if err != nil {
-		return "", "", err
-	}
-
-	return string(kubeConfigContents), cluster.Server, nil
-}

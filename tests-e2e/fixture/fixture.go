@@ -24,6 +24,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apiexts "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -60,7 +61,7 @@ const (
 	// EnableNamespaceBackedArgoCD: When enabled, this will ensure that certain tests/fixtures add the managed-by label to Namespace. This allows the gitops-service-argocd instance to manage them.
 	//
 	// When Argo CD is running in cluster-scoped mode (i.e. due to concerns with performance issues when Argo CD is running in namespace-scoped mode), this field should be set to false.
-	EnableNamespaceBackedArgoCD = true
+	EnableNamespaceBackedArgoCD = false
 )
 
 // EnsureCleanSlateNonKCPVirtualWorkspace should be called before every E2E tests:
@@ -459,6 +460,49 @@ func removeAllFinalizers(k8sClient client.Client, obj client.Object) error {
 	return nil
 }
 
+func isArgoCDClusterScoped(argoCDNamespaceParam string, clientConfig *rest.Config) (bool, error) {
+
+	k8sClient, err := GetKubeClient(clientConfig)
+	if err != nil {
+		return false, err
+	}
+
+	saList := &corev1.ServiceAccountList{}
+
+	if err := k8sClient.List(context.Background(), saList, &client.ListOptions{Namespace: argoCDNamespaceParam}); err != nil {
+		return false, err
+	}
+
+	crbList := &rbacv1.ClusterRoleBindingList{}
+	if err := k8sClient.List(context.Background(), crbList); err != nil {
+		return false, err
+	}
+
+	// For each ClusterRoleBinding
+	for _, crbItem := range crbList.Items {
+
+		// For each Subject of the Binding
+		for _, subject := range crbItem.Subjects {
+
+			// Return true if there exists a subject pointing to one of the ServiceAccounts
+			// in the Argo CD namepace.
+			if subject.Namespace == argoCDNamespaceParam {
+
+				for _, sa := range saList.Items {
+
+					if sa.Name == subject.Name {
+						return true, nil
+					}
+				}
+
+			}
+		}
+	}
+
+	return false, nil
+
+}
+
 func EnsureDestinationNamespaceExists(namespaceParam string, argoCDNamespaceParam string, clientConfig *rest.Config) error {
 
 	kubeClientSet, err := kubernetes.NewForConfig(clientConfig)
@@ -490,7 +534,7 @@ func EnsureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 	// We used to wait here, prior to moving to Cluster Scoped Argo CD
 	// eg. Call: waitForArgoCDToProcessNamespace(namespaceParam, argoCDNamespaceParam, kubeClientSet)
 	if EnableNamespaceBackedArgoCD {
-		if err := waitForArgoCDToProcessNamespace(namespaceParam, argoCDNamespaceParam, kubeClientSet); err != nil {
+		if err := waitForArgoCDToProcessNamespace(namespaceParam, argoCDNamespaceParam, kubeClientSet, clientConfig); err != nil {
 			return fmt.Errorf("unable to wait for Argo CD to process namespace: %w", err)
 		}
 	}
@@ -501,7 +545,11 @@ func EnsureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 // Wait for Argo CD to process the namespace, before we exit:
 //   - This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
 //     set up proper roles for it.
-func waitForArgoCDToProcessNamespace(namespaceParam string, argoCDNamespaceParam string, kubeClientSet *kubernetes.Clientset) error {
+func waitForArgoCDToProcessNamespace(namespaceParam string, argoCDNamespaceParam string, kubeClientSet *kubernetes.Clientset, clientConfig *rest.Config) error {
+
+	if isClusterScoped, err := isArgoCDClusterScoped(argoCDNamespaceParam, clientConfig); isClusterScoped || err != nil {
+		return err
+	}
 
 	// Wait for Argo CD to process the namespace, before we exit:
 	// - This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
@@ -822,6 +870,10 @@ func GetKubeClient(config *rest.Config) (client.Client, error) {
 		return nil, err
 	}
 
+	if err := apiexts.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
+
 	err = codereadytoolchainv1alpha1.AddToScheme(scheme)
 	if err != nil {
 		return nil, err
@@ -953,5 +1005,52 @@ func ExtractKubeConfigValues() (string, string, error) {
 		return "", "", err
 	}
 
-	return string(kubeConfigContents), cluster.Server, nil
+	serverValRes := cluster.Server
+	kubeConfigContentsRes := string(kubeConfigContents)
+
+	// Allow overriding of the API Server URL via env var, to allow testing in quirky network configurations
+	overrideAPIServiceAddrSrc := strings.TrimSpace(os.Getenv("OVERRIDE_APISERVER_ADDR_SOURCE"))
+	if len(overrideAPIServiceAddrSrc) > 0 {
+		overrideAPIServiceAddrDest := strings.TrimSpace(os.Getenv("OVERRIDE_APISERVER_ADDR_DEST"))
+
+		serverValRes = strings.ReplaceAll(serverValRes, overrideAPIServiceAddrSrc, overrideAPIServiceAddrDest)
+		kubeConfigContentsRes = strings.ReplaceAll(kubeConfigContentsRes, overrideAPIServiceAddrSrc, overrideAPIServiceAddrDest)
+	}
+
+	return kubeConfigContentsRes, serverValRes, nil
+}
+
+// SkipIfArgoCDOperandRequired will cause a test to be skipped if the ArgoCD
+// CustomResourceDefinition is not installed (because OpenShift GitOps Operator is not installed.)
+func SkipIfArgoCDOperandRequired() {
+
+	available := IsArgoCDOperandAvailable()
+
+	if !available {
+		Skip("Skipping as ArgoCD CustomResourceDefinition is not installed, which is required for test.")
+	}
+
+}
+
+func IsArgoCDOperandAvailable() bool {
+
+	k8sConfig, err := GetServiceProviderWorkspaceKubeConfig()
+	Expect(err).To(BeNil())
+
+	k8sClient, err := GetKubeClient(k8sConfig)
+	Expect(err).To(BeNil())
+
+	crdList := &apiexts.CustomResourceDefinitionList{}
+	err = k8sClient.List(context.Background(), crdList)
+	Expect(err).To(BeNil())
+
+	argoCDCRFound := false
+	for _, crd := range crdList.Items {
+		if crd.Spec.Names.Kind == "ArgoCD" {
+			argoCDCRFound = true
+		}
+	}
+
+	return argoCDCRFound
+
 }

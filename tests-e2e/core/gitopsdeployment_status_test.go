@@ -47,18 +47,6 @@ var _ = Describe("GitOpsDeployment Status Tests", func() {
 						},
 					},
 					{
-						Group:     "route.openshift.io",
-						Version:   "v1",
-						Kind:      "Route",
-						Namespace: fixture.GitOpsServiceE2ENamespace,
-						Name:      name,
-						Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
-						Health: &managedgitopsv1alpha1.HealthStatus{
-							Status:  managedgitopsv1alpha1.HeathStatusCodeHealthy,
-							Message: "Route is healthy",
-						},
-					},
-					{
 						Group:     "",
 						Version:   "v1",
 						Kind:      "Service",

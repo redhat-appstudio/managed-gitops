@@ -1,0 +1,72 @@
+name: Build and test the operator
+on:
+  push:
+    branches:
+      - 'main'
+
+  pull_request:
+    branches:
+      - 'main'
+
+jobs:
+
+  test-e2e:
+    name: Run end-to-end tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        k3s-version: [ v1.27.1 ]
+    steps:
+      - name: Install k3d
+        run: |
+          set -x
+          curl -s https://raw.githubusercontent.com/rancher/k3d/main/install.sh | bash
+          sudo mkdir -p $HOME/.kube && sudo chown -R runner $HOME/.kube
+          k3d cluster create --servers 3 --image rancher/k3s:${{ matrix.k3s-version }}-k3s1
+          kubectl version
+          k3d version
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Golang
+        uses: actions/setup-go@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: tests-e2e/go.mod
+
+      - name: GH actions workaround - Kill XSP4 process
+        run: |
+          sudo pkill mono || true
+
+      - name: Restore go build cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/go-build
+          key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
+
+      - name: Add /usr/local/bin to PATH
+        run: |
+          echo "/usr/local/bin" >> $GITHUB_PATH
+
+      - name: Download Go dependencies
+        run: |
+          go mod download
+
+      - name: Run the tests
+        run: |
+          set -o pipefail
+          make setup-e2e-local-k8s
+
+          kubectl port-forward svc/argocd-server -n gitops-service-argocd 51212:443 &
+
+          ARGO_CD_SERVER_ADDR=127.0.0.1:51212 make start-e2e &
+
+          OVERRIDE_APISERVER_ADDR_SOURCE="0.0.0.0" OVERRIDE_APISERVER_ADDR_DEST="192.168.8.152"  make test-e2e     
+
+          make e2e-reset
+          pkill go
+          pkill main
+

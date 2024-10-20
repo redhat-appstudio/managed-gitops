@@ -372,14 +372,14 @@ func newSharedResourceManagedEnvContainer() SharedResourceManagedEnvContainer {
 // resources that were created by the reconciliation.
 type SharedResourceManagedEnvContainer struct {
 	ClusterUser          *db.ClusterUser
-	IsNewUser            bool
 	ManagedEnv           *db.ManagedEnvironment
-	IsNewManagedEnv      bool
 	GitopsEngineInstance *db.GitopsEngineInstance
-	IsNewInstance        bool
 	ClusterAccess        *db.ClusterAccess
-	IsNewClusterAccess   bool
 	GitopsEngineCluster  *db.GitopsEngineCluster
+	IsNewUser            bool
+	IsNewManagedEnv      bool
+	IsNewInstance        bool
+	IsNewClusterAccess   bool
 }
 
 type sharedResourceLoopMessage_getOrCreateClusterUserByNamespaceUIDRequest struct {

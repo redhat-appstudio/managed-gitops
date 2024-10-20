@@ -27,7 +27,7 @@ RUN make build
 # GitOps Service image
 # Provides both the 'gitops-service-backend' and 'gitops-service-cluster-agent' components
 ################################################################################################
-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.10-1052.1724178568 as gitops-service
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.10-1086 as gitops-service
 
 # Install the 'shadow-utils' which contains `adduser` and `groupadd` binaries
 RUN microdnf install shadow-utils \

@@ -10,7 +10,7 @@ require (
 	github.com/argoproj/gitops-engine v0.7.1-0.20240905010810-bd7681ae3f8b
 	github.com/coreos/go-oidc/v3 v3.11.0
 	github.com/go-logr/logr v1.4.2
-	github.com/golang-jwt/jwt/v4 v4.5.0
+	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.4
 	github.com/onsi/ginkgo/v2 v2.19.0

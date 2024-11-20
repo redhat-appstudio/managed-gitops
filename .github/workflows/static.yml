@@ -260,7 +260,7 @@ jobs:
           cd $GITHUB_WORKSPACE/appstudio-controller
           make test
       - name: "Send coverage results to codecov.io"
-        uses: codecov/codecov-action@v4.6.0
+        uses: codecov/codecov-action@v5.0.5
 
   manifests:
     name: "Ensure that manifests are up-to-date"

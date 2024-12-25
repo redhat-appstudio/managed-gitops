@@ -65,6 +65,3 @@ docker run --rm -it --network="host" -v $HOME/managed-gitops/parca.yaml:/parca.y
 
 4. Select a profile from the dropdown menu to visualize the icicle graph.
 
-### Reference
-
-1. [Profiling HAS](https://docs.google.com/document/d/1LqLeDEhYXDK07lz_p582c1LRVwxwFCdqFLk1fh33Dn8/edit#heading=h.852ozrf8sxek)

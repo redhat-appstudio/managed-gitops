@@ -2,6 +2,7 @@
 
 ### Written by
 - Jonathan West (@jgwest)
+- Originally written from Sept 30, 2021 to Nov 19, 2021, with additional updates throughout 2022 and 2023
 
 # Definitions
 

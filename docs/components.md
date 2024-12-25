@@ -47,4 +47,4 @@ Plus, within each of the components there is a `Makefile`, which can be used for
 [psql.sh]: https://github.com/redhat-appstudio/managed-gitops/blob/main/psql.sh
 [Operation CRD]: https://github.com/redhat-appstudio/managed-gitops/blob/main/backend-shared/config/crd/bases/managed-gitops.redhat.com_operations.yaml
 [routes]: https://github.com/redhat-appstudio/managed-gitops/tree/main/backend/routes
-[Design]: https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.s0hdo22ap5cp
+[Design]: ./designs/gitops-service-internal-architecture-appstudio

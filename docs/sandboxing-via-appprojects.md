@@ -84,7 +84,7 @@ spec:
 
 # Argo CD’s default Repository Credential behaviour is not a good fit for multitenancy, and AppProject doesn’t fix that
 
-The way that Argo CD handles repository credentials does not fit well with multitenancy. This is covered [in this document](https://docs.google.com/document/d/1aYUFlOvGB0R5142PTg5Y4BQwp_1kugj-zveziErRwJY/edit#heading=h.5mbvxcu19jxr).
+The way that Argo CD handles repository credentials does not fit well with multitenancy. This is covered [in this document](./designs/gitops-service-internal-architecture-appstudio).
 
 In short, if one Argo CD Application has the credentials to read from a private Git repository, then ANY Argo CD Application can read from that Git repository (and will use those credentials).
 

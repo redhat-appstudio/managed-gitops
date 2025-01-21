@@ -15,7 +15,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
     - name: Setup Go
-      uses: actions/setup-go@v5.2.0
+      uses: actions/setup-go@v5.3.0
       with:
         go-version-file: './backend/go.mod'
     - name: Run script file

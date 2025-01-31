@@ -31,9 +31,6 @@ jobs:
 
       - name: Setup Golang
         uses: actions/setup-go@v5
-
-      - name: Set up Go
-        uses: actions/setup-go@v3
         with:
           go-version-file: tests-e2e/go.mod
 
@@ -50,10 +47,6 @@ jobs:
       - name: Add /usr/local/bin to PATH
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
-
-      - name: Download Go dependencies
-        run: |
-          go mod download
 
       - name: Run the tests
         run: |

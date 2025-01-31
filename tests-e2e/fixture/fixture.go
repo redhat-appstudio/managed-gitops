@@ -1017,6 +1017,8 @@ func ExtractKubeConfigValues() (string, string, error) {
 		kubeConfigContentsRes = strings.ReplaceAll(kubeConfigContentsRes, overrideAPIServiceAddrSrc, overrideAPIServiceAddrDest)
 	}
 
+	fmt.Println("JGW", kubeConfigContentsRes)
+
 	return kubeConfigContentsRes, serverValRes, nil
 }
 

@@ -19,8 +19,8 @@ jobs:
         k3s-version: [ v1.27.1 ]
     steps:
       - name: Public IP
-          id: ip
-          uses: haythem/public-ip@v1.3
+        id: ip
+        uses: haythem/public-ip@v1.3
 
       # - name: See IP Addresses
       #   run: |

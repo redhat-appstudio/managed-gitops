@@ -51,6 +51,8 @@ jobs:
       - name: Run the tests
         run: |
           set -o pipefail
+          make download-deps
+
           make setup-e2e-local-k8s
 
           kubectl port-forward svc/argocd-server -n gitops-service-argocd 51212:443 &

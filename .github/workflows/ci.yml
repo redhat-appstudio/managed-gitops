@@ -10,6 +10,7 @@ on:
 
 jobs:
 
+
   test-e2e:
     name: Run end-to-end tests
     runs-on: ubuntu-latest
@@ -17,6 +18,15 @@ jobs:
       matrix:
         k3s-version: [ v1.27.1 ]
     steps:
+      - name: Public IP
+          id: ip
+          uses: haythem/public-ip@v1.3
+
+      # - name: See IP Addresses
+      #   run: |
+      #     echo ${{ steps.ip.outputs.ipv4 }}
+      #     echo ${{ steps.ip.outputs.ipv6 }}
+
       - name: Install k3d
         run: |
           set -x
@@ -59,7 +69,7 @@ jobs:
 
           ARGO_CD_SERVER_ADDR=127.0.0.1:51212 make start-e2e &
 
-          OVERRIDE_APISERVER_ADDR_SOURCE="0.0.0.0" OVERRIDE_APISERVER_ADDR_DEST="192.168.8.152"  make test-e2e     
+          OVERRIDE_APISERVER_ADDR_SOURCE="0.0.0.0" OVERRIDE_APISERVER_ADDR_DEST="${{ steps.ip.outputs.ipv4 }}"  make test-e2e     
 
           make e2e-reset
           pkill go

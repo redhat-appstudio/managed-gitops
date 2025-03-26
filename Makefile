@@ -141,7 +141,8 @@ install-argocd-openshift: kustomize ## Using OpenShift GitOps, install Argo CD t
 	PATH=$(MAKEFILE_ROOT)/bin:$(PATH) $(MAKEFILE_ROOT)/manifests/scripts/openshift-argo-deploy/deploy.sh
 
 install-argocd-k8s: ## (Non-OpenShift): Install Argo CD to the gitops-service-argocd namespace
-	ARGO_CD_VERSION=$(ARGO_CD_VERSION) manifests/scripts/k8s-argo-deploy/deploy.sh
+	ARGO_CD_VERSION=$(ARGO_CD_VERSION) ./argocd.sh install
+	# manifests/scripts/k8s-argo-deploy/deploy.sh
 
 uninstall-argocd: ## Uninstall Argo CD from gitops-service-argocd namespace (from either OpenShift or K8s)
 	kubectl delete namespace "$(ARGO_CD_NAMESPACE)" || true
@@ -196,6 +197,8 @@ docker-push: ## Push docker image - note: you have to change the USERNAME var. O
 test: test-backend test-backend-shared test-cluster-agent test-appstudio-controller test-init-container-binary ## Run tests for all components
 
 setup-e2e-openshift: install-argocd-openshift devenv-k8s-e2e ## Setup steps for E2E tests to run with Openshift CI
+
+setup-e2e-local-k8s: install-argocd-k8s devenv-docker reset-db ## Setup steps for E2E tests to run with Local Openshift Cluster
 
 setup-e2e-local: install-argocd-openshift devenv-docker reset-db ## Setup steps for E2E tests to run with Local Openshift Cluster
 

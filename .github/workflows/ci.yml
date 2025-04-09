@@ -69,7 +69,7 @@ jobs:
 
           ARGO_CD_SERVER_ADDR=127.0.0.1:51212 make start-e2e &
 
-          OVERRIDE_APISERVER_ADDR_SOURCE="0.0.0.0" OVERRIDE_APISERVER_ADDR_DEST="kubernetes.default.svc"  make test-e2e     
+          GITHUB_K3D=true OVERRIDE_APISERVER_ADDR_SOURCE="0.0.0.0" OVERRIDE_APISERVER_ADDR_DEST="kubernetes.default.svc"  make test-e2e     
 
           make e2e-reset
           pkill go

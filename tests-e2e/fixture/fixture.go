@@ -930,6 +930,10 @@ func GetE2ETestUserWorkspaceKubeClient() (client.Client, error) {
 	return k8sClient, nil
 }
 
+func IsGitHubK3D() bool {
+	return strings.TrimSpace(strings.ToLower(os.Getenv("GITHUB_K3D"))) == "true"
+}
+
 // IsRunningInStonesoupEnvironment returns true if the tests are running in a Stonesoup environment, false otherwise
 func IsRunningInStonesoupEnvironment() bool {
 	// Stonesoup environment is bootstrapped by an AppOfApps Gitops Deployment.

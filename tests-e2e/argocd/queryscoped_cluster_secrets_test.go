@@ -138,6 +138,11 @@ var _ = Describe("Argo CD Application tests", func() {
 
 			func(clusterScoped bool) {
 
+				if fixture.IsGitHubK3D() {
+					Skip("when running on GitHub CI via K3d, we don't have an API endpoint IP we can use, so skip")
+					return
+				}
+
 				createServiceAccountsAndSecretsForTest(clusterScoped)
 
 				for _, userName := range users {

@@ -1041,14 +1041,14 @@ func SkipIfArgoCDOperandRequired() {
 func IsArgoCDOperandAvailable() bool {
 
 	k8sConfig, err := GetServiceProviderWorkspaceKubeConfig()
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	k8sClient, err := GetKubeClient(k8sConfig)
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	crdList := &apiexts.CustomResourceDefinitionList{}
 	err = k8sClient.List(context.Background(), crdList)
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	argoCDCRFound := false
 	for _, crd := range crdList.Items {

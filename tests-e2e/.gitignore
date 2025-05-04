@@ -3,5 +3,5 @@ cover.out
 vendor
 bin
 coverage.out
-
+ginkgo.report
 

@@ -22,6 +22,7 @@ import (
 )
 
 var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
+
 	Context("Create, update and delete GitOpsDeploymentSyncRun", func() {
 
 		var (
@@ -65,10 +66,14 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 		})
 
 		AfterEach(func() {
-			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(argocdCR), argocdCR)
-			Expect(err == nil || apierr.IsNotFound(err)).To(BeTrue())
 
-			removeCustomHealthCheckForDeployment(ctx, k8sClient, argocdCR)
+			if fixture.IsArgoCDOperandAvailable() {
+				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(argocdCR), argocdCR)
+				Expect(err == nil || apierr.IsNotFound(err)).To(BeTrue())
+
+				removeCustomHealthCheckForDeployment(ctx, k8sClient, argocdCR)
+			}
+
 		})
 
 		It("creating a new GitOpsDeploymentSyncRun should sync an Argo CD Application", func() {
@@ -197,6 +202,8 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 		})
 
 		It("deleting the GitOpsDeploymentSyncRun should terminate a running Sync operation", func() {
+			fixture.SkipIfArgoCDOperandRequired()
+
 			gitOpsDeploymentResource = gitopsDeplFixture.BuildGitOpsDeploymentResource("test-deply-with-presync",
 				"https://github.com/managed-gitops-test-data/deployment-presync-hook", "guestbook",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual)
@@ -313,6 +320,8 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 		})
 
 		It("should sync if the previous sync operation is terminated", func() {
+
+			fixture.SkipIfArgoCDOperandRequired()
 
 			gitOpsDeploymentResource = gitopsDeplFixture.BuildGitOpsDeploymentResource("test-deply-with-presync",
 				"https://github.com/managed-gitops-test-data/deployment-presync-hook", "guestbook",

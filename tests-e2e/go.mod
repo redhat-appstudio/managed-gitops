@@ -33,7 +33,7 @@ require (
 	github.com/bombsimon/logrusr/v2 v2.0.1 // indirect
 	github.com/bradleyfalzon/ghinstallation/v2 v2.6.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
-	github.com/cloudflare/circl v1.3.7 // indirect
+	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/coreos/go-oidc/v3 v3.11.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect

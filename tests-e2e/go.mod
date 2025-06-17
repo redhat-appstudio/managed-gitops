@@ -7,7 +7,7 @@ toolchain go1.22.5
 require (
 	github.com/argoproj-labs/argocd-operator v0.12.0
 	github.com/argoproj/argo-cd/v2 v2.12.3
-	github.com/argoproj/gitops-engine v0.7.1-0.20240905010810-bd7681ae3f8b
+	github.com/argoproj/gitops-engine v0.7.1
 	github.com/codeready-toolchain/api v0.0.0-20230417183849-f62ccbf3bd40
 	github.com/codeready-toolchain/toolchain-common v0.0.0-20230417235430-8258a3281250
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible

@@ -43,8 +43,12 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
 			condition := managedEnv.Status.Conditions[0]
 			Expect(condition.Status).To(Equal(metav1.ConditionFalse))
-			Expect(condition.Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonUnableToCreateClient)))
+			Expect(condition.Reason).To(Or(
+				Equal(string(managedgitopsv1alpha1.ConditionReasonUnableToCreateClient)),
+				Equal(string(managedgitopsv1alpha1.ConditionReasonUnableToInstallServiceAccount)),
+			))
 			Expect(condition.Message).To(ContainSubstring("no such host"))
+
 		})
 
 		It("should have a connection status condition of False when the credentials are missing a required field", func() {

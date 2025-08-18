@@ -138,6 +138,11 @@ var _ = Describe("Argo CD Application tests", func() {
 
 			func(clusterScoped bool) {
 
+				if fixture.IsGitHubK3D() {
+					Skip("when running on GitHub CI via K3d, we don't have an API endpoint IP we can use, so skip")
+					return
+				}
+
 				createServiceAccountsAndSecretsForTest(clusterScoped)
 
 				for _, userName := range users {
@@ -202,6 +207,11 @@ var _ = Describe("Argo CD Application tests", func() {
 		)
 
 		DescribeTable("ensure users cannot deploy to another user's namespace, when using different Argo CD cluster secrets for each user, each with a query parameter", func(clusterScoped bool) {
+
+			if fixture.IsGitHubK3D() {
+				Skip("when running on GitHub CI via K3d, we don't have an API endpoint IP we can use, so skip")
+				return
+			}
 
 			createServiceAccountsAndSecretsForTest(clusterScoped)
 

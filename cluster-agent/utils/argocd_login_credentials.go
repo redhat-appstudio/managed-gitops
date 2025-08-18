@@ -4,16 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/go-logr/logr"
 	"github.com/golang/protobuf/ptypes/empty"
 	routev1 "github.com/openshift/api/route/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
@@ -221,9 +222,14 @@ func (cs *CredentialService) getCredentialsFromNamespace(req credentialRequest, 
 		return nil, nil, errors.New("no Argo CD admin passwords found in " + req.namespaceName)
 	}
 
+	var serverHostName string
+
 	// Retrieve the Argo CD host name from the Route
-	serverHostName := ""
-	{
+
+	argoCDServerAddrEnvVar := strings.TrimSpace(os.Getenv("ARGO_CD_SERVER_ADDR"))
+	if len(argoCDServerAddrEnvVar) > 0 {
+		serverHostName = argoCDServerAddrEnvVar
+	} else {
 
 		routeList := &routev1.RouteList{}
 
@@ -249,6 +255,7 @@ func (cs *CredentialService) getCredentialsFromNamespace(req credentialRequest, 
 
 		}
 	}
+
 	if serverHostName == "" {
 		return nil, nil, errors.New("Unable to locate Route in " + req.namespaceName)
 	}
